@@ -1,31 +1,30 @@
-function [D, id_nnz, A, E, R, H] = format_data(data, df, info)
+function [obs_values, nonzero_obs_idx, azimuth_deg, elevation_deg, range_m, beam_height_m] = format_data(obs_vector, elevation_kernels, info)
+%FORMAT_DATA Extract nonzero observations and optional geometry metadata.
+%   [OBS_VALUES, NONZERO_OBS_IDX] = FORMAT_DATA(OBS_VECTOR) returns the
+%   nonzero entries from one sparse observation vector. Additional outputs
+%   require ELEVATION_KERNELS and INFO.
 
-    % retrieve id of non-zeros
-    id_nnz = find(data(:,1));
+% Retrieve the nonzero observation indices and values.
+nonzero_obs_idx = find(obs_vector(:,1));
+obs_values = full(obs_vector(nonzero_obs_idx,1));
+
+if nargout > 2
     
-    % keep only non-zeros
-    D = full(data(id_nnz,1));
-
-    if nargout>2
-    
-        % find the index of the data in the dimension of radar, df, range and
-        % azimuth for the non-zeron data
-        [id_range, id_az, id_r, id_df] = ind2sub(info.sz_rd, id_nnz);
+    % Find the polar coordinates of the nonzero observations.
+    [id_range, id_az, ~, id_kernel] = ind2sub(info.obs_grid_size, nonzero_obs_idx);
         
-        df_range = cellfun(@(x) x.range, df,'UniformOutput',false);
-        tmp = df_range(id_df);
-        R = cellfun(@(x,y) x(y),tmp, num2cell(id_range));
-        
-        df_az = cellfun(@(x) x.az, df,'UniformOutput',false);
-        tmp = df_az(id_df);
-        A = cellfun(@(x,y) x(y), tmp, num2cell(id_az));
-        
-        df_e = cellfun(@(x) x.elev, df);
-        E = df_e(id_df);
-
+    range_m = nan(size(id_range));
+    azimuth_deg = nan(size(id_range));
+    for i_f = unique(id_kernel)'
+        range_m(id_kernel == i_f) = elevation_kernels{i_f}.range(id_range(id_kernel == i_f));
+        azimuth_deg(id_kernel == i_f) = elevation_kernels{i_f}.az(id_az(id_kernel == i_f));
     end
 
-    if nargout>5
-        [ ~, H ] = slant2ground( R(:), E(:) );
-    end
+    kernel_elevation_deg = cellfun(@(x) x.elev, elevation_kernels);
+    elevation_deg = kernel_elevation_deg(id_kernel);
+end
+
+if nargout > 5
+    [~, beam_height_m] = slant2ground(range_m(:), elevation_deg(:));
+end
 end

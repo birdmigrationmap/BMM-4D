@@ -18,7 +18,7 @@ function [reg_corner,rho,eta,reg_param] = l_curve_wo_fig(U,sm,b,method,L,V)
 %
 % Note that 'Tikh', 'tsvd' and 'dsvd' require either U and s (standard-
 % form regularization) computed by the function csvd, or U and sm (general-
-% form regularization) computed by the function cgsvd, while 'mtvsd'
+% form regularization) computed by the function cgsvd, while 'mtsvd'
 % requires U and s as well as L and V computed by the function csvd.
 %
 % If any output arguments are specified, then the corner of the L-curve
@@ -34,7 +34,8 @@ function [reg_corner,rho,eta,reg_param] = l_curve_wo_fig(U,sm,b,method,L,V)
 % Set defaults.
 if (nargin==3), method='Tikh'; end  % Tikhonov reg. is default.
 npoints = 200;  % Number of points on the L-curve for Tikh and dsvd.
-smin_ratio = 16*eps;  % Smallest regularization parameter.
+smin_ratio = 1e-12;  % Smallest regularization parameter (less restrictive than 16*eps).
+smin_factor = 1e-6;  % Factor relative to smallest singular value
 
 % Initialization.
 [m,n] = size(U); [p,ps] = size(sm);
@@ -51,7 +52,7 @@ xi( isinf(xi) ) = 0;
 if (strncmp(method,'Tikh',4) | strncmp(method,'tikh',4))
 
   eta = zeros(npoints,1); rho = eta; reg_param = eta; s2 = s.^2;
-  reg_param(npoints) = max([s(p),s(1)*smin_ratio]);
+  reg_param(npoints) = max([s(p)*smin_factor,s(1)*smin_ratio]);
   ratio = (s(1)/reg_param(npoints))^(1/(npoints-1));
   for i=npoints-1:-1:1, reg_param(i) = ratio*reg_param(i+1); end
   for i=1:npoints
@@ -85,7 +86,7 @@ elseif (strncmp(method,'tsvd',4) || strncmp(method,'tgsv',4))
 elseif (strncmp(method,'dsvd',4) || strncmp(method,'dgsv',4))
 
   eta = zeros(npoints,1); rho = eta; reg_param = eta;
-  reg_param(npoints) = max([s(p),s(1)*smin_ratio]);
+  reg_param(npoints) = max([s(p)*smin_factor,s(1)*smin_ratio]);
   ratio = (s(1)/reg_param(npoints))^(1/(npoints-1));
   for i=npoints-1:-1:1, reg_param(i) = ratio*reg_param(i+1); end
   for i=1:npoints
@@ -97,7 +98,7 @@ elseif (strncmp(method,'dsvd',4) || strncmp(method,'dgsv',4))
   % marker = ':';
   % if (ps==1), txt = 'DSVD'; else txt = 'DGSVD'; end
 
-elseif (strncmp(method,'mtsv',4))
+elseif (strncmp(method,'mtsvd',4))
 
   if (nargin~=6)
     error('The matrices L and V must also be specified')
@@ -126,17 +127,22 @@ end
 
 % Locate the "corner" of the L-curve, if required.
 if (locate)
-  [reg_corner,~,~] = l_corner(rho,eta,reg_param,U,sm,b,method);
+  [reg_corner,rho_c,eta_c] = l_corner(rho,eta,reg_param,U,sm,b,method);
 end
 
-% Make plot.
-% plot_lc(rho,eta,marker,ps,reg_param);
-% if locate
-%   ax = axis;
-%   HoldState = ishold; hold on;
-%   loglog([min(rho)/100,rho_c],[eta_c,eta_c],':r',...
-%          [rho_c,rho_c],[min(eta)/100,eta_c],':r')
-%   title(['L-curve, ',txt,' corner at ',num2str(reg_corner)]);
-%   axis(ax)
-%   if (~HoldState), hold off; end
-% end
+if false
+    % Make plot.
+    figure
+    marker = '-'; txt = 'Tikh.';
+    plot_lc(rho,eta,marker,ps,reg_param);
+    if locate
+        [reg_corner,rho_c,eta_c] = l_corner(rho,eta,reg_param,U,sm,b,method);
+      ax = axis;
+      HoldState = ishold; hold on;
+      loglog([min(rho)/100,rho_c],[eta_c,eta_c],':r',...
+             [rho_c,rho_c],[min(eta)/100,eta_c],':r')
+      title(['L-curve, ',txt,' corner at ',num2str(reg_corner)]);
+      axis(ax)
+      if (~HoldState), hold off; end
+    end
+end

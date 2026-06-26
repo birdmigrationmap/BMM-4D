@@ -1,5 +1,27 @@
-
 .DS_Store
-data/**
-old/**
+.Rhistory
+.RData
+.Rproj.user/
+.codex_tmp/
 *.asv
+*.m~
+*.mlx.autosave
+
+# Generated data and archived material
+data/**
+**/data/**
+old/**
+archive/**
+
+# MATLAB outputs
+*.fig
+*.mat
+
+# Local diagnostics and rendered exports
+**/diagnostics/
+manuscript/*
+export/*
+0*
+1*
+tmp/*
+functions/regtools/*

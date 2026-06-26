@@ -1,119 +1,243 @@
-function rd = read_rd(scans_filepath, varargin)
-% read_rd() read and proccess the scans from an array of string scans_filepath
+
+function [radar_scans, shape_fit] = read_rd(scans_filepath, varargin)
+%READ_RD Read and process weather radar scan files.
+%   [RADAR_SCANS, SHAPE_FIT] = READ_RD(SCANS_FILEPATH, ...) reads and
+%   processes the radar scan files specified in SCANS_FILEPATH (cell array
+%   of strings or string array). Returns a cell array RADAR_SCANS with
+%   processed radar data and SHAPE_FIT with shape correction models (if
+%   enabled).
+%
+%   Optional name-value pair arguments:
+%     'removeRain'    - Method to remove rain ('rho', 'mistnet', 'none'). Default: 'rho'.
+%     'rainRhoThreshold' - rhoHV threshold for rain removal when removeRain='rho'. Default: 0.95.
+%     'removeOutliers' - MAD value for outlier removal in reflectivity units. Default: 3.
+%     'thr_dens'      - Max bird density (bird/km^3) accepted. Default: 1e9.
+%     'shape'         - Apply shape correction (true/false). Default: true.
+%     'smoothing'     - Smoothing window (meters) for bird density. Default: 2000.
+%     'limitElev'     - Max elevation scan to consider (degrees). Default: 5.
+%     'minRange'      - Minimum range from radar (meters). Default: 5000.
+%     'maxRange'      - Maximum range from radar (meters). Default: Inf.
+%     'maxAlt'        - Maximum altitude to consider (meters). Default: 3000.
+%     'data_res'      - Data resolution [range, azimuth*range] in meters. Default: [2000 2000].
+%     'waitbar'       - Show waitbar (true/false). Default: true.
+%     'plot'          - Plot options (cell array of strings). Default: "".
+%     'exportDir'     - Output folder for exported figures. Default: "export/read_rd".
+%
+%   Example:
+%     [radar_scans, shape_fit] = read_rd({'scan1.mat','scan2.mat'}, 'removeRain', 'rho', 'plot', {'rain','export'}, 'exportDir', fullfile("03_simulator_fit", "figures", "read_rd"));
 
 p = inputParser;
-addParameter(p,'removeRain','rho'); % method to remove rain 'rh'
-addParameter(p,'removeOuliars',3); % MAD value which considered outlier
-addParameter(p,'shape',true); % 
-addParameter(p,'smoothing',true); % perform a smoothing on the density
-addParameter(p,'limitElev', 5); % max elevation scan to consider in degree
-addParameter(p,'minRange', 5000); % minimium range to consider from the radar in m
-addParameter(p,'maxAlt', 3000); % max altitude to consider in meter
-addParameter(p,'data_res', 2); % resolution of the data to keep as a coefficient of the original resolution. 
+addParameter(p,'removeRain','rho'); % Method to remove rain ('rho', 'mistnet', 'none')
+addParameter(p,'rainRhoThreshold', 0.95); % rhoHV threshold for rain removal
+addParameter(p,'removeOutliers', 3); % MAD value for outlier removal in reflectivity units
+addParameter(p,'thr_dens', 1e9); % Max density (bird/km^3) accepted
+addParameter(p,'shape', true); % Apply shape correction
+addParameter(p,'smoothing', 2000); % Smoothing window (meters)
+addParameter(p,'limitElev', 5); % Max elevation scan to consider (degrees)
+addParameter(p,'minRange', 5000); % Minimum range from radar (meters)
+addParameter(p,'maxRange', Inf); % Maximum range from radar (meters)
+addParameter(p,'maxAlt', 3000); % Maximum altitude to consider (meters)
+addParameter(p,'data_res', [2000 2000]); % Data resolution [range, azimuth*range] in meters
+addParameter(p,'waitbar', false); % Show waitbar
+addParameter(p,'plot', ""); % Plot options
+addParameter(p,'exportDir', fullfile("export", "read_rd")); % Output folder for exported figures
 
 parse(p,varargin{:});
 parms = p.Results;
+plot_opts = string(parms.plot);
+export_dir = parms.exportDir;
+if ismember("export", plot_opts) && ~exist(export_dir, "dir")
+    mkdir(export_dir);
+end
 
-rd = cell(size(scans_filepath));
+radar_scans = cell(size(scans_filepath));
+shape_fit = cell(size(scans_filepath));
 
-q = parallel.pool.DataQueue;
-afterEach(q,@UpdateWaitbar);
-i_s_wb = 0;
-N = numel(scans_filepath);
-wb = waitbar(0,"Clean and load weather radar data: "+ num2str(0) + "/"+num2str(N));
+persistent bb
+bb = load("data/reference/beam_blockage/beam_blockage");
 
-% check that all file exist
+if parms.waitbar
+    q = parallel.pool.DataQueue;
+    afterEach(q,@UpdateWaitbar);
+    i_s_wb = 0;
+    N = numel(scans_filepath);
+    wb = waitbar(0,"Clean and load weather radar data: "+ num2str(0) + "/"+num2str(N));
+end
+
+% Check that all files exist
 for i_s = 1:numel(scans_filepath)
     if(~exist(scans_filepath(i_s),'file'))
-        error("scans_filepath does not exist")
+        error("scans_filepath does not exist: %s", scans_filepath(i_s))
     end
 end
 
-parfor i_s = 1:numel(scans_filepath)
-    rdt = rsl2mat_wrap(scans_filepath(i_s), struct('max_elev', parms.limitElev));
+% parfor i_s = 1:numel(scans_filepath)
+for i_s = 1:numel(scans_filepath)
+    % Extract filename for figures
+    [~, filename] = fileparts(scans_filepath(i_s));
 
-    % get unique sweeps
-    rdt.dz.sweeps = unique_elev_sweeps(rdt, 'dz');
-    rdt.rh.sweeps = unique_elev_sweeps(rdt, 'rh');
+    radar_scan = rsl2mat_wrap(scans_filepath(i_s), struct('max_elev', parms.limitElev));
 
-    % limit elevation angle
-    rdt.dz.sweeps = rdt.dz.sweeps([rdt.dz.sweeps.elev]< parms.limitElev);
-    rdt.rh.sweeps = rdt.rh.sweeps([rdt.rh.sweeps.elev]< parms.limitElev);
+    bbr_f = griddedInterpolant({bb.bb_range, bb.bb_az}, bb.bb(:,:,radar_scan.station==bb.bb_radar),'nearest','nearest');
 
-    % Removal of rain
+    % Get unique sweeps
+    radar_scan.dz.sweeps = unique_elev_sweeps(radar_scan, 'dz');
+    radar_scan.rh.sweeps = unique_elev_sweeps(radar_scan, 'rh');
+
+    % Limit elevation angle
+    radar_scan.dz.sweeps = radar_scan.dz.sweeps([radar_scan.dz.sweeps.elev]< parms.limitElev);
+    radar_scan.rh.sweeps = radar_scan.rh.sweeps([radar_scan.rh.sweeps.elev]< parms.limitElev);
+
+    % Build rain masks on the sorted polar grids returned by sweep2mat.
+    rain_masks = cell(numel(radar_scan.dz.sweeps), 1);
     if parms.removeRain=="rho"
-        for i_elev=1:numel(rdt.dz.sweeps)
-            [min_elev,i_elev_rh] = min(abs(rdt.dz.sweeps(i_elev).elev-vertcat(rdt.rh.sweeps.elev)));
+        for i_elev=1:numel(radar_scan.dz.sweeps)
+            [min_elev,i_elev_rh] = min(abs(radar_scan.dz.sweeps(i_elev).elev-vertcat(radar_scan.rh.sweeps.elev)));
             assert(min_elev<.01)
-            tmp = true(size(rdt.dz.sweeps(i_elev).data));
-            min_nbins=min(rdt.rh.sweeps(i_elev_rh).nbins,rdt.dz.sweeps(i_elev).nbins);
-            tmp(1:min_nbins,:) = rdt.rh.sweeps(i_elev_rh).data(1:min_nbins,:)>.95;
-            rdt.dz.sweeps(i_elev).data(tmp)=nan;
+            [rh_data, ~, ~] = sweep2mat(radar_scan.rh.sweeps(i_elev_rh));
+            dz_data = sweep2mat(radar_scan.dz.sweeps(i_elev));
+            rain_masks{i_elev} = true(size(dz_data));
+            min_nbins = min(size(rh_data, 1), size(dz_data, 1));
+            rain_masks{i_elev}(1:min_nbins,:) = rh_data(1:min_nbins,:) > parms.rainRhoThreshold;
         end
-    elseif parms.removeRain=="misnet"
-        warning("NOT WORKING. OFFSET")
-        [preds, classes] = mistnet_polar_radar(rdt);
-        for i_elev=1:numel(rdt.dz.sweeps)
-            rdt.dz.sweeps(i_elev).data(preds{i_elev}==classes.rain)=nan;
+    elseif parms.removeRain=="mistnet"
+        [preds, classes] = mistnet_polar_radar(radar_scan);
+        for i_elev=1:numel(radar_scan.dz.sweeps)
+            rain_masks{i_elev} = preds{i_elev}==classes.rain;
+        end
+    elseif parms.removeRain=="none"
+        for i_elev=1:numel(radar_scan.dz.sweeps)
+            rain_masks{i_elev} = false(size(sweep2mat(radar_scan.dz.sweeps(i_elev))));
         end
     else
-        warning("no rain removal")
+        warning("Unknown rain removal method: %s", parms.removeRain)
     end
 
-    % remove unused field
-    rdt = rmfield(rdt,{'sw','dr','ph','rh','spulse','lpulse','constants','params'});
+    if ismember("rain", plot_opts)
+        [rain_dbz, rain_range, rain_az] = sweep2mat(radar_scan.dz.sweeps(1));
+        rain_dbz_filtered = rain_dbz;
+        rain_dbz_filtered(rain_masks{1}) = nan;
+        rain_range_limit = min(parms.maxRange, max(rain_range));
 
-    % create bird density
-    rdt.dens = struct();
-    rdt.dens.type = "Bird density";
-    rdt.dens.sweeps = struct([]);
+        fig = create_export_figure(1200, 450);
+        tiledlayout(1, 3, "TileSpacing", "tight", "Padding", "tight")
+        nexttile
+        plot_sweep(rain_dbz, rain_az, rain_range, coordinate_system="polar", ...
+            max_range=rain_range_limit, ttl="Reflectivity before rain removal", show_colorbar=false);
 
-    % Process each elevation
-    for i_elev=1:numel(rdt.dz.sweeps)
+        nexttile
+        plot_sweep(rain_masks{1}, rain_az, rain_range, coordinate_system="polar", ...
+            max_range=rain_range_limit, ttl="Rain mask: " + string(parms.removeRain), show_colorbar=false);
 
-        % Extract reflectivity factor data
-        [data, sweep_range, sweep_az] = sweep2mat(rdt.dz.sweeps(i_elev));
+        nexttile
+        plot_sweep(rain_dbz_filtered, rain_az, rain_range, coordinate_system="polar", ...
+            max_range=rain_range_limit, ttl="Reflectivity after rain removal", show_colorbar=false);
 
-        % Make a copy for plot
-        data0=data;
+        if ismember("export", plot_opts)
+            export_fixed_figure(fig, fullfile(export_dir, filename + "_rain.png"), Resolution=300)
+            close(fig)
+        else
+            set(fig, "Visible", "on")
+        end
+    end
+
+    % Remove unused fields
+    radar_scan = rmfield(radar_scan,{'sw','dr','ph','spulse','lpulse','constants','params'});
+    % radar_scan = rmfield(radar_scan,{'rh'});
+
+    % Create bird density structure
+    radar_scan.dens = struct();
+    radar_scan.dens.type = "Bird density";
+    radar_scan.dens.sweeps = struct([]);
+
+    % Basic cleaning by elevation and conversion to density
+    dens_elev = cell(numel(radar_scan.dz.sweeps), 1);
+    for i_elev=1:numel(radar_scan.dz.sweeps)
+
+        % Extract reflectivity in dBZ for one sweep on a regular polar grid.
+        [sweep_dbz, sweep_range, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+        sweep_dbz(rain_masks{i_elev}) = nan;
 
         if false
-            [z, x, y] = sweep2cart(rdt.dz.sweeps(i_elev),100000,1000);
+            [z, x, y] = sweep2cart(radar_scan.dz.sweeps(i_elev),100000,1000);
             figure; imagescnan(x, y, z); axis xy equal;
+            clim([0 quantile(z(:),.999)])
         end
 
-        if parms.removeOuliars>0
+        % Discard values that overlap with the precomputed beam blockage
+        % map. Overlap is considered if the ground is within the half-beam
+        % width
+        sweep_dbz(bbr_f({sweep_range, sweep_az}) > (radar_scan.dz.sweeps(i_elev).elev-radar_scan.dz.sweeps(i_elev).vert_half_bw)) = nan;
 
-            % 1. Threashold high value
+        if parms.removeOutliers>0
+
+            % 1. Threshold high value
             % density of bird too high
-            dens = z_to_refl(idb(data))/11; % inverse decibel transform --> bird density [bird/km^3]
-            thr_dens = z_to_refl(idb(32))/11; % 1 bird  36000 eta z_to_refl(36000)/11 32 dbz
-            data(dens>thr_dens)=nan;
+            sweep_density = z_to_refl(idb(sweep_dbz)) / 11; % inverse decibel transform --> bird density [bird/km^3]
+            % parms.thr_dens = z_to_refl(idb(40))/11; % 3000 bird per km^3
+            if ismember("outliers_threshold", plot_opts) && i_elev==1
+                fig = create_export_figure(1200, 550);
+                tiledlayout(1,2,'TileSpacing','tight','Padding','tight');
+                nexttile;
+                z = plot_sweep(sweep_dbz, sweep_az, sweep_range, max_range=p.Results.maxRange, show_colorbar=false);
+                c_lim = [0 quantile(z(:),.999)];
+                clim(c_lim); title("Before threshold of high value")
+                nexttile;
+                tmp = sweep_dbz; tmp(sweep_density > parms.thr_dens) = nan;
+                plot_sweep(tmp, sweep_az, sweep_range, max_range=p.Results.maxRange, ...
+                    c_lim=c_lim, ttl="After threshold of high value " + num2str(parms.thr_dens,1) + " bird/km^3", show_colorbar=false);
+                if ismember("export", plot_opts)
+                    export_fixed_figure(fig, fullfile(export_dir, filename + "_outliers_threshold.png"), Resolution=300)
+                    close(fig)
+                else
+                    set(fig, "Visible", "on")
+                end
+            end
+            sweep_dbz(sweep_density > parms.thr_dens) = nan;
 
-
-            % 2. Threashold on marginal distribution.
+            % 2. Threshold on the marginal distribution.
             % grubbs marginal distribution
-            % tmp = isoutlier(data(:),'grubbs','ThresholdFactor',1);
-            % n = sum(~isnan(data(:)));
+            % tmp = isoutlier(sweep_dbz(:),'grubbs','ThresholdFactor',1);
+            % n = sum(~isnan(sweep_dbz(:)));
             % alpha=.05;
             % tval = tinv(alpha./n/2,repmat(n-2,1,numel(alpha))).^2;
             % G = (n-1)./sqrt(n) .* sqrt(tval./(n-2+tval));
-            % thr = mean(data(:),"omitnan")+[-1 1]*G.*std(data(:),"omitnan")
+            % thr = mean(sweep_dbz(:),"omitnan")+[-1 1]*G.*std(sweep_dbz(:),"omitnan")
 
-            mdata = median(data(:),'omitnan');
-            MAD=-1/(sqrt(2)*erfcinv(3/2))*median(abs(data(:)-mdata),'omitnan');
-            thr = mdata + [-1 1]* parms.removeOuliars*MAD;
-            id = data<thr(1)| data>thr(2);
-            % figure; hold on; histogram(data); histogram(data(id))
-            data(id)=nan;
+            mdata = median(sweep_dbz(:),'omitnan');
+            MAD = -1/(sqrt(2)*erfcinv(3/2)) * median(abs(sweep_dbz(:) - mdata), 'omitnan');
+            thr = mdata + [-1 1]* parms.removeOutliers*MAD;
+            id = sweep_dbz < thr(1) | sweep_dbz > thr(2);
+            if ismember("outliers_mad", plot_opts) && i_elev==1
+                fig = create_export_figure(1400, 500);
+                tiledlayout(1,3,'TileSpacing','tight','Padding','tight');
+                nexttile; histogram(sweep_dbz(:));
+                title("Histogram of all data")
+                xline(mdata,'-k',"Median", 'LineWidth',2); xline(thr,'--k',"Outlier threshold", 'LineWidth',2)
+                xlabel("reflectivity");
+                nexttile;
+                z = plot_sweep(sweep_dbz, sweep_az, sweep_range, max_range=p.Results.maxRange, show_colorbar=false);
+                c_lim = [0 quantile(z(:),.999)];
+                clim(c_lim); title("Before threshold of MAD")
+                nexttile;
+                tmp = sweep_dbz; tmp(id) = nan;
+                plot_sweep(tmp, sweep_az, sweep_range, max_range=p.Results.maxRange, ...
+                    c_lim=c_lim, ttl="After threshold of MAD between " + num2str(round(thr(1))) + " and " + num2str(round(thr(2))) + " bird/km^3", show_colorbar=false);
+                if ismember("export", plot_opts)
+                    export_fixed_figure(fig, fullfile(export_dir, filename + "_outliers_mad.png"), Resolution=300)
+                    close(fig)
+                else
+                    set(fig, "Visible", "on")
+                end
+            end
+            sweep_dbz(id) = nan;
 
-            % 3. Spatial continuity
-            % spatial continiuty with moving median
-            data(end-1:end,:)=nan;
-            dd = repmat(data,1,1,5*5); u=1;
+            % 3. Spatial continuity (moving median)
+            sweep_dbz(end-1:end,:) = nan;
+            dd = repmat(sweep_dbz,1,1,5*5); u=1;
             for i=-2:2
                 for j=-2:2
-                    dd(:,:,u) = circshift(data,[i j]);
+                    dd(:,:,u) = circshift(sweep_dbz,[i j]);
                     u=u+1;
                 end
             end
@@ -125,27 +249,52 @@ parfor i_s = 1:numel(scans_filepath)
             MAD = -1/(sqrt(2)*erfcinv(3/2))*median(abs(dd-data_median),3,'omitnan');
             MAD = nanmean(MAD(:));
             thr = data_median + permute([-1 1],[3 1 2]).* 3.*MAD;
-            id = data<thr(:,:,1) | data>thr(:,:,2);
-            if false
-                figure; hold on; axis tight; box on;
-                imagesc(data,'AlphaData',~isnan(data));
-                [x,y]=ind2sub(size(id),find(id)); plot(y,x,'.r')
+            id = sweep_dbz < thr(:,:,1) | sweep_dbz > thr(:,:,2);
+            if ismember("outliers_continuity", plot_opts)  && i_elev==1
 
-                figure; hold on;
-                histogram(data)
-                histogram(data(id))
+                fig = create_export_figure(600, 600);
+                tiledlayout(2,2,'TileSpacing','tight','Padding','tight');
+
+                nexttile; hold on; axis tight; box on;
+                plot_sweep(sweep_dbz, sweep_az, sweep_range, coordinate_system="polar", ...
+                    max_range=100000, alpha_data=~isnan(sweep_dbz), show_colorbar=false);
+                [x,y]=ind2sub(size(id),find(id)); plot(sweep_az(y),sweep_range(x),'.r');
+
+                nexttile; hold on; box on;
+                histogram(sweep_dbz)
+                histogram(sweep_dbz(id));
+                xlabel("Reflectivity")
+                legend("All data before filtering", "Data filtered")
+
+
+                nexttile;
+                z = plot_sweep(sweep_dbz, sweep_az, sweep_range, max_range=100000, show_colorbar=false);
+                c_lim = [0 quantile(z(:),.999)];
+                clim(c_lim); title("Before filter of spatial continuity")
+                nexttile;
+                tmp = sweep_dbz; tmp(id) = nan;
+                plot_sweep(tmp, sweep_az, sweep_range, max_range=100000, ...
+                    c_lim=c_lim, ttl="After filter of spatial continuity", show_colorbar=false);
+
+                if ismember("export", plot_opts)
+                    export_fixed_figure(fig, fullfile(export_dir, filename + "_outliers_continuity.png"), Resolution=300)
+                    close(fig)
+                else
+                    set(fig, "Visible", "on")
+                end
             end
 
-            data(id) = nan;
+            sweep_dbz(id) = nan;
+
 
             % Fill
-            % data2=fillmissing(data,"linear");
+            % data2=fillmissing(sweep_dbz,"linear");
             % remove datapoint which are too far from neighboring value.
             % data2(data_n<9) = nan;
             % figure; imagesc(data2,"AlphaData",~isnan(data2));colorbar; ylim([0 900])
-            % data=data2;
+            % sweep_dbz=data2;
 
-            %         d = data;
+            %         d = sweep_dbz;
             %         % d(isnan(d)) = -inf;
             %         dens = z_to_refl(idb(d))/11;
             %         figure; imagesc(dens, "AlphaData",~isnan(dens)); colorbar; ylim([0 900])
@@ -153,103 +302,334 @@ parfor i_s = 1:numel(scans_filepath)
         end
 
         % Set nodata pulse volumes to 0 reflectivity (-inf on decibel scale)
-        % data(isnan(data)) = -inf;
+        % sweep_dbz(isnan(sweep_dbz)) = -inf;
 
-        % Convert to reflectivity
-        data    = idb(data);             % inverse decibel transform --> reflectivity factor
-        data = z_to_refl(data);          % reflectivity factor (mm^6/m^3) --> reflectivity (cm^2/km^3)
-        dens = data/11;                  % reflectivity --> bird density [bird/km^3]
+        % Convert the cleaned dBZ sweep into linear reflectivity and density.
+        sweep_reflectivity = idb(sweep_dbz);    % inverse decibel transform --> reflectivity factor
+        sweep_reflectivity = z_to_refl(sweep_reflectivity); % reflectivity factor (mm^6/m^3) --> reflectivity (cm^2/km^3)
+        dens_elev{i_elev} = sweep_reflectivity / 11; % reflectivity --> bird density [bird/km^3]
+    end
 
-        if parms.shape
-            AZ = repmat(sweep_az,1,numel(sweep_range))';
-            id=~isnan(dens);
-            % radius/distance from center of an ellipse
-            R = @(a,b,theta,x) a*b./sqrt(a^2*sind(x-theta).^2+b^2*cosd(x-theta).^2);
-            % keep these as fixed
-            a = 0.5;
-            b = 1.5; 
-            % fit only the angle
-            Rfit = @(theta,x) R(a,b,theta,x);
-            mdl = fit(AZ(id),dens(id),fittype(Rfit),"StartPoint",120);
-            dens = dens ./ Rfit(mdl.theta,AZ);
+    % Perform shape correction for all elevations together
+    if parms.shape
+
+        % Compute a smoothed mean density profile along azimuth for each elevation angle
+        dmse = cell(numel(radar_scan.dz.sweeps),1);
+        rhmse = cell(numel(radar_scan.dz.sweeps),1);
+        for i_elev=1:numel(radar_scan.dz.sweeps)
+            % Filter potential outlier by removing values below quantile .05 and above .95
+            tmp = dens_elev{i_elev};
+            tmp_q = quantile(tmp, [.05 .95]);
+            tmp(tmp<tmp_q(1,:) | tmp>tmp_q(2,:))=nan;
+
+            % Compute the mean
+            tmp = mean(tmp, "omitnan");
+            % To perform smoothing along azimuth, replicate data to have
+            % cyclical behaviour
+            w = 100;
+            tmp = [tmp(end-w+1:end) tmp tmp(1:w)];
+
+            % Apply a moving median to remove outliers and a moving mean to
+            % smooth the curve along azimuth
+            dens_elev_sm = movmean(movmedian(tmp,5),21);
+            dens_elev_sm = dens_elev_sm(w+1:end-w);
+
+            [~, ~, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+
+            % figure; hold on; 
+            % plot(sweep_az,quantile(dens_elev{i_elev}, [.2 .5 .8])'); 
+            % plot(sweep_az,mean(dens_elev{i_elev}, "omitnan")); 
+            % plot(sweep_az,dens_elev_sm);
+
+            dmse{i_elev} = [i_elev*ones(size(sweep_az)) sweep_az dens_elev_sm'];
+
+            % rho_HV
+            % extract rho_HV
+            [rh, ~, sweep_az] = sweep2mat(radar_scan.rh.sweeps(i_elev));
+
+            % Remove when we don't have enough bird
+            tmp = min(size(rh,1), size(dens_elev{i_elev},1));
+            rh(dens_elev{i_elev}(1:tmp,:)<10)=nan;
+            
+            % Compute the average rh along range weighted by density
+            w = sum(dens_elev{i_elev}(1:tmp,:) .* ~isnan(rh(1:tmp,:)), "omitnan");
+            tmp = sum(dens_elev{i_elev}(1:tmp,:) .* rh(1:tmp,:), "omitnan") ./ w;
+            tmp(isnan(tmp))=0;
+
+            rhmse{i_elev} = [i_elev*ones(size(sweep_az)) sweep_az tmp' w'];
+
+        end
+        dmse = cell2mat(dmse);
+        rhmse = cell2mat(rhmse);
+
+        % figure; nexttile; box on; scatter(dmse(:,2), dmse(:,3), 10, dmse(:,1), 'filled')
+        % nexttile; box on; scatter(rhmse(:,2), rhmse(:,3), 10, rhmse(:,1), 'filled')
+
+        % Perform nonlinear curve fitting
+        mdl2 = fit(deg2rad(rhmse(:,2)), rhmse(:,3), fittype('A*sin(x + phi) + C', 'independent', 'x'), StartPoint=[range(rhmse(:,3))/2, mean(rhmse(:,3)), 0], Lower=[0,0,-2*pi], Upper=[1,1,2*pi], Weights = rhmse(:,4));
+
+        % radius/distance from center of an ellipse
+        % R = @(a,b,theta,x) a*b./sqrt(a^2*sind(x-theta).^2+b^2*cosd(x-theta).^2);
+        % Rfit = @(alpha, frontback, xm, x) xm .* R(alpha, 1/alpha, rad2deg(-mdl2.phi+pi), x);
+
+        % Upgrade to have different small axis
+        b_func = @(xt, b_left, b_right) b_left + (b_right - b_left) * (mod(xt,360) >= 180);
+
+        R = @(a, b_left, b_right, theta, x) a .* b_func(x - theta, b_left, b_right) ./ sqrt(a^2 .* sind(x - theta).^2 + b_func(x - theta, b_left, b_right).^2 .* cosd(x - theta).^2);
+        Rfit = @(alpha, beta, xm, x) xm .* R(alpha, beta*1/alpha, (1-beta)*1/alpha, rad2deg(-mdl2.phi+pi), x);
+        % figure; x=0:360; plot(x, R(1, 0.8, 0.6, 0, x))
+
+        
+        % Fit the anisotropy model on azimuth sectors with positive smoothed density.
+        id = dmse(:,3) > 0;
+
+        % Perform fit
+        mdl = fit(dmse(id,2), dmse(id,3), fittype(Rfit), StartPoint=[0 .5 mean(dmse(id,3),"omitnan")], Lower=[.1 .1 0], Upper=[5 .9 10000], Weights = dmse(id,3));
+
+        % figure; hold on; plot(mdl, dmse(id,2), dmse(id,3)); 
+
+        dens_elev_corr = dens_elev;
+
+        % Apply the correction to each elevation angle separately
+        for i_elev=1:numel(radar_scan.dz.sweeps)
+            [~, ~, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+
+            % Compute the mean density
+            mdens = mean(dens_elev_corr{i_elev}(:),'omitnan');
+
+            % Apply correction
+            dens_elev_corr{i_elev} = dens_elev_corr{i_elev} ./ R(mdl.alpha, mdl.beta*1/mdl.alpha, (1-mdl.beta)*1/mdl.alpha, rad2deg(-mdl2.phi+pi), sweep_az)';
+
+            % Normalize to keep the overall same density
+            dens_elev_corr{i_elev} = dens_elev_corr{i_elev} / mean(dens_elev_corr{i_elev}(:),'omitnan') .* mdens;
         end
 
-        if parms.smoothing
-            % circular smoothing along azimuth but not range
-            dens(end-1:end,:)=nan;
-            dd = repmat(dens,1,1,5*5); u=1;
-            for i=-2:2
-                for j=-2:2
-                    dd(:,:,u) = circshift(dens,[i j]);
-                    u=u+1;
+
+        if ismember("shape", plot_opts)
+            i_elev=1;
+            [rh, ~, sweep_az] = sweep2mat(radar_scan.rh.sweeps(i_elev));
+
+            fig = create_export_figure(1200, 600);
+            tiledlayout(3,6,'TileSpacing','tight','Padding','tight');
+
+            % Plot the data and the fitted curve
+            nexttile([1 3]); hold on; grid on; box on;
+            id = rhmse(:,3)>0;
+            scatter(deg2rad(rhmse(id,2)),rhmse(id,3),rhmse(id,4)/500, rhmse(id,1),'filled',MarkerFaceAlpha=0.3)
+            x_fit = linspace(0, 2*pi, 361)';
+            plot(x_fit, mdl2(x_fit), "k-", DisplayName="Fitted sinusoid");
+            xline(mod(-mdl2.phi+3/2*pi,2*pi), LineWidth=4, Label="Orientation axis", DisplayName="Orientation axis")
+            xlabel('Azimuth (rad)');  ylabel('\rho_{HV}');
+            legend('Density-weighted azimuthal summary', 'Fitted sinusoid', 'Orientation axis', 'Location', 'northeast')
+            axis tight; xlim([0 2*pi]); c=colorbar;c.Label.String="Elevation angle";            
+
+            nexttile([1 3]);hold on; grid on; box on;
+            scatter(dmse(:,2),dmse(:,3),dmse(:,3)/10, dmse(:,1),'filled',MarkerFaceAlpha=0.3)
+            x_fit = linspace(0, 360, 361)';
+            plot(x_fit, mdl(x_fit), "k-", DisplayName="Fitted anisotropy template");
+            xline(rad2deg(mod(-mdl2.phi+3/2*pi,2*pi)), LineWidth=4)
+            xlabel('Azimuth (deg)');  ylabel('Bird density');
+            legend('Smoothed azimuthal summary', 'Fitted anisotropy template', 'Location', 'northeast'); axis tight;
+            xlim([0 360]); c=colorbar;c.Label.String="Elevation angle";
+            
+
+            ax = nexttile([2 2]); 
+            plot_sweep(rh, sweep_az, sweep_range, max_range=100000, show_colorbar=true, ...
+                ttl="\rho_{HV} and orientation axis");
+            plot([0 -50000.*cos(mdl2.phi)], [0 -50000.*sin(mdl2.phi)], "k", LineWidth=4)
+            xticks([-100 0 100]*1000); xticklabels([-100 0 100])
+            % clim([0 quantile(z(:),.999)])
+            colormap(ax, colormap_wct("rh"))
+
+            [~, sweep_range, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+
+            %x=0:365;
+            %polarplot(deg2rad(dmse(:,2)), dmse(:,3), '.',Color=[.8 .8 .8]); hold on;
+            % polarplot(deg2rad(dmse(id,2)), dmse(id,3), '.k'); hold on;
+            %polarplot(deg2rad(dmse(:,2)), dmse(:,3) ./ R(sqrt(mdl.ani), 1/sqrt(mdl.ani), mdl.theta, dmse(:,2)), '.r');
+            %polarplot(deg2rad(x), Rfit(mdl.ani, mdl.theta, mdl.xm, x), 'r');
+            %legend("Before shape correction", "After shape correction", "Correction template", 'Location', 'southwest')
+            %ax = gca;
+            %ax.ThetaZeroLocation = 'top';
+            %ax.ThetaDir = 'clockwise';
+
+            nexttile([2 2]);
+            z = plot_sweep(dens_elev{i_elev}, sweep_az, sweep_range, max_range=100000, show_colorbar=false);
+            c_lim = [0 quantile(z(:),.99)];
+            xticks([-100 0 100]*1000); xticklabels([-100 0 100])
+            clim(c_lim); title("Before shape correction")
+
+            nexttile([2 2]);
+            plot_sweep(dens_elev_corr{i_elev}, sweep_az, sweep_range, max_range=100000, ...
+                c_lim=c_lim, ttl="After shape correction", show_colorbar=true);
+            xticks([-100 0 100]*1000); xticklabels([-100 0 100])
+            if ismember("export", plot_opts)
+                export_fixed_figure(fig, fullfile(export_dir, filename + "_shape.png"), Resolution=300)
+                close(fig)
+            else
+                set(fig, "Visible", "on")
+            end
+        end
+         shape_fit{i_s} = mdl;
+        dens_elev = dens_elev_corr;
+    end
+
+
+
+    for i_elev=1:numel(radar_scan.dz.sweeps)
+
+        % retrieve elevation values needed
+        [~, sweep_range, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+        dens = dens_elev{i_elev};
+
+        if parms.smoothing>0
+
+            smooth_method = "movmedian";
+
+            % Use smoothing as the std of the gaussian kernel in m
+            window_meter = parms.smoothing;
+
+            % Smoothing along range
+            window = window_meter / median(diff(sweep_range));
+
+            % Option Gaussian filter manual accounting for nan
+            % assuming window = std
+            % ss = 2*ceil(2*window)+1;
+            % W = kernelGaussian1D(ss, sigma_unit);
+            % W = reshape(W(:),1,1,[]);
+            % dd = nan(size(dens,1), size(dens,2), ss);
+            % for u=1:ss
+            %     dd(:,:,u) = circshift(dens,u-((ss-1)/2),1);
+            % end
+            % dens1 = sum(dd.*W,3,'omitnan') ./ sum(~isnan(dd).*W,3);
+            % % Set as nan is more than 50% of the gaussian kernel is also nan
+            % dens1(sum(W.*~isnan(dd),3)<.5) = nan;
+            % % dens1(isnan(dens)) = nan;
+            %
+            % Option 2: Moving median much faster!
+            dens1 = smoothdata(dens, smooth_method, window, "omitnan");
+
+
+            % Smoothing along azimuth
+            window = max(1,round(window_meter ./ (deg2rad(median(diff(sweep_az)))*sweep_range)));
+            [G, ID] = findgroups(window);
+
+            % Option Gaussian filter manual accounting for nan
+            % ss = 2*ceil(2*window)+1;
+            % W = kernelGaussian1D(max(ss), sigma_unit);
+            % W = permute(W,[1 3 2]);
+            % dd = nan(size(dens1,1), size(dens1,2), max(ss));
+            % for u=1:max(ss)
+            %     dd(:,:,u) = circshift(dens1,u-((max(ss)-1)/2),2);
+            % end
+            % dens2 = sum(dd.*W,3,'omitnan') ./ sum(~isnan(dd).*W,3);
+            % dens2(sum(W.*~isnan(dd),3)<.5) = nan;
+
+            % Option 2: Moving median much faster!
+            dens2 = dens1;
+            for u=1:max(G)
+                if ID(u)>1
+                    dens2(G==u,:) = smoothdata(dens1(G==u,:), 2, smooth_method, ID(u), "omitnan");
                 end
             end
 
-            W=fspecial('gaussian',5,1);
-            W=reshape(W(:),1,1,[]);
+            if ismember("smoothing", plot_opts) && i_elev==1
+                fig = create_export_figure(900, 600);
+                nexttile;
+                imagesc(dens,'AlphaData',~isnan(dens));
+                c_lim = [0 quantile(dens(:),.99)]; clim(c_lim);
+                y_lim = [0 find(mean(isnan(dens),2)<.5,1,"last")]; ylim(y_lim);
+                nexttile; imagesc(dens2,'AlphaData',~isnan(dens2)); clim(c_lim); ylim(y_lim);
 
-            dens2 = sum(dd.*W,3,'omitnan') ./ sum(~isnan(dd).*W,3);
-            dens2(isnan(dens))=nan;
-
-            if false
-                figure;
-                nexttile; imagesc(dens,'AlphaData',~isnan(dens));
-                nexttile; imagesc(dens2,'AlphaData',~isnan(dens2));
+                if ismember("export", plot_opts)
+                    export_fixed_figure(fig, fullfile(export_dir, filename + "_smoothing.png"), Resolution=300)
+                    close(fig)
+                else
+                    set(fig, "Visible", "on")
+                end
             end
-
-            dens_n = sum(~isnan(dd),3);
-            dens2(dens_n<5)=nan;
 
             dens = dens2;
         end
 
+
         % Remove datapoint too close or too high altitude
         dens(sweep_range<parms.minRange,:)=nan;
-        [ ~, sweep_height ] = slant2ground( sweep_range, rdt.dz.sweeps(i_elev).elev );
+        dens(sweep_range>parms.maxRange,:)=nan;
+        [ ~, sweep_height ] = slant2ground( sweep_range, radar_scan.dz.sweeps(i_elev).elev );
         dens(sweep_height>parms.maxAlt,:)=nan;
 
-        if false
-            dens0 = z_to_refl(idb(data0))/11;
-            figure; tiledlayout(2,3,'TileSpacing','tight','Padding','tight')
-            nexttile([1,2]); hold on;
-            imagesc(dens0,'AlphaData',~isnan(dens0)); colorbar; axis tight; ylim([0 1000])
-            nexttile; histogram(dens0); x_lim=xlim(); set(gca,"YScale",'log')
-            nexttile([1,2]); hold on; imagesc(dens,'AlphaData',~isnan(dens));
-            id = find(isnan(dens)&~isnan(dens0));
-            [tmp_x, tmp_y] = ind2sub(size(dens0),id);
-            plot(tmp_y,tmp_x,'.r','MarkerSize',2)
-            colorbar; axis tight; ylim([0 1000])
-            yline(max(find(sweep_range<parms.limitRange)),'-k')
-            nexttile; histogram(dens);% xlim(x_lim);
-            % set(gca,"YScale",'log')
+        % Downscale
+        res_range = max(1,floor(parms.data_res(1)./median(diff(sweep_range))));
+        res_az = max(1,floor(parms.data_res(2)./(deg2rad(median(diff(sweep_az)))*sweep_range)));
+
+        dens_dns = nan(size(dens));
+        for i=1:res_range:size(dens_dns,1)
+            dens_dns(i, 1:res_az(i):end) = dens(i, 1:res_az(i):end);
         end
 
-        % Downscale
-        dens_dns = nan(size(dens));
-        dens_dns(1:parms.data_res:end, 1:parms.data_res:end) = dens(1:parms.data_res:end, 1:parms.data_res:end);
+        if ismember("downscale", plot_opts) && i_elev==1
 
-        rdt.dens.sweeps(i_elev).data = dens_dns;
-        rdt.dens.sweeps(i_elev).az = sweep_az;
-        rdt.dens.sweeps(i_elev).range = sweep_range;
-        rdt.dens.sweeps(i_elev).elev = rdt.dz.sweeps(i_elev).elev;
+            data0 = sweep2mat(radar_scan.dz.sweeps(i_elev));
+            dens0 = z_to_refl(idb(data0))/11;
+            c_lim = [0 quantile(dens0(:),.99)];
 
-        % some additional data to keep useful for e.g. sweep2mat
-        rdt.dens.sweeps(i_elev).range_bin1 = rdt.dz.sweeps(i_elev).range_bin1;
-        rdt.dens.sweeps(i_elev).gate_size = rdt.dz.sweeps(i_elev).gate_size;
-        rdt.dens.sweeps(i_elev).nbins = rdt.dz.sweeps(i_elev).nbins;
-        rdt.dens.sweeps(i_elev).azim_v = rdt.dz.sweeps(i_elev).azim_v;
-        rdt.dens.sweeps(i_elev).prf = rdt.dz.sweeps(i_elev).prf;
+            fig = create_export_figure(900, 900);
+            tiledlayout(3,1,'TileSpacing','tight','Padding','tight')
+
+            nexttile; hold on;
+            plot_sweep(dens0, sweep_az, sweep_range, coordinate_system="polar", ...
+                max_range=parms.maxRange, c_lim=c_lim, show_colorbar=false);
+
+            nexttile; hold on;
+            plot_sweep(dens, sweep_az, sweep_range, coordinate_system="polar", ...
+                max_range=parms.maxRange, c_lim=c_lim, show_colorbar=false);
+            yline(parms.minRange,'-r')
+            yline(parms.maxRange,'-r')
+
+            nexttile; hold on;
+            %imagescnan(sweep_az, sweep_range,dens_dns);
+            tmp = fillmissing2([dens_dns dens_dns(:,1)], 'linear');
+            tmp = tmp(:,1:end-1);
+            plot_sweep(tmp, sweep_az, sweep_range, coordinate_system="polar", ...
+                max_range=parms.maxRange, c_lim=c_lim, show_colorbar=false);
+            % tmp = find(~isnan(dens_dns));
+            %[tmp1, tmp2] = meshgrid(sweep_az, sweep_range);
+            % plot(tmp1(tmp), tmp2(tmp),'.k')
+
+            if ismember("export", plot_opts)
+                export_fixed_figure(fig, fullfile(export_dir, filename + "_downscale.png"), Resolution=300)
+                close(fig)
+            else
+                set(fig, "Visible", "on")
+            end
+        end
+
+        radar_scan.dens.sweeps(i_elev).data = dens_dns;
+        radar_scan.dens.sweeps(i_elev).az = sweep_az;
+        radar_scan.dens.sweeps(i_elev).range = sweep_range;
+        radar_scan.dens.sweeps(i_elev).elev = radar_scan.dz.sweeps(i_elev).elev;
+
+        % some additional data to keep useful for e.grid. sweep2mat
+        radar_scan.dens.sweeps(i_elev).range_bin1 = radar_scan.dz.sweeps(i_elev).range_bin1;
+        radar_scan.dens.sweeps(i_elev).gate_size = radar_scan.dz.sweeps(i_elev).gate_size;
+        radar_scan.dens.sweeps(i_elev).nbins = radar_scan.dz.sweeps(i_elev).nbins;
+        % Need to rewrite azim_v because sweep2mat reorders data
+        % for increasing azimuth
+        radar_scan.dens.sweeps(i_elev).azim_v = sweep_az;
+        radar_scan.dens.sweeps(i_elev).prf = radar_scan.dz.sweeps(i_elev).prf;
     end
-    rdt = rmfield(rdt,{'dz'});
-    rd{i_s} = rdt;
-    send( q, i_s );
+    radar_scan = rmfield(radar_scan,{'dz'});
+    radar_scans{i_s} = radar_scan;
+    if parms.waitbar
+        send( q, i_s );
+    end
 end
-function UpdateWaitbar(~)
-    waitbar(i_s_wb/N,wb,"Clean and load weather radar data: "+ num2str(i_s_wb) + "/"+num2str(N));
-    i_s_wb = i_s_wb + 1;
-end
-if isvalid(wb)
+    function UpdateWaitbar(~)
+        waitbar(i_s_wb/N,wb,"Clean and load weather radar data: "+ num2str(i_s_wb) + "/"+num2str(N));
+        i_s_wb = i_s_wb + 1;
+    end
+if parms.waitbar && isvalid(wb)
     close(wb);
 end
 end
-

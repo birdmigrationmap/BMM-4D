@@ -1,152 +1,100 @@
-function [takingoff, landing, entering, leaving, gext, MVT] = sinksource(g,rho,vx,vy)
+function flux = sinksource(grid, density_field, velocity_field_interval)
+%SINKSOURCE Estimate local source/sink terms from density and velocity.
+%   FLUX = SINKSOURCE(GRID, DENSITY_FIELD, VELOCITY_FIELD_INTERVAL) computes
+%   a continuity residual from reconstructed density and horizontal velocity.
+%   DENSITY_FIELD is [x y z time] in birds/km^3. VELOCITY_FIELD_INTERVAL is
+%   [x y z 2 interval] in m/s, with component 1 along x and component 2
+%   along y. Positive source residuals are candidate take-off, and negative
+%   residuals are candidate landing.
 
-%%
+time_start = reshape(grid.time(1:end-1), 1, []);
+time_end = reshape(grid.time(2:end), 1, []);
+dt_seconds_vector = seconds(time_end - time_start);
+dt_hours = reshape(dt_seconds_vector ./ 3600, 1, 1, []);
+dt_seconds = reshape(dt_seconds_vector, 1, 1, 1, []);
 
-g.ny = numel(g.y);
-g.nx = numel(g.x);
-g.area = repmat(g.dx*g.dy,g.nx,g.ny);
+cell_area_km2 = grid.dx .* grid.dy ./ 1e6;
+cell_volume_km3 = cell_area_km2 .* grid.dz ./ 1000;
+face_area_x_m2 = grid.dy .* grid.dz;
+face_area_y_m2 = grid.dx .* grid.dz;
 
-assert(all(size(rho)==[g.nx g.ny numel(g.time)]))
-assert(all(size(vx)==[g.nx g.ny numel(g.time)]))
-assert(all(size(vy)==[g.nx g.ny numel(g.time)]))
+density_start = density_field(:, :, :, 1:end-1);
+density_end = density_field(:, :, :, 2:end);
+density_mid = 0.5 .* (density_start + density_end);
+density_mid_m3 = density_mid ./ 1e9;
 
-% *Build extended grid*
-%
-% Build a grid |gext| with a cell more on each side of the domain (ext=extanded)
-% in order to compute the fluxes in/out of the existing grid
+nx = grid.sz(1);
+ny = grid.sz(2);
+nz = grid.sz(3);
+n_interval = numel(grid.time) - 1;
+u = reshape(velocity_field_interval(:, :, :, 1, :), [nx ny nz n_interval]);
+v = reshape(velocity_field_interval(:, :, :, 2, :), [nx ny nz n_interval]);
 
-gext.y = fillmissing([nan(1,1) ; g.y ;nan(1,1)],'linear');
-gext.x = fillmissing([nan(1,1) ; g.x'; nan(1,1)],'linear');
-gext.ny = numel(gext.y);
-gext.nx = numel(gext.x);
-% [gext.LAT, gext.LON] = ndgrid(gext.y,gext.x);
-gext.mask_water = padarray(g.mask_water,[1 1],true);
+flux_x_birds = zeros(nx + 1, ny, nz, n_interval);
+flux_y_birds = zeros(nx, ny + 1, nz, n_interval);
 
-%%%%%%%%
-gext.mask_water = false(size(g.mask_water));
+flux_x_birds(1, :, :, :) = density_mid_m3(1, :, :, :) .* u(1, :, :, :) .* face_area_x_m2 .* dt_seconds;
+flux_x_birds(2:nx, :, :, :) = ...
+    0.5 .* (density_mid_m3(1:nx-1, :, :, :) + density_mid_m3(2:nx, :, :, :)) .* ...
+    0.5 .* (u(1:nx-1, :, :, :) + u(2:nx, :, :, :)) .* face_area_x_m2 .* dt_seconds;
+flux_x_birds(nx + 1, :, :, :) = density_mid_m3(nx, :, :, :) .* u(nx, :, :, :) .* face_area_x_m2 .* dt_seconds;
 
-gext.mask_out=movmean(movmean(~gext.mask_water,[1 1],2),[1 1],1)>0;
-gext.mask_out(~gext.mask_water)=false;
+flux_y_birds(:, 1, :, :) = density_mid_m3(:, 1, :, :) .* v(:, 1, :, :) .* face_area_y_m2 .* dt_seconds;
+flux_y_birds(:, 2:ny, :, :) = ...
+    0.5 .* (density_mid_m3(:, 1:ny-1, :, :) + density_mid_m3(:, 2:ny, :, :)) .* ...
+    0.5 .* (v(:, 1:ny-1, :, :) + v(:, 2:ny, :, :)) .* face_area_y_m2 .* dt_seconds;
+flux_y_birds(:, ny + 1, :, :) = density_mid_m3(:, ny, :, :) .* v(:, ny, :, :) .* face_area_y_m2 .* dt_seconds;
 
-% use regular grid
+net_outflow_xyz = ...
+    flux_x_birds(2:end, :, :, :) - flux_x_birds(1:end-1, :, :, :) + ...
+    flux_y_birds(:, 2:end, :, :) - flux_y_birds(:, 1:end-1, :, :);
+net_outflow_birds = reshape(sum(net_outflow_xyz, 3), nx, ny, n_interval);
 
-gext.time = g.time;
-round_min = 15;
-gext.time.Minute = round((gext.time.Minute+(gext.time.Second)/60)/round_min)*round_min;
-gext.time.Second = 0;
-dt = unique(seconds(diff(gext.time)));
-assert(numel(dt)==1)
-gext.nt = numel(gext.time);
+mass_birds = reshape(sum(density_field .* cell_volume_km3, 3), nx, ny, numel(grid.time));
+mass_change_birds = diff(mass_birds, 1, 3);
+source_birds = mass_change_birds + net_outflow_birds;
 
+boundary_outflow_xyz = zeros(nx, ny, nz, n_interval);
+boundary_outflow_xyz(1, :, :, :) = boundary_outflow_xyz(1, :, :, :) - flux_x_birds(1, :, :, :);
+boundary_outflow_xyz(nx, :, :, :) = boundary_outflow_xyz(nx, :, :, :) + flux_x_birds(nx + 1, :, :, :);
+boundary_outflow_xyz(:, 1, :, :) = boundary_outflow_xyz(:, 1, :, :) - flux_y_birds(:, 1, :, :);
+boundary_outflow_xyz(:, ny, :, :) = boundary_outflow_xyz(:, ny, :, :) + flux_y_birds(:, ny + 1, :, :);
+boundary_outflow_birds = reshape(sum(boundary_outflow_xyz, 3), nx, ny, n_interval);
 
-%% *Compute the flux* $\Phi =\mathit{\mathbf{v}}\rho$ *at +/- 1/2 grid cell.*
-% First, add a nan layer in y or x direction
-Phiy_pad = padarray(rho .* vy .* g.dx,[0 1 0],nan); % bird/km^2 * km/h *km ->  bird/h
-Phix_pad = padarray(rho .* vx .* g.dy,[1 0 0],nan);
+flux = struct();
+flux.source_birds = source_birds;
+flux.takingoff_birds = max(source_birds, 0);
+flux.landing_birds = min(source_birds, 0);
+flux.boundary_flux_birds = boundary_outflow_birds;
+flux.leaving_birds = max(boundary_outflow_birds, 0);
+flux.entering_birds = min(boundary_outflow_birds, 0);
 
-% and then, compute the flux at +/- 1/2 even if either previous or next cells
-% is nan.
-Phiy_h = movmean(Phiy_pad,[0 1],2,'omitnan','Endpoints','discard');
-Phix_h = movmean(Phix_pad,[0 1],1,'omitnan','Endpoints','discard');
-% clear Phix_pad Phiy_pad
+flux.source_birds_per_hour = source_birds ./ dt_hours;
+flux.takingoff_birds_per_hour = flux.takingoff_birds ./ dt_hours;
+flux.landing_birds_per_hour = flux.landing_birds ./ dt_hours;
+flux.boundary_flux_birds_per_hour = boundary_outflow_birds ./ dt_hours;
+flux.leaving_birds_per_hour = flux.leaving_birds ./ dt_hours;
+flux.entering_birds_per_hour = flux.entering_birds ./ dt_hours;
 
-% *Compute the delta flux / delta distance* $\frac{\Delta \Phi }{\Delta \left(\textrm{y},\textrm{x}\right)}$
-% First, add 0 padding for the outer zone (allows to compute boundary cell)
-Phiy_h_0=padarray(Phiy_h,[1 1 0],0);
-Phix_h_0=padarray(Phix_h,[1 1 0],0);
-% clear Phiy_h Phix_h
-
-% Then, replace the nan by zero to compute the change of fluxes even no fluxes
-% on the other side (i.e. boundary cell)
-Phiy_h_0(isnan(Phiy_h_0))=0;
-Phix_h_0(isnan(Phix_h_0))=0;
-
-% Finally, compute the delta flux over delta distance.
-dPhiy = diff(Phiy_h_0,1,2);
-dPhix = diff(Phix_h_0,1,1);
-% clear Phix_h_0 Phiy_h_0
-
-% *Compute the variation of bird in/out each cell*
-F = (dPhiy + dPhix ).*dt; % bird/h * hr -> bird
-% clear dPhiy dPhix
-
-% Crank-nicolson Move F at t+1/2:
-% F(F==0)=nan;
-% F = movmean( F ,[0 1],3,'omitnan');
-% F(isnan(F))=0;
-
-% F comprise both the intral change of bird and the bird going out of the area
-% Inner flux: remove the boundary cells
-Fin = F;
-%Fin(~gext.mask_water)=0;
-Fin(repmat(gext.mask_water,1,1,gext.nt)) = 0;
-
-% Outer Flux. Note that Phiy_h_0 and Phiy_h_0 are 0 for the cell outside
-% the domain, such at dPhiydy is equal to the flux at the outer cell (with
-% the sign corresponding to the direction).
-Fout = F;
-%Fout.Fout(gext.mask_water)=0;
-Fout(repmat(~gext.mask_water,1,1,gext.nt)) = 0;
-% clear F
-
-% *Compute the landing/derpature* $W$
-% |rho0| is used (NaN replaced by 0) to account for landing as sunset and sunrise.
-% Unit of W is [bird =bird (*15min/15min)], when (+) Birds entering the airspace
-% (takingoff) and (-) Birds leaving the raispace (landing)
-rho0 = rho; rho0(isnan(rho)) = 0; % bird/km^2
-W = diff(rho0 .* repmat(g.area,1,1,gext.nt),1,3) + Fin(2:end-1,2:end-1,1:end-1); % bird/km^2 * km^2  + bird -> bird
-% clear rho0 Fin
-
-% *Check methodology*
-%
-% Check for a step
-if false
-    i=20;
-    gext.time(i);
-    figure('position',[0 0 1600 600]); tiledlayout('flow','TileSpacing','tight','Padding','tight');
-    nexttile; imagesc(g.lon,g.lat,rho(:,:,i)','AlphaData',~isnan(rho(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('\rho'); axis equal tight;  a_xis=axis; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,vy(:,:,i)','AlphaData',~isnan(vy(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('vy'); axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,vx(:,:,i)','AlphaData',~isnan(vx(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('vx'); axis equal tight; borders('states','w'); axis(a_xis);
-    
-    figure('position',[0 0 1200 600]); tiledlayout('flow','TileSpacing','tight','Padding','tight');
-    nexttile; imagesc(g.lon,g.lat,Phix_pad(:,:,i)','AlphaData',~isnan(Phix_pad(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('\Phi_{x}');axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,Phiy_pad(:,:,i)','AlphaData',~isnan(Phiy_pad(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('\Phi_{y}'); axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,dPhix(:,:,i)','AlphaData',~(0==dPhix(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('\Delta\Phi_{x}/\Delta x'); axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,dPhiy(:,:,i)','AlphaData',~(0==dPhiy(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('\Delta\Phi_{y}/\Delta y'); axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,F(:,:,i)','AlphaData',~(0==F(:,:,i)')); set(gca,'ydir','normal'); colorbar; title('F=(\Delta\Phi_{y}+\Delta\Phi_{x})\Delta t'); axis equal tight; borders('states','w'); axis(a_xis);
-    
-    % Check the spatial aggregated mass balence.
-    %     a = reshape(sum(sum(Fout,1),2),1,[]);
-    %     b = reshape(sum(sum(rho0 .* repmat(g.area,1,1,gext.nt),1),2),1,[]);
-    %     c = reshape(sum(sum(W,1),2),1,[]);
-    %     figure('position',[0 0 1000 200]); hold on; xlabel('time');ylabel('Error')
-    %     plot(b(2:end) - b(1:end-1) - c - a(1:end-1))
-    
-    % See a single timestep.
-    figure('position',[0 0 1300 600]);tiledlayout('flow','TileSpacing','tight','Padding','tight');
-    nexttile; imagesc(g.lon,g.lat,rho0(:,:,i)','AlphaData',~(0==rho0(:,:,i)')); title('\rho(t)');set(gca,'ydir','normal'); colorbar;axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,rho0(:,:,i+1)','AlphaData',~(0==rho0(:,:,i+1)')); title('\rho(t+1)'); set(gca,'ydir','normal'); colorbar;axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,rho0(:,:,i+1)'-rho0(:,:,i)','AlphaData',~(0==rho0(:,:,i)')); title('\rho(t+1) - \rho(t)'); set(gca,'ydir','normal'); colorbar;axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,Fin(:,:,i)','AlphaData',~(0==Fin(:,:,i)'));  title('F_{in}'); set(gca,'ydir','normal'); colorbar;axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,W(:,:,i)','AlphaData',~(0==W(:,:,i)'));  title('W^{t\rightarrow t+1}=\rho(t+1) - \rho(t)+F_{in}'); set(gca,'ydir','normal'); colorbar;axis equal tight; borders('states','w'); axis(a_xis);
-    nexttile; imagesc(g.lon,g.lat,Fout(:,:,i)','AlphaData',~(0==Fout(:,:,i)'));  title('F_{out}'); set(gca,'ydir','normal'); colorbar;axis equal tight; borders('states','w'); axis(a_xis);
-
-end
-%% *Migratory Processes*
-% *Seperature the landing/landing (-) and takingoff/take-off (+)*
-landing=W;
-landing(landing>=0)=0;
-% landing2
-%     landing2 = landing;
-%     landing2(gext.mask_water(2:end-1,2:end-1,1:end-1))=0;
-takingoff=W;
-takingoff(takingoff<=0)=0;
-leaving=Fout;
-leaving(leaving>=0)=0;
-entering=Fout;
-entering(entering<=0)=0;
-
-% MTR
-MVT = rho .* sqrt(vy.^2 + vx.^2) .* dt; % bird/km^2 .* km/hr .* hr -> bird/km
-
+flux.column_density_birds_per_km2 = reshape( ...
+    sum(density_field, 3) .* grid.dz ./ 1000, nx, ny, numel(grid.time));
+flux.mass_birds = mass_birds;
+flux.mass_change_birds = mass_change_birds;
+flux.net_outflow_birds = net_outflow_birds;
+flux.net_outflow_birds_per_hour = net_outflow_birds ./ dt_hours;
+flux.mask_water = grid.mask_water;
+flux.time_start = time_start;
+flux.time_end = time_end;
+flux.time_mid = time_start + seconds(dt_seconds_vector ./ 2);
+flux.units = struct( ...
+    "density_field", "birds/km^3", ...
+    "velocity_field_interval", "m/s", ...
+    "source_birds", "birds per scan interval", ...
+    "source_birds_per_hour", "birds/hour", ...
+    "column_density_birds_per_km2", "birds/km^2", ...
+    "mass_birds", "birds per horizontal grid cell", ...
+    "positive_source", "candidate take-off/source", ...
+    "negative_source", "candidate landing/sink", ...
+    "positive_boundary_flux", "leaving domain", ...
+    "negative_boundary_flux", "entering domain");
 end

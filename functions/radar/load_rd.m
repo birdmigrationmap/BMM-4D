@@ -1,12 +1,15 @@
 function scans_filepath = load_rd(scan_radar, scan_time, varargin)
-% load_rd check if radar file exist and download them
-% - closest_accepted: max duration in minutes between the requested time and
-% the exact radar time which is still considered ok
-% - download: logical if it should downloadn missing files
+%LOAD_RD Locate or download raw radar files for requested radar-time pairs.
+%   SCANS_FILEPATH = LOAD_RD(SCAN_RADAR, SCAN_TIME, ...) returns a string
+%   array with one filepath per requested radar-time combination.
+%
+%   Options:
+%   - 'closest_accepted': maximum time offset in minutes.
+%   - 'download': download missing files from NOAA when true.
 
 p = inputParser;
 addParameter(p,'closest_accepted',10); %
-addParameter(p,'download',false); % 
+addParameter(p,'download',false); %
 parse(p,varargin{:});
 
 % List of unique date
@@ -20,11 +23,11 @@ for i_s=1:numel(scan_radar)
     for i_d=1:numel(scan_day)
 
         % get folder location
-        flr = "data/"+scan_radar(i_s)+"_"+datestr(scan_day(i_d),'yyyymmdd');
+        flr = "data/raw_scans/nexrad/"+scan_radar(i_s)+"_"+datestr(scan_day(i_d),'yyyymmdd');
         if ~isfolder(flr)
             mkdir(flr);
         end
-        
+
 
         % List available file
         fl = dir(flr);
@@ -54,7 +57,16 @@ for i_s=1:numel(scan_radar)
         if p.Results.download && any(scans_filepath(i_s,id_t)=="")
 
             % Download list of available file (very slow)
-            files_day_info = aws_list_datetime(scan_radar(i_s), scan_day(i_d));
+            try
+                files_day_info = aws_list_datetime(scan_radar(i_s), scan_day(i_d));
+            catch err
+                warning("load_rd:AwsListFailed", ...
+                    "Could not list AWS files for %s on %s: %s", ...
+                    scan_radar(i_s), datestr(scan_day(i_d), 'yyyy-mm-dd'), err.message)
+                continue
+            end
+            valid_file = arrayfun(@(x) isscalar(x.datetime) && ~isnat(x.datetime), files_day_info);
+            files_day_info = files_day_info(valid_file);
 
             if numel(files_day_info)==0
                 warning("No data for "+scan_radar(i_s))
@@ -64,16 +76,18 @@ for i_s=1:numel(scan_radar)
             for i_t = 1:numel(id_t)
                 % select only the closest
                 [closest_dur,id]=min(abs([files_day_info.datetime]-scan_time(id_t(i_t))));
-                
+
                 % Check if the file is ok
                 if (minutes(closest_dur) >= p.Results.closest_accepted)
-                    warning("")
+                    warning("No file within %grid minutes for %s at %s.", ...
+                        p.Results.closest_accepted, scan_radar(i_s), string(scan_time(id_t(i_t))))
+                    continue
                 end
 
                 tmp = strsplit(files_day_info(id).name,"/");
                 if ~exist(flr+"/"+tmp{end},'file')
-                    system( "/usr/local/bin/aws s3 cp s3://noaa-nexrad-level2/"+files_day_info(id).name+" "+flr+" --no-sign-request" );
-                    
+                    system( "/usr/local/bin/aws s3 cp s3://unidata-nexrad-level2/"+files_day_info(id).name+" "+flr+" --no-sign-request" );
+
                     if contains(tmp{end},".gz")
                         gunzip(flr+"/"+tmp{end}, flr)
                         delete(flr+"/"+tmp{end})
@@ -81,7 +95,8 @@ for i_s=1:numel(scan_radar)
                 end
             end
 
-            warning("File downloaded, re-run the function to load the file")
+            warning("Missing files were downloaded for %s on %s. Re-run load_rd to refresh filepaths.", ...
+                scan_radar(i_s), datestr(scan_day(i_d),'yyyy-mm-dd'))
         end
     end
 end
