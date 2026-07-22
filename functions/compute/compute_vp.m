@@ -1,7 +1,7 @@
-function [vp, rho, eta, lambda, std_vp] = compute_vp(obs_vector, grid, F, varargin)
+function [vp, rho, eta, lambda, std_vp] = compute_vp(obs_vector, g, F, varargin)
 %COMPUTE_VP Estimate a vertical profile with Tikhonov regularization.
 %
-%   [vp, rho, eta, lambda] = compute_vp(obs_vector, grid, F)
+%   [vp, rho, eta, lambda] = compute_vp(obs_vector, g, F)
 %   estimates the vertical profile vp with derivative-penalized Tikhonov
 %   regularization.
 %
@@ -19,16 +19,16 @@ function [vp, rho, eta, lambda, std_vp] = compute_vp(obs_vector, grid, F, vararg
 p = inputParser;
 addParameter(p, 'order_derivative_smoothness', 1);
 addParameter(p, 'lambda', nan);
-addParameter(p, 'vp_0', zeros(grid.sz(3), 1));
+addParameter(p, 'vp_0', zeros(g.sz(3), 1));
 parse(p, varargin{:});
 
 % Keep only non-zero observations and matching rows of F.
 [obs_values, nonzero_obs_idx] = format_data(obs_vector(:, 1));
 
-% Map each 3D grid cell to its vertical bin.
+% Map each 3D g cell to its vertical bin.
 vertical_aggregation = repelem( ...
-    speye(grid.sz(3)), ...
-    prod(grid.sz(1:2)), ...
+    speye(g.sz(3)), ...
+    prod(g.sz(1:2)), ...
     1 ...
 );
 
@@ -41,7 +41,7 @@ b_system = obs_values;
 % Smoothness penalty matrix L.
 % The solution minimizes:
 %   ||A * vp - b||^2 + lambda^2 * ||L * (vp - vp_0)||^2
-L = get_l(grid.sz(3), p.Results.order_derivative_smoothness);
+L = get_l(g.sz(3), p.Results.order_derivative_smoothness);
 
 % Generalized SVD used by RegTools Tikhonov routines.
 [U, sm, X, ~, ~] = cgsvd(A_system, L);
@@ -53,8 +53,6 @@ if isnan(p.Results.lambda)
     regparam = l_curve_wo_fig(U, sm, b_system);
     lambda = regparam(1);
 
-    % Alternative criteria:
-    % lambda = gcv_wo_fig(U, sm, b_system);
 else
     lambda = p.Results.lambda;
 end

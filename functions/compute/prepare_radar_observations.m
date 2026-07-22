@@ -16,4 +16,11 @@ observations = struct( ...
     "values", values, ...
     "row_ids", uint32(active_row_id), ...
     "obs_grid_size", info.obs_grid_size);
+
+if isfield(info, "row_radar_id")
+    observations.row_radar_id = info.row_radar_id(active_row_id);
+end
+if isfield(info, "row_kernel_id")
+    observations.row_kernel_id = info.row_kernel_id(active_row_id);
+end
 end

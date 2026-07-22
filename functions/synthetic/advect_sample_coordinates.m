@@ -37,15 +37,3 @@ for i_t = 1:size(uv, 2)
     x_adv(:, i_t) = x(:, i_t) + dx;
     y_adv(:, i_t) = y(:, i_t) + dy;
 end
-
-if false
-    % Check how far observations move into the common reference frame.
-    distance = hypot(x - x_adv, y - y_adv);
-    figure; boxchart(distance/1000); xlabel("Time step"); ylabel("Distance traveled (km)")
-
-    % Inspect a sample of original and aligned positions.
-    id = datasample(1:numel(x), min(10000, numel(x)));
-    figure; scatter3(x_adv(id), y_adv(id), H(id), 10, distance(id), "filled", MarkerFaceAlpha=.2)
-    xlabel("x (m)"); ylabel("y (m)"); zlabel("Altitude (m)")
-end
-end

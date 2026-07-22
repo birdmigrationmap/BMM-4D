@@ -6,7 +6,7 @@
 % module load matlab/R2021a
 % matlab -nodisplay -nosplash -nodesktop -nojvm -r "elev_iter = $1 ;run('generate_F_elev.m');exit;"
 
-%% coarse grid
+%% coarse g
 dx=2000; 
 dy=dx; 
 xy_max=150000;

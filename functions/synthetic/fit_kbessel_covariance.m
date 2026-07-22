@@ -96,17 +96,4 @@ err_w = @(c, n_pair) max(c, 0.1) .* log(n_pair + 10);
 err1 = @(parm) cov_fit.fx(cov_fit.V_emp, cov_fit.H_emp, parm) - max(0, cov_fit.emp_grid);
 err2 = @(parm) sum(err_w(cov_fit.emp_grid, cov_fit.n) .* err1(parm).^2, "all", "omitnan");
 cov_fit.parm = fmincon(err2, parm0, [], [], [], [], parm_min, parm_max, [], optimoptions("fmincon", "Display", "off"));
-
-if false
-    % Check empirical lag-bin covariance against the fitted model.
-    id = ~isnan(cov_fit.emp_grid);
-    w = err_w(cov_fit.emp_grid(id), cov_fit.n(id));
-    w = w ./ max(w) .* 500;
-    figure; hold on; grid on;
-    scatter3(cov_fit.H_emp(id)/1000, cov_fit.V_emp(id), cov_fit.emp_grid(id), w, cov_fit.emp_grid(id), "filled")
-    surf(cov_fit.H/1000, cov_fit.V, cov_fit.fx(cov_fit.V, cov_fit.H, cov_fit.parm))
-    scatter3(0, 0, cov_fit.var, max(w), "k", "filled", MarkerFaceAlpha=.5)
-    xlabel("Horizontal distance (km)"); ylabel("Vertical distance (m)"); zlabel("Covariance")
-    view(3)
-end
 end

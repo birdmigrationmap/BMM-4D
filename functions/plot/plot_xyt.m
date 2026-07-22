@@ -2,7 +2,7 @@ function fig = plot_xyt(field_time, varargin)
 
 p = inputParser;
 addRequired(p, "field_time");
-addParameter(p, "grid", []);
+addParameter(p, "g", []);
 addParameter(p, "c_lim", []);
 addParameter(p, "frame_ids", []);
 addParameter(p, "time_labels", []);
@@ -33,8 +33,8 @@ if isempty(c_lim)
 end
 
 radar_xy_km = [];
-if ~isempty(p.Results.grid)
-    radar_xy_km = get_plot_radar_xy(p.Results.grid, p.Results.radar);
+if ~isempty(p.Results.g)
+    radar_xy_km = get_plot_radar_xy(p.Results.g, p.Results.radar);
 end
 
 fig = create_export_figure(2800, 900, "Name", p.Results.figure_name);
@@ -43,7 +43,7 @@ for i_frame = 1:numel(frame_ids)
     i_t = frame_ids(i_frame);
     nexttile;
     plot_xy(field_time(:, :, i_t), ...
-        grid=p.Results.grid, ...
+        g=p.Results.g, ...
         radar=p.Results.radar, ...
         c_lim=c_lim, ...
         ttl=time_labels(i_t), ...

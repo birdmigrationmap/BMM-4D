@@ -1,6 +1,6 @@
-function is_transition = find_land_water_transitions(grid, source_id, dest_id)
+function is_transition = find_land_water_transitions(g, source_id, dest_id)
 %FIND_LAND_WATER_TRANSITIONS Identify horizontal connections crossing shorelines.
 
-water_mask = get_water_mask(grid);
+water_mask = get_water_mask(g);
 is_transition = water_mask(source_id) ~= water_mask(dest_id);
 end

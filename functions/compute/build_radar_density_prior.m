@@ -1,35 +1,35 @@
-function [density_prior, density_prior_info] = build_radar_density_prior(grid, radar_scans, observations, varargin)
+function [density_prior, density_prior_info] = build_radar_density_prior(g, radar_scans, observations, varargin)
 %BUILD_RADAR_DENSITY_PRIOR Build a 4D density prior from radar vertical profiles.
 % Each radar/time scan gets one vertical density profile estimated from the
 % compact observations. The radar profiles are then interpolated horizontally
-% to the full Cartesian grid, returning DENSITY_PRIOR with size
-% [grid.sz n_time].
+% to the full Cartesian g, returning DENSITY_PRIOR with size
+% [g.sz n_time].
 
 p = inputParser;
 addParameter(p, "lambda_profile", 1);
 addParameter(p, "lambda_time_profile", 0);
 addParameter(p, "maxit", 100);
 addParameter(p, "tol", 1e-6);
-addParameter(p, "idw_neighbors", 10);
-addParameter(p, "idw_power", 2);
+addParameter(p, "idw_neighbors", 3);
+addParameter(p, "idw_power", 2.25);
 addParameter(p, "split_land_water_profiles", false);
 addParameter(p, "plot_diag", false);
 parse(p, varargin{:});
 
 n_radar = size(radar_scans, 1);
 n_time = size(radar_scans, 2);
-nz = grid.sz(3);
-nxy = prod(grid.sz(1:2));
+nz = g.sz(3);
+nxy = prod(g.sz(1:2));
 [interpolation_weights, radar_xy] = build_horizontal_idw_weights( ...
-    grid, radar_scans, ...
+    g, radar_scans, ...
     n_neighbors=p.Results.idw_neighbors, ...
     power=p.Results.idw_power);
 
-if isfield(grid, "mask_water")
-    water_mask = grid.mask_water;
+if isfield(g, "mask_water")
+    water_mask = g.mask_water;
 else
     water_mask_data = load("data/reference/onwater/Fonwater.mat", "Fonwater");
-    water_mask = logical(water_mask_data.Fonwater({grid.f_lat(grid.y), grid.f_lon(grid.x)}))';
+    water_mask = logical(water_mask_data.Fonwater({g.f_lat(g.y), g.f_lon(g.x)}))';
 end
 
 % Map vertical profiles to field cells and then to observation rows.
@@ -52,8 +52,12 @@ end
 profile_width = nz * n_profile_type;
 vp_operator_shared = observations.F * vertical_expansion;
 vp_row_active = any(vp_operator_shared, 2);
-[~, ~, obs_radar_id, ~] = ind2sub( ...
-    observations.obs_grid_size, double(observations.row_ids));
+if isfield(observations, "row_radar_id")
+    obs_radar_id = double(observations.row_radar_id);
+else
+    [~, ~, obs_radar_id, ~] = ind2sub( ...
+        observations.obs_grid_size, double(observations.row_ids));
+end
 
 profile_smoothness = get_l(nz, 1);
 profile_smoothness_base = profile_smoothness ./ sqrt(size(profile_smoothness, 1));
@@ -142,15 +146,15 @@ end
 if p.Results.split_land_water_profiles
     land_profile_matrix = reshape(permute(density_profiles_radar(:, :, :, 1), [2 1 3]), n_radar, []);
     water_profile_matrix = reshape(permute(density_profiles_radar(:, :, :, 2), [2 1 3]), n_radar, []);
-    density_prior_land = reshape(full(interpolation_weights * land_profile_matrix), [grid.sz n_time]);
-    density_prior_water = reshape(full(interpolation_weights * water_profile_matrix), [grid.sz n_time]);
+    density_prior_land = reshape(full(interpolation_weights * land_profile_matrix), [g.sz n_time]);
+    density_prior_water = reshape(full(interpolation_weights * water_profile_matrix), [g.sz n_time]);
     water_mask_4d = repmat(water_mask, 1, 1, nz, n_time);
     density_prior = density_prior_land;
     density_prior(water_mask_4d) = density_prior_water(water_mask_4d);
 else
     profile_matrix = reshape(permute(density_profiles_radar, [2 1 3 4]), n_radar, []);
     interpolated_profiles = full(interpolation_weights * profile_matrix);
-    density_prior = reshape(interpolated_profiles, [grid.sz n_time]);
+    density_prior = reshape(interpolated_profiles, [g.sz n_time]);
 end
 
 if p.Results.plot_diag
@@ -161,7 +165,7 @@ if p.Results.plot_diag
         VariableNames=["lon" "lat"]);
     plot_radar_interpolation_diag( ...
         density_prior(:, :, :, i_t_diag), density_profiles_radar(:, :, i_t_diag, 1), radar, ...
-        grid=grid, ...
+        g=g, ...
         field_time=density_prior, ...
         time_values=1:n_time, ...
         figure_name="Density prior diagnostics", ...

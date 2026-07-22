@@ -1,11 +1,11 @@
-function uv_field_interval = build_radar_velocity_prior(grid, radar_scans, varargin)
+function uv_field_interval = build_radar_velocity_prior(g, radar_scans, varargin)
 %BUILD_RADAR_VELOCITY_PRIOR Build the interval velocity field used for advection.
 % Each radar/time scan contributes one vertical [u v] profile in m/s.
 % Consecutive scan-time profiles are averaged, then interpolated
-% horizontally to the full Cartesian grid. The returned array
+% horizontally to the full Cartesian g. The returned array
 % UV_FIELD_INTERVAL has size [nx ny nz 2 (n_time - 1)]:
-%   - component 1 stores u velocity along grid x in m/s
-%   - component 2 stores v velocity along grid y in m/s
+%   - component 1 stores u velocity along g x in m/s
+%   - component 2 stores v velocity along g y in m/s
 %   - interval i is the velocity field used to advect density from
 %     scan time i to scan time i+1
 
@@ -17,9 +17,9 @@ parse(p, varargin{:});
 
 n_radar = size(radar_scans, 1);
 n_time = size(radar_scans, 2);
-nz = grid.sz(3);
+nz = g.sz(3);
 [interpolation_weights, ~] = build_horizontal_idw_weights( ...
-    grid, radar_scans, ...
+    g, radar_scans, ...
     n_neighbors=p.Results.idw_neighbors, ...
     power=p.Results.idw_power);
 
@@ -35,14 +35,14 @@ end
 uv_profiles_interval = 0.5 .* ( ...
     uv_profiles_radar(:, :, :, 1:(n_time - 1)) + ...
     uv_profiles_radar(:, :, :, 2:n_time));
-uv_field_interval = zeros([grid.sz 2 n_time - 1]);
+uv_field_interval = zeros([g.sz 2 n_time - 1]);
 for i_component = 1:2
     profile_matrix = reshape( ...
         permute(uv_profiles_interval(:, i_component, :, :), [3 1 4 2]), ...
         n_radar, []);
     interpolated = interpolation_weights * profile_matrix;
     uv_field_interval(:, :, :, i_component, :) = reshape( ...
-        interpolated, [grid.sz 1 n_time - 1]);
+        interpolated, [g.sz 1 n_time - 1]);
 end
 
 % Optional low-level diagnostics for checking how raw radar endpoint
@@ -63,7 +63,7 @@ if p.Results.plot_diag
             squeeze(uv_profiles_radar(:, i_component, :, i_interval_diag + 1)));
         plot_radar_interpolation_diag( ...
             uv_field_interval(:, :, :, i_component, i_interval_diag), interval_profiles, radar, ...
-            grid=grid, ...
+            g=g, ...
             field_time=uv_field_interval(:, :, :, i_component, :), ...
             time_values=interval_time, ...
             figure_name="Velocity prior diagnostics", ...

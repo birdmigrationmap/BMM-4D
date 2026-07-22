@@ -3,7 +3,7 @@ p = inputParser;
 addRequired(p, "field");
 addParameter(p, "ax", []);
 addParameter(p, "ttl", "");
-addParameter(p, "grid", []);
+addParameter(p, "g", []);
 addParameter(p, "radar", []);
 addParameter(p, "c_lim", []);
 addParameter(p, "r_lim", []);
@@ -14,7 +14,7 @@ addParameter(p, "y_label", []);
 parse(p, field, varargin{:});
 
 ttl = p.Results.ttl;
-g = p.Results.grid;
+g = p.Results.g;
 c_lim = p.Results.c_lim;
 r_lim = p.Results.r_lim;
 show_colorbar = p.Results.show_colorbar;
@@ -23,7 +23,7 @@ if isempty(show_colorbar)
 end
 radar_xy_km = [];
 
-hold on; box on; grid on
+hold on; box on; grid(gca, "on")
 
 if isempty(g)
     sz = size(field);

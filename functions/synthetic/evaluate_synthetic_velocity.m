@@ -1,7 +1,7 @@
 function [u, v] = evaluate_synthetic_velocity(X, Y, Z, velocity_model, i_interval)
 %EVALUATE_SYNTHETIC_VELOCITY Evaluate a reproducible horizontal velocity field.
 % Direction is a compass bearing measured clockwise from north. U is the
-% eastward grid-x component and V is the northward grid-y component.
+% eastward g-x component and V is the northward g-y component.
 
 if velocity_model.model == "uniform"
     sample_grid = X + Y + Z;

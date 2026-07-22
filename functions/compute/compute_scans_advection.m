@@ -11,6 +11,7 @@ addParameter(p, "projected_tol", 1e-4);
 addParameter(p, "projected_step", 0.25);
 addParameter(p, "tol", 1e-6);
 addParameter(p, "maxit", 100);
+addParameter(p, "initial_field", []);
 parse(p, varargin{:});
 
 prior_4d = expand_prior_field(prior_field, system.grid_sz, system.n_time);
@@ -42,7 +43,12 @@ normal_diagonal(normal_diagonal == 0) = 1;
 apply_normal = @(x) apply_normal_operator(x, system, prior_scales, smoothness_scales, advection_scales);
 apply_preconditioner = @(x) x ./ normal_diagonal;
 
-x_initial = prior_4d(:);
+if isempty(p.Results.initial_field)
+    x_initial = prior_4d(:);
+else
+    initial_4d = expand_prior_field(p.Results.initial_field, system.grid_sz, system.n_time);
+    x_initial = initial_4d(:);
+end
 rhs_vector = rhs(:);
 solver_name = string(p.Results.solver);
 if solver_name == "pcg"
@@ -78,8 +84,9 @@ end
 fields = reshape(x, [system.grid_sz system.n_time]);
 
 objective = compute_objective(fields, prior_4d, system, prior_scales, smoothness_scales, advection_scales);
+controls = rmfield(p.Results, "initial_field");
 inversion_info = struct( ...
-    "controls", orderfields(struct(p.Results)), ...
+    "controls", orderfields(controls), ...
     "solver", orderfields(merge_structs( ...
         solver, struct( ...
         "n_time", system.n_time, ...
@@ -244,7 +251,7 @@ elseif ismatrix(prior_field) && size(prior_field, 1) == grid_sz(3) && size(prior
     end
 else
     error("compute_scans_advection:InvalidPriorField", ...
-        "prior_field must be scalar, nz-by-1, nz-by-n_time, grid.sz, or [grid.sz n_time].");
+        "prior_field must be scalar, nz-by-1, nz-by-n_time, g.sz, or [g.sz n_time].");
 end
 end
 

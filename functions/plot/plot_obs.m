@@ -27,7 +27,7 @@ if isgraphics(p.Results.ax, "axes")
 end
 
 if plot_type == "scatter3"
-    hold on; box on; grid on
+    hold on; box on; grid(gca, "on")
     [obs, ~, azimuth_deg, elevation_deg, range_m, beam_height_m] = ...
         format_data(obs_vector, elevation_kernels, info);
 

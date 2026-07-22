@@ -1,8 +1,8 @@
-function [interpolation_weights, radar_xy] = build_horizontal_idw_weights(grid, radar_scans, varargin)
-%BUILD_HORIZONTAL_IDW_WEIGHTS Build shared radar-to-grid IDW interpolation weights.
-% The returned sparse matrix has size [numel(grid.x)*numel(grid.y) n_radar]
+function [interpolation_weights, radar_xy] = build_horizontal_idw_weights(g, radar_scans, varargin)
+%BUILD_HORIZONTAL_IDW_WEIGHTS Build shared radar-to-g IDW interpolation weights.
+% The returned sparse matrix has size [numel(g.x)*numel(g.y) n_radar]
 % and maps one scalar value per radar to one scalar field on the full
-% horizontal grid. Duplicate radar XY positions are handled internally by
+% horizontal g. Duplicate radar XY positions are handled internally by
 % computing site-level weights and splitting each site's weight equally
 % across all radars at that same location.
 
@@ -12,18 +12,18 @@ addParameter(p, "power", 2);
 parse(p, varargin{:});
 
 n_radar = size(radar_scans, 1);
-nxy = prod(grid.sz(1:2));
+nxy = prod(g.sz(1:2));
 radar_xy = nan(n_radar, 2);
 
 for i_r = 1:n_radar
-    radar_xy(i_r, :) = [grid.f_X(radar_scans{i_r, 1}.lon) grid.f_Y(radar_scans{i_r, 1}.lat)];
+    radar_xy(i_r, :) = [g.f_X(radar_scans{i_r, 1}.lon) g.f_Y(radar_scans{i_r, 1}.lat)];
 end
 
 [radar_xy_unique, ~, site_id] = unique(radar_xy, "rows", "stable");
 n_site = size(radar_xy_unique, 1);
 site_count = accumarray(site_id, 1, [n_site 1]);
 n_neighbors = min(p.Results.n_neighbors, n_site);
-[X, Y] = ndgrid(grid.x(:), grid.y(:));
+[X, Y] = ndgrid(g.x(:), g.y(:));
 grid_xy = [X(:) Y(:)];
 chunk_size = 10000;
 row_ids = zeros(nxy * n_neighbors, 1);

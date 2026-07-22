@@ -79,7 +79,7 @@ for i_s=1:numel(scan_radar)
 
                 % Check if the file is ok
                 if (minutes(closest_dur) >= p.Results.closest_accepted)
-                    warning("No file within %grid minutes for %s at %s.", ...
+                    warning("No file within %g minutes for %s at %s.", ...
                         p.Results.closest_accepted, scan_radar(i_s), string(scan_time(id_t(i_t))))
                     continue
                 end

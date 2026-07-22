@@ -6,7 +6,7 @@ function L = LaplacianMatrix1D(n,varargin)
 % Builds finite difference approximation matrix for the 1D Laplacian. Here
 % we assume zero boundary conditions to get a square, nonsingular matrix L.
 %
-% Input:  n = number of grid points for x and y
+% Input:  n = number of g points for x and y
 % Output: L = matrix
 
 % Silvia Gazzola, University of Bath

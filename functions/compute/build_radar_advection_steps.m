@@ -1,4 +1,4 @@
-function steps = build_radar_advection_steps(grid, radar_scans, dt_seconds, varargin)
+function steps = build_radar_advection_steps(g, radar_scans, dt_seconds, varargin)
 %BUILD_RADAR_ADVECTION_STEPS Interpolate radar velocity and build steps one interval at a time.
 % The global advection penalty is set later in compute_scans_advection.
 % Here, shoreline_crossing_coeff only edits the local link coefficients in
@@ -9,12 +9,13 @@ addParameter(p, "idw_neighbors", 10);
 addParameter(p, "idw_power", 1.6);
 addParameter(p, "boundary_mode", "open");
 addParameter(p, "shoreline_crossing_coeff", 1);
+addParameter(p, "active_mask_3d", []);
 parse(p, varargin{:});
 
 n_radar = size(radar_scans, 1);
 n_time = size(radar_scans, 2);
 n_interval = n_time - 1;
-nz = grid.sz(3);
+nz = g.sz(3);
 if isscalar(dt_seconds)
     dt_seconds = repmat(dt_seconds, n_interval, 1);
 else
@@ -22,7 +23,7 @@ else
 end
 
 [interpolation_weights, ~] = build_horizontal_idw_weights( ...
-    grid, radar_scans, ...
+    g, radar_scans, ...
     n_neighbors=p.Results.idw_neighbors, ...
     power=p.Results.idw_power);
 
@@ -35,7 +36,7 @@ end
 
 steps = cell(n_interval, 1);
 for i_interval = 1:n_interval
-    uv_interval = zeros([grid.sz 2]);
+    uv_interval = zeros([g.sz 2]);
     profiles = 0.5 .* ( ...
         uv_profiles_radar(:, :, :, i_interval) + ...
         uv_profiles_radar(:, :, :, i_interval + 1));
@@ -44,12 +45,13 @@ for i_interval = 1:n_interval
             permute(profiles(:, i_component, :), [3 1 2]), ...
             n_radar, nz);
         uv_interval(:, :, :, i_component) = reshape( ...
-            interpolation_weights * profile_matrix, grid.sz);
+            interpolation_weights * profile_matrix, g.sz);
     end
     interval_step = build_profile_advection_steps( ...
-        grid, uv_interval, dt_seconds(i_interval), ...
+        g, uv_interval, dt_seconds(i_interval), ...
         boundary_mode=p.Results.boundary_mode, ...
-        shoreline_crossing_coeff=p.Results.shoreline_crossing_coeff);
+        shoreline_crossing_coeff=p.Results.shoreline_crossing_coeff, ...
+        active_mask_3d=p.Results.active_mask_3d);
     steps{i_interval} = interval_step{1};
 end
 end

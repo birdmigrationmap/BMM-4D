@@ -1,12 +1,12 @@
-function [scan, inversion_info] = compute_scan(F, obs_vector, grid, varargin)
+function [scan, inversion_info] = compute_scan(F, obs_vector, g, varargin)
 %COMPUTE_SCAN Reconstruct one 3D density field from one radar observation vector.
 %   [SCAN, INVERSION_INFO] = COMPUTE_SCAN(F, OBS_VECTOR, GRID, ...) solves
 %   a regularized least-squares inverse problem for a single time step. F
 %   is the sparse forward operator, OBS_VECTOR is the sparse observation
-%   vector for one time, and GRID is the reconstruction grid from
+%   vector for one time, and GRID is the reconstruction g from
 %   CREATE_GRID.
 %
-%   The unknown is the full 3D density field on the Cartesian grid. The
+%   The unknown is the full 3D density field on the Cartesian g. The
 %   optional regularization terms add prior information on:
 %   - the overall magnitude of the field (identity)
 %   - smoothness in x, y, and z (smoothness)
@@ -26,18 +26,18 @@ addParameter(p,'maxit', 100); % same default as lsqr
 addParameter(p, 'coeff_horver', 0); % (+) more horizontal smoother, (-) more vertical smoothing, 0 equal smoothing. between 0 and .5
 parse(p,varargin{:});
 
-num_grid_cells = prod(grid.sz);
-num_horizontal_cells = prod(grid.sz(1:2));
+num_grid_cells = prod(g.sz);
+num_horizontal_cells = prod(g.sz(1:2));
 use_vertical_profile = p.Results.vp_absolute > 0 || p.Results.vp_ratio > 0;
 
 if p.Results.water
-    if isfield(grid,'mask_water')
-        water_mask = grid.mask_water;
+    if isfield(g,'mask_water')
+        water_mask = g.mask_water;
     else
         water_mask_data = load("data/reference/onwater/Fonwater.mat", "Fonwater");
-        water_mask = logical(water_mask_data.Fonwater({grid.f_lat(grid.y),grid.f_lon(grid.x)}))';
+        water_mask = logical(water_mask_data.Fonwater({g.f_lat(g.y),g.f_lon(g.x)}))';
     end
-    water_mask_3d = repmat(water_mask, 1, 1, grid.sz(3));
+    water_mask_3d = repmat(water_mask, 1, 1, g.sz(3));
 end
 
 % Keep only non-zero observations. Zero entries do not contribute to the
@@ -62,7 +62,7 @@ end
 
 % Penalize roughness in the 3D field with the project Laplacian operator.
 if p.Results.smoothness > 0
-    laplacian_3d = LaplacianMatrix(grid, water=p.Results.water, coeff_horver=p.Results.coeff_horver);
+    laplacian_3d = LaplacianMatrix(g, water=p.Results.water, coeff_horver=p.Results.coeff_horver);
     smoothness_scale = p.Results.smoothness .* data_block_norm ./ max(norm(laplacian_3d, "fro"), eps);
     A_system = [A_system; smoothness_scale .* laplacian_3d];
     b_system = [b_system; sparse(num_grid_cells,1)];
@@ -71,14 +71,14 @@ end
 % Estimate the vertical profile from the same observations whenever a
 % VP-based regularization term is active.
 if use_vertical_profile
-    vp = compute_vp(obs_vector(:,1), grid, F);
+    vp = compute_vp(obs_vector(:,1), g, F);
 end
 
-% Expand a 1D vertical profile to the full 3D grid by repeating each
+% Expand a 1D vertical profile to the full 3D g by repeating each
 % altitude value across all horizontal cells. This is the operator U in the
 % notes used to map vp(z) to a full field d(x,y,z) = vp(z).
 if p.Results.vp_absolute > 0
-    vertical_profile_expansion = repelem(speye(grid.sz(3)), num_horizontal_cells, 1);
+    vertical_profile_expansion = repelem(speye(g.sz(3)), num_horizontal_cells, 1);
 
     if p.Results.water
         vertical_profile_expansion(water_mask_3d(:) == 1, :) = 0;
@@ -101,7 +101,7 @@ if p.Results.vp_ratio > 0
 
     % For each voxel, Q*d = 0 enforces equality between the voxel value and
     % the profile-shaped share of the total mass in its vertical column.
-    repeated_column_identity = repmat(speye(num_horizontal_cells), grid.sz(3), grid.sz(3));
+    repeated_column_identity = repmat(speye(num_horizontal_cells), g.sz(3), g.sz(3));
     profile_ratio_operator = repeated_column_identity .* repelem(normalized_vp', 1, num_horizontal_cells) - speye(num_grid_cells);
 
     if p.Results.water
@@ -114,12 +114,12 @@ if p.Results.vp_ratio > 0
 end
 
 % Solve the regularized inverse problem and reshape it back to the canonical
-% Cartesian grid order [x y z].
+% Cartesian g order [x y z].
 [scan_1D, flag, relres, iter] = lsqr(A_system, b_system, p.Results.tol, p.Results.maxit);
 
 % Keep orientation changes out of shared helpers. Plotting code can permute
 % arrays locally if a display-oriented layout is needed.
-scan = reshape(scan_1D,grid.sz);
+scan = reshape(scan_1D,g.sz);
 
 inversion_info = struct( ...
     "controls", orderfields(struct(p.Results)), ...

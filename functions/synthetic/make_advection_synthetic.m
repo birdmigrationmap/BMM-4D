@@ -1,4 +1,4 @@
-function [truth_sequences, obs_sequences] = make_advection_synthetic(grid, F, cov_parm, vp_case, trans_finv_case, target_id, n_sim, uv_profile, time_offsets, dt, varargin)
+function [truth_sequences, obs_sequences] = make_advection_synthetic(g, F, cov_parm, vp_case, trans_finv_case, target_id, n_sim, uv_profile, time_offsets, dt, varargin)
 %MAKE_ADVECTION_SYNTHETIC Generate moving truth sequences and observations.
 
 p = inputParser;
@@ -8,7 +8,7 @@ addParameter(p, "shoreline_crossing_coeff", 1);
 parse(p, varargin{:});
 
 [generation_grid, crop] = build_advection_generation_grid( ...
-    grid, uv_profile, time_offsets, seconds(dt));
+    g, uv_profile, time_offsets, seconds(dt));
 
 truth_fields = simulate_gaussian_truth( ...
     generation_grid, cov_parm, trans_finv_case{target_id}, vp_case(:, target_id), ...

@@ -1,4 +1,4 @@
-function [F, obs_matrix, info] = construct_F(radar_scans, elevation_kernels, grid)
+function [F, obs_matrix, info] = construct_F(radar_scans, elevation_kernels, g)
 %CONSTRUCT_F Build the sparse forward operator and sparse observation matrix.
 %   [F, OBS_MATRIX, INFO] = CONSTRUCT_F(RADAR_SCANS, ELEVATION_KERNELS, GRID)
 %   combines the precomputed elevation kernels with the processed radar
@@ -18,15 +18,15 @@ for i_r = 1:height(radar_scans)
     radar_sites{i_r}.height = radar_scans{i_r,1}.height;
     radar_sites{i_r}.station = radar_scans{i_r,1}.station;
 
-    % Find location on grid
-    [~,lon_id] = min(abs(grid.lon-radar_sites{i_r}.lon));
-    [~,lat_id] = min(abs(grid.lat-radar_sites{i_r}.lat));
-    [~,z_id]  =  min(squeeze(abs(grid.z-radar_sites{i_r}.height)));
+    % Find location on g
+    [~,lon_id] = min(abs(g.lon-radar_sites{i_r}.lon));
+    [~,lat_id] = min(abs(g.lat-radar_sites{i_r}.lat));
+    [~,z_id]  =  min(squeeze(abs(g.z-radar_sites{i_r}.height)));
 
     % Convert the index of position in x,y,z on the radar volume to the
-    % position (index) of the multi-radar grid. This is done by offest
+    % position (index) of the multi-radar g. This is done by offest
     % the lat lon sub by the position of the radar. 
-    % get the position of the 0,0 of the coarse grid
+    % get the position of the 0,0 of the coarse g
     radar_sites{i_r}.lon_id = lon_id - ceil(elevation_kernels{1}.sz_coarse_grid(1)/2);
     radar_sites{i_r}.lat_id = lat_id - ceil(elevation_kernels{1}.sz_coarse_grid(2)/2);
     % Synthetic scripts set height = 0 to force a ground-referenced radar.
@@ -34,34 +34,34 @@ for i_r = 1:height(radar_scans)
         radar_sites{i_r}.z_id = 0;
         radar_sites{i_r}.z0_m = 0;
     else
-        % Use the nearest analysis-grid height as the canonical radar level.
+        % Use the nearest analysis-g height as the canonical radar level.
         radar_sites{i_r}.z_id = z_id;
-        radar_sites{i_r}.z0_m = grid.z(z_id);
+        radar_sites{i_r}.z0_m = g.z(z_id);
     end
    
 
-    % Check that the radar is within the grid
+    % Check that the radar is within the g
 %     id_lon = radar_sites{i_r}.lon_id - ceil(elevation_kernels.sz_coarse_grid(1)/2);
 %     id_lat = radar_sites{i_r}.lat_id - ceil(elevation_kernels.sz_coarse_grid(2)/2);
-%     assert(id_lon>=0 & (id_lon+elevation_kernels.sz_coarse_grid(1))<=numel(grid.lon))
-%     assert(id_lat>=0 & (id_lat+elevation_kernels.sz_coarse_grid(2))<=numel(grid.lat))
+%     assert(id_lon>=0 & (id_lon+elevation_kernels.sz_coarse_grid(1))<=numel(g.lon))
+%     assert(id_lat>=0 & (id_lat+elevation_kernels.sz_coarse_grid(2))<=numel(g.lat))
 
     % Beam blockage
     % Build a map of lower beam altitude reach based on the elevation from the beam blockage of this radar and corrected
-    % for the position of the radar on the current grid
+    % for the position of the radar on the current g
     bbr = bb.bb(:,:,radar_scans{i_r,1}.station==bb.bb_radar);
 
 
     [AZ, R] = meshgrid(bb.bb_az, bb.bb_range);
     [x,y,z] = sph2cart(deg2rad(AZ), deg2rad(double(bbr)), R);
-    bbr_interp = scatteredInterpolant(grid.x(lon_id) + x(:), grid.y(lat_id) + y(:), radar_sites{i_r}.z0_m + z(:));
+    bbr_interp = scatteredInterpolant(g.x(lon_id) + x(:), g.y(lat_id) + y(:), radar_sites{i_r}.z0_m + z(:));
 
-    radar_sites{i_r}.bb_alt = bbr_interp({grid.x, grid.y});
-    % figure; imagesc(grid.x, grid.y, radar_sites{i_r}.bb_alt); colorbar;
+    radar_sites{i_r}.bb_alt = bbr_interp({g.x, g.y});
+    % figure; imagesc(g.x, g.y, radar_sites{i_r}.bb_alt); colorbar;
 end
 
 %% 
-% Take the larger size of az and range to have everything on a regular grid
+% Take the larger size of az and range to have everything on a regular g
 kernel_obs_size = cellfun(@(x) x.sz_raz, elevation_kernels, 'UniformOutput', false);
 obs_grid_size = [max(vertcat(kernel_obs_size{:})) numel(radar_sites) numel(elevation_kernels)];
 
@@ -70,8 +70,8 @@ obs_block_offset = reshape(cumsum(repmat(prod(obs_grid_size(1:2)), prod(obs_grid
 
 % Check if obs_block_offset is correct [id_range, id_az, id_r, id_kernel]=ind2sub(obs_grid_size, obs_block_offset+1);
 
-% We also want to convert the index of F_raz_id into the new grid
-% (e.grid. 900x360 -> 1800 x 720)
+% We also want to convert the index of F_raz_id into the new g
+% (e.g. 900x360 -> 1800 x 720)
 kernel_obs_raz_idx = cell(size(elevation_kernels));
 kernel_grid_x = cell(size(elevation_kernels));
 kernel_grid_y = cell(size(elevation_kernels));
@@ -127,7 +127,7 @@ obs_matrix = sparse(obs_triplets(:,1), obs_triplets(:,2), obs_triplets(:,3), pro
 
 %% Compute F
 % Reuse the precomputed kernel triplets for every radar. Only the
-% observation-row offset and grid-cell offset change by radar site.
+% observation-row offset and g-cell offset change by radar site.
 
 F_rows = cell(numel(radar_sites), numel(elevation_kernels));
 F_cols = cell(numel(radar_sites), numel(elevation_kernels));
@@ -141,27 +141,27 @@ for i_r = 1:numel(radar_sites) % through the radars
         grid_x_id = kernel_grid_x{i_f}(id_pres_data) + radar_sites{i_r}.lon_id;
         grid_y_id = kernel_grid_y{i_f}(id_pres_data) + radar_sites{i_r}.lat_id;
         grid_z_id = kernel_grid_z{i_f}(id_pres_data) + radar_sites{i_r}.z_id;
-        id_F_keep = grid_x_id >= 1 & grid_x_id <= grid.sz(1) & ...
-            grid_y_id >= 1 & grid_y_id <= grid.sz(2) & ...
-            grid_z_id >= 1 & grid_z_id <= grid.sz(3);
+        id_F_keep = grid_x_id >= 1 & grid_x_id <= g.sz(1) & ...
+            grid_y_id >= 1 & grid_y_id <= g.sz(2) & ...
+            grid_z_id >= 1 & grid_z_id <= g.sz(3);
         if ~isempty(id_F_keep)
             coverage_fraction(i_r, i_f) = mean(id_F_keep);
         end
 
         F_rows{i_r,i_f} = obs_block_offset(i_r,i_f) + kernel_obs_raz_idx{i_f}(id_pres_data);
         F_rows{i_r,i_f} = F_rows{i_r,i_f}(id_F_keep);
-        F_cols{i_r,i_f} = sub2ind(grid.sz, grid_x_id(id_F_keep), grid_y_id(id_F_keep), grid_z_id(id_F_keep));
+        F_cols{i_r,i_f} = sub2ind(g.sz, grid_x_id(id_F_keep), grid_y_id(id_F_keep), grid_z_id(id_F_keep));
         F_vals{i_r,i_f} = double(elevation_kernels{i_f}.Fval(id_pres_data));
         F_vals{i_r,i_f} = F_vals{i_r,i_f}(id_F_keep);
 
-%         F = sparse(F_rows{i_r,i_f}, F_cols{i_r,i_f}, F_vals{i_r,i_f}, prod(obs_grid_size), prod(grid.sz));
-%         tmp = reshape(full(sum(F,1)), grid.sz);
+%         F = sparse(F_rows{i_r,i_f}, F_cols{i_r,i_f}, F_vals{i_r,i_f}, prod(obs_grid_size), prod(g.sz));
+%         tmp = reshape(full(sum(F,1)), g.sz);
 %         figure;imagesc(log(sum(tmp,3)))
     end
 end
 
 %% 
-F = sparse(vertcat(F_rows{:}), vertcat(F_cols{:}), vertcat(F_vals{:}), prod(obs_grid_size), prod(grid.sz));
+F = sparse(vertcat(F_rows{:}), vertcat(F_cols{:}), vertcat(F_vals{:}), prod(obs_grid_size), prod(g.sz));
 
 %%
 % norm = sum(F,2);

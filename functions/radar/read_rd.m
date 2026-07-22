@@ -154,15 +154,9 @@ for i_s = 1:numel(scans_filepath)
     dens_elev = cell(numel(radar_scan.dz.sweeps), 1);
     for i_elev=1:numel(radar_scan.dz.sweeps)
 
-        % Extract reflectivity in dBZ for one sweep on a regular polar grid.
+        % Extract reflectivity in dBZ for one sweep on a regular polar g.
         [sweep_dbz, sweep_range, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
         sweep_dbz(rain_masks{i_elev}) = nan;
-
-        if false
-            [z, x, y] = sweep2cart(radar_scan.dz.sweeps(i_elev),100000,1000);
-            figure; imagescnan(x, y, z); axis xy equal;
-            clim([0 quantile(z(:),.999)])
-        end
 
         % Discard values that overlap with the precomputed beam blockage
         % map. Overlap is considered if the ground is within the half-beam
@@ -242,12 +236,10 @@ for i_s = 1:numel(scans_filepath)
                 end
             end
             data_median = median(dd,3,'omitnan');
-            data_n = sum(~isnan(dd),3);
             data_median(end-1:end,:)=nan;
-            data_n(end-1:end,:)=0;
 
             MAD = -1/(sqrt(2)*erfcinv(3/2))*median(abs(dd-data_median),3,'omitnan');
-            MAD = nanmean(MAD(:));
+            MAD = mean(MAD(:), "omitnan");
             thr = data_median + permute([-1 1],[3 1 2]).* 3.*MAD;
             id = sweep_dbz < thr(:,:,1) | sweep_dbz > thr(:,:,2);
             if ismember("outliers_continuity", plot_opts)  && i_elev==1
@@ -286,19 +278,6 @@ for i_s = 1:numel(scans_filepath)
 
             sweep_dbz(id) = nan;
 
-
-            % Fill
-            % data2=fillmissing(sweep_dbz,"linear");
-            % remove datapoint which are too far from neighboring value.
-            % data2(data_n<9) = nan;
-            % figure; imagesc(data2,"AlphaData",~isnan(data2));colorbar; ylim([0 900])
-            % sweep_dbz=data2;
-
-            %         d = sweep_dbz;
-            %         % d(isnan(d)) = -inf;
-            %         dens = z_to_refl(idb(d))/11;
-            %         figure; imagesc(dens, "AlphaData",~isnan(dens)); colorbar; ylim([0 900])
-
         end
 
         % Set nodata pulse volumes to 0 reflectivity (-inf on decibel scale)
@@ -327,11 +306,11 @@ for i_s = 1:numel(scans_filepath)
             % To perform smoothing along azimuth, replicate data to have
             % cyclical behaviour
             w = 100;
-            tmp = [tmp(end-w+1:end) tmp tmp(1:w)];
+            tmp_wrapped = [tmp(end-w+1:end) tmp tmp(1:w)];
 
             % Apply a moving median to remove outliers and a moving mean to
             % smooth the curve along azimuth
-            dens_elev_sm = movmean(movmedian(tmp,5),21);
+            dens_elev_sm = movmean(movmedian(tmp_wrapped,5),21);
             dens_elev_sm = dens_elev_sm(w+1:end-w);
 
             [~, ~, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
@@ -413,7 +392,7 @@ for i_s = 1:numel(scans_filepath)
             tiledlayout(3,6,'TileSpacing','tight','Padding','tight');
 
             % Plot the data and the fitted curve
-            nexttile([1 3]); hold on; grid on; box on;
+            nexttile([1 3]); hold on; grid(gca, "on"); box on;
             id = rhmse(:,3)>0;
             scatter(deg2rad(rhmse(id,2)),rhmse(id,3),rhmse(id,4)/500, rhmse(id,1),'filled',MarkerFaceAlpha=0.3)
             x_fit = linspace(0, 2*pi, 361)';
@@ -423,7 +402,7 @@ for i_s = 1:numel(scans_filepath)
             legend('Density-weighted azimuthal summary', 'Fitted sinusoid', 'Orientation axis', 'Location', 'northeast')
             axis tight; xlim([0 2*pi]); c=colorbar;c.Label.String="Elevation angle";            
 
-            nexttile([1 3]);hold on; grid on; box on;
+            nexttile([1 3]);hold on; grid(gca, "on"); box on;
             scatter(dmse(:,2),dmse(:,3),dmse(:,3)/10, dmse(:,1),'filled',MarkerFaceAlpha=0.3)
             x_fit = linspace(0, 360, 361)';
             plot(x_fit, mdl(x_fit), "k-", DisplayName="Fitted anisotropy template");
@@ -610,7 +589,7 @@ for i_s = 1:numel(scans_filepath)
         radar_scan.dens.sweeps(i_elev).range = sweep_range;
         radar_scan.dens.sweeps(i_elev).elev = radar_scan.dz.sweeps(i_elev).elev;
 
-        % some additional data to keep useful for e.grid. sweep2mat
+        % some additional data to keep useful for e.g. sweep2mat
         radar_scan.dens.sweeps(i_elev).range_bin1 = radar_scan.dz.sweeps(i_elev).range_bin1;
         radar_scan.dens.sweeps(i_elev).gate_size = radar_scan.dz.sweeps(i_elev).gate_size;
         radar_scan.dens.sweeps(i_elev).nbins = radar_scan.dz.sweeps(i_elev).nbins;

@@ -4,7 +4,7 @@ p = inputParser;
 addRequired(p, "field");
 addParameter(p, "ax", []);
 addParameter(p, "ttl", "");
-addParameter(p, "grid", []);
+addParameter(p, "g", []);
 addParameter(p, "radar", []);
 addParameter(p, "c_lim", []);
 addParameter(p, "r_lim", []);
@@ -16,7 +16,7 @@ addParameter(p, "use_geographic_axis", false);
 parse(p, field, varargin{:});
 
 ttl = p.Results.ttl;
-g = p.Results.grid;
+g = p.Results.g;
 c_lim = p.Results.c_lim;
 r_lim = p.Results.r_lim;
 show_colorbar = p.Results.show_colorbar;
@@ -48,7 +48,7 @@ field_xy = field';
 if isgraphics(p.Results.ax, "axes")
     axes(p.Results.ax)
 end
-hold on; box on; grid on
+hold on; box on; grid(gca, "on")
 
 if use_geographic_axis && ~isempty(g)
     imagesc(x_plot, y_plot, field_xy)

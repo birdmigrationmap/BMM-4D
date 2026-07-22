@@ -7,9 +7,9 @@ This folder contains the reusable code used by the reconstruction workflows.
 Use one Cartesian grid convention across the whole project.
 
 - Arrays are ordered as `[x y z]`.
-- `grid.sz = [numel(grid.x) numel(grid.y) numel(grid.z)]`.
-- `reshape(vector, grid.sz)` is the standard vector-to-grid conversion.
-- `sub2ind(grid.sz, x_id, y_id, z_id)` is the matching linear indexing rule.
+- `g.sz = [numel(g.x) numel(g.y) numel(g.z)]`.
+- `reshape(vector, g.sz)` is the standard vector-to-grid conversion.
+- `sub2ind(g.sz, x_id, y_id, z_id)` is the matching linear indexing rule.
 - Use transpose or `permute(...)` only in local plotting code, not in shared computational helpers.
 
 ## First-party project functions
@@ -24,7 +24,7 @@ Use one Cartesian grid convention across the whole project.
 - `compute/prepare_scans_advection.m`: prepare reusable matrix-free data, smoothing, and advection components.
 - `compute/compute_scans_advection.m`: reconstruct a 4D field with matrix-free PCG applied to the original least-squares normal equations.
 - `compute/build_profile_advection_steps.m`: build one advection step per time interval from vertical-profile or grid-wise speed input.
-- `sinksource.m`: compute within-grid mass balance, take-off, landing, entering, and leaving flux terms.
+- `compute_continuity_balance.m`: compute within-grid mass balance, signed source-sink residuals, and positive take-off, landing, entering, and leaving count/rate products.
 
 ### Synthetic-only helpers
 
@@ -49,12 +49,6 @@ Use one Cartesian grid convention across the whole project.
 ### Vertical-profile methods
 
 - `compute/compute_vp.m`: estimate a vertical profile with Tikhonov regularization and automatic or fixed lambda.
-- `compute/compute_vp_thiko.m`: estimate a vertical profile with standard-form Tikhonov regularization.
-- `vp/compute_vp_flex.m`: estimate a vertical profile with a direct LSQR system and simple penalties.
-- `vp/compute_vp_mean.m`: compute a mean profile by altitude binning observations.
-- `vp/compute_vp_ratio.m`: estimate a normalized profile from matched inter-elevation observation ratios.
-- `vp/compute_vp_buler.m`: implement the Buler-style profile reconstruction based on beam-height weighting.
-- `vp/compute_vp_hu.m`: estimate a vertical profile with standard-form Tikhonov regularization.
 
 ### Grid and matrix utilities
 
@@ -63,7 +57,6 @@ Use one Cartesian grid convention across the whole project.
 - `util/LaplacianMatrix.m`: build the 3D smoothness operator used in inversion.
 - `util/LaplacianMatrix1D.m`: build the 1D Laplacian used for vertical smoothing.
 - `util/format_data.m`: extract `obs_values`, `nonzero_obs_idx`, and optional geometry metadata from sparse observation vectors.
-- `util/lldistkm.m`: geographic distance helper.
 - `util/colormap_wct.m`: project colormap helper.
 - `plot/plot_obs.m`: processed-observation plotter for 3D observation samples or elevation-specific PPI panels.
 - `plot/plot_sweep.m`: low-level raw sweep plotter for azimuth-range and local Cartesian x/y diagnostics before data are packed into observation vectors.
@@ -71,9 +64,9 @@ Use one Cartesian grid convention across the whole project.
 
 ### Wrappers and external helpers
 
-- `wrslib/aws_list_datetime.m`, `wrslib/mistnet_polar_radar.m`, `wrslib/radar2mat_dens.m`, `wrslib/rsl2mat_wrap.m`: wrappers or adapted helpers around upstream radar tooling.
-- `regtools/get_ln.m`, `regtools/l_corner.m`, `regtools/l_curve_wo_fig.m`: local regularization helpers.
-- `regtools/regu/`: vendored Regularization Tools library. Treat as external code.
+- `wrslib/aws_list_datetime.m`, `wrslib/mistnet_polar_radar.m`, and `wrslib/rsl2mat_wrap.m`: wrappers or adapted helpers around upstream radar tooling.
+- `regtools/l_corner.m` and `regtools/l_curve_wo_fig.m`: local regularization helpers.
+- `regtools/regu/`: only the vendored Regularization Tools routines required by `compute_vp.m`.
 
 ## Current Shared Naming
 
@@ -81,7 +74,7 @@ These are the names that first-party code now uses across folder boundaries:
 
 - `radar_scans`: cleaned scans and scan metadata
 - `elevation_kernels`: precomputed elevation-specific kernels
-- `grid`: Cartesian analysis grid
+- `g`: Cartesian analysis grid
 - `obs_matrix`: sparse observation matrix returned by `construct_F(...)`
 - `kernel_idx`: scan-to-kernel index stored on each radar scan
 - `nonzero_obs_idx`: linear indices of nonzero observations
@@ -90,7 +83,7 @@ These are the names that first-party code now uses across folder boundaries:
 
 ## Shared Saved Products
 
-- `data/derived/simulator/scans_data.mat` stores `grid`, `F`, `obs_matrix`, `elevation_kernels`, `info`, and `scans`.
+- `data/derived/simulator/scans_data.mat` stores `g`, `F`, `obs_matrix`, `elevation_kernels`, `info`, and `scans`.
 - `data/derived/simulator/radar_scans.mat` stores `radar_scans`.
 - `data/derived/simulator/shape_fit.mat` stores scan-cleaning shape fits.
 - `data/derived/simulator/cov.mat` stores covariance fits, vertical profiles, transforms, time windows, and target scan indices.

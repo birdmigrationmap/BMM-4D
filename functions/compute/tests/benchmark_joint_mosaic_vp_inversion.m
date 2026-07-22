@@ -6,18 +6,18 @@ rng(1)
 %% Build compact 100-radar, 20-time benchmark inputs
 n_radar = 100;
 n_time = 20;
-grid.x = (0:99) .* 1000;
-grid.y = (0:99) .* 1000;
-grid.z = [500 1500];
-grid.sz = [numel(grid.x) numel(grid.y) numel(grid.z)];
-grid.dx = 1000;
-grid.dy = 1000;
-grid.mask_water = false(grid.sz(1:2));
-grid.f_X = @(lon) lon .* 1000;
-grid.f_Y = @(lat) lat .* 1000;
+g.x = (0:99) .* 1000;
+g.y = (0:99) .* 1000;
+g.z = [500 1500];
+g.sz = [numel(g.x) numel(g.y) numel(g.z)];
+g.dx = 1000;
+g.dy = 1000;
+g.mask_water = false(g.sz(1:2));
+g.f_X = @(lon) lon .* 1000;
+g.f_Y = @(lat) lat .* 1000;
 
-radar_x = linspace(grid.x(1), grid.x(end), n_radar)';
-radar_y = mod((0:n_radar - 1)' .* 37, grid.y(end));
+radar_x = linspace(g.x(1), g.x(end), n_radar)';
+radar_y = mod((0:n_radar - 1)' .* 37, g.y(end));
 radar_scans = cell(n_radar, n_time);
 for i_t = 1:n_time
     for i_r = 1:n_radar
@@ -30,18 +30,18 @@ end
 
 info.obs_grid_size = [1 1 n_radar 1];
 info.obs_block_offset = (0:n_radar - 1)';
-field_ids = sub2ind(grid.sz, ...
-    round(linspace(1, grid.sz(1), n_radar))', ...
-    mod((0:n_radar - 1)', grid.sz(2)) + 1, ...
+field_ids = sub2ind(g.sz, ...
+    round(linspace(1, g.sz(1), n_radar))', ...
+    mod((0:n_radar - 1)', g.sz(2)) + 1, ...
     ones(n_radar, 1));
-F = sparse((1:n_radar)', field_ids, 1, n_radar, prod(grid.sz));
+F = sparse((1:n_radar)', field_ids, 1, n_radar, prod(g.sz));
 obs_matrix = sparse(rand(n_radar, n_time));
 observations = prepare_radar_observations(F, obs_matrix, info);
 
 %% Measure preparation time and retained operator sizes
 benchmark_tic = tic;
 [prior_field, density_prior_info] = build_radar_density_prior( ...
-    grid, radar_scans, observations, ...
+    g, radar_scans, observations, ...
     lambda_profile=10, ...
     maxit=20);
 preparation_seconds = toc(benchmark_tic);
@@ -52,10 +52,10 @@ fprintf("100-radar, 20-time density-prior preparation: %.2f s, %.1f MB retained\
 
 %% Measure one low-iteration full joint solve
 steps = build_profile_advection_steps( ...
-    grid, zeros(grid.sz(3), 2, n_time - 1), 1800, ...
+    g, zeros(g.sz(3), 2, n_time - 1), 1800, ...
     boundary_mode="open");
 system_tic = tic;
-system = prepare_scans_advection(observations, grid, steps, water=false, coeff_horver=0);
+system = prepare_scans_advection(observations, g, steps, water=false, coeff_horver=0);
 system_seconds = toc(system_tic);
 system_memory = whos("system");
 fprintf("Prepared matrix-free system: %.2f s, %.1f MB retained\n", ...

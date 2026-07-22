@@ -39,7 +39,11 @@ smin_factor = 1e-6;  % Factor relative to smallest singular value
 
 % Initialization.
 [m,n] = size(U); [p,ps] = size(sm);
-if (nargout > 0), locate = 1; else locate = 0; end
+if nargout > 0
+  locate = 1;
+else
+  locate = 0;
+end
 beta = U'*b; beta2 = norm(b)^2 - norm(beta)^2;
 if (ps==1)
   s = sm; beta = beta(1:p);
@@ -49,7 +53,7 @@ end
 xi = beta(1:p)./s;
 xi( isinf(xi) ) = 0;
 
-if (strncmp(method,'Tikh',4) | strncmp(method,'tikh',4))
+if (strncmp(method,'Tikh',4) || strncmp(method,'tikh',4))
 
   eta = zeros(npoints,1); rho = eta; reg_param = eta; s2 = s.^2;
   reg_param(npoints) = max([s(p)*smin_factor,s(1)*smin_ratio]);
@@ -70,18 +74,18 @@ elseif (strncmp(method,'tsvd',4) || strncmp(method,'tgsv',4))
   for k=2:p, eta(k) = eta(k-1) + abs(xi(k))^2; end
   eta = sqrt(eta);
   if (m > n)
-    if (beta2 > 0), rho(p) = beta2; else rho(p) = eps^2; end
+    if beta2 > 0
+      rho(p) = beta2;
+    else
+      rho(p) = eps^2;
+    end
   else
     rho(p) = eps^2;
   end
   for k=p-1:-1:1, rho(k) = rho(k+1) + abs(beta(k+1))^2; end
   rho = sqrt(rho);
   reg_param = (1:p)'; %marker = 'o';
-  if (ps==1)
-    U = U(:,1:p); %txt = 'TSVD';
-  else
-    U = U(:,1:p); %txt = 'TGSVD';
-  end
+  U = U(:,1:p);
 
 elseif (strncmp(method,'dsvd',4) || strncmp(method,'dgsv',4))
 
@@ -127,22 +131,5 @@ end
 
 % Locate the "corner" of the L-curve, if required.
 if (locate)
-  [reg_corner,rho_c,eta_c] = l_corner(rho,eta,reg_param,U,sm,b,method);
-end
-
-if false
-    % Make plot.
-    figure
-    marker = '-'; txt = 'Tikh.';
-    plot_lc(rho,eta,marker,ps,reg_param);
-    if locate
-        [reg_corner,rho_c,eta_c] = l_corner(rho,eta,reg_param,U,sm,b,method);
-      ax = axis;
-      HoldState = ishold; hold on;
-      loglog([min(rho)/100,rho_c],[eta_c,eta_c],':r',...
-             [rho_c,rho_c],[min(eta)/100,eta_c],':r')
-      title(['L-curve, ',txt,' corner at ',num2str(reg_corner)]);
-      axis(ax)
-      if (~HoldState), hold off; end
-    end
+  [reg_corner,~,~] = l_corner(rho,eta,reg_param,U,sm,b,method);
 end

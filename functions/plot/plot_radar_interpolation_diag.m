@@ -4,7 +4,7 @@ p = inputParser;
 addRequired(p, "field_xyz");
 addRequired(p, "radar_profiles");
 addRequired(p, "radar");
-addParameter(p, "grid", []);
+addParameter(p, "g", []);
 addParameter(p, "z_ids", []);
 addParameter(p, "field_time", []);
 addParameter(p, "time_values", []);
@@ -20,9 +20,9 @@ parse(p, field_xyz, radar_profiles, radar, varargin{:});
 
 field_xyz = squeeze(field_xyz);
 
-g = p.Results.grid;
+g = p.Results.g;
 if isempty(g)
-    error("plot_radar_interpolation_diag:MissingGrid", "Pass grid to plot_radar_interpolation_diag.")
+    error("plot_radar_interpolation_diag:MissingGrid", "Pass g to plot_radar_interpolation_diag.")
 end
 
 if isempty(radar)
@@ -87,7 +87,7 @@ for i_panel = 1:2
     field_xy = field_xyz(:, :, z_idx);
 
     nexttile
-    plot_xy(field_xy, grid=g, ttl=sprintf("XY | z = %.0f m", g.z(z_idx)), show_colorbar=true);
+    plot_xy(field_xy, g=g, ttl=sprintf("XY | z = %.0f m", g.z(z_idx)), show_colorbar=true);
     x_lim_xy = xlim(gca);
     y_lim_xy = ylim(gca);
     for i_cut = 1:numel(y_cut_km)
@@ -104,7 +104,7 @@ for i_panel = 1:2
     xz_slice = squeeze(field_xyz(:, y_idx, :));
 
     nexttile
-    plot_xz(xz_slice, grid=g, ttl=sprintf("XZ | y = %.1f km", radar_y_km(radar_id)), show_colorbar=true);
+    plot_xz(xz_slice, g=g, ttl=sprintf("XZ | y = %.1f km", radar_y_km(radar_id)), show_colorbar=true);
     x_lim_xz = xlim(gca);
     y_lim_xz = ylim(gca);
     for i_cut = 1:numel(z_cut_m)
@@ -127,7 +127,7 @@ if has_time
     tx_slice = squeeze(field_time(:, y_idx, z_idx, :));
 
     nexttile
-    hold on; box on; grid on
+    hold on; box on; grid(gca, "on")
     imagesc(time_values, g.z(:), tz_slice)
     set(gca, "YDir", "normal")
     colorbar
@@ -144,7 +144,7 @@ if has_time
     title("Time-z")
 
     nexttile
-    hold on; box on; grid on
+    hold on; box on; grid(gca, "on")
     imagesc(time_values, g.x(:) ./ 1000 - g.x(end) ./ 2000, tx_slice)
     set(gca, "YDir", "normal")
     colorbar

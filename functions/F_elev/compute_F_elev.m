@@ -1,8 +1,8 @@
 function compute_F_elev(x, y, z, nxx, nyy, nzz, elevation_kernel, thr_cumsum, mode)
 %COMPUTE_F_ELEV Precompute one elevation-specific forward kernel.
 %   COMPUTE_F_ELEV(X, Y, Z, NXX, NYY, NZZ, ELEVATION_KERNEL, THR_CUMSUM, MODE)
-%   approximates the radar beam footprint on a fine grid and aggregates it
-%   back to the coarse reconstruction grid. MODE can be "fast" (default)
+%   approximates the radar beam footprint on a fine g and aggregates it
+%   back to the coarse reconstruction g. MODE can be "fast" (default)
 %   or "memory_efficient".
 if nargin < 9 || isempty(mode)
     mode = "fast";
@@ -14,18 +14,18 @@ assert(any(mode == ["fast" "memory_efficient"]), "mode must be 'fast' or 'memory
 disp(elevation_kernel.name)
 disp("mode: " + mode)
 
-%% Define the grid
-assert(numel(unique(diff(x)))==1)
+%% Define the g
+assert(isscalar(unique(diff(x))))
 dx = diff(x(1:2));
-assert(numel(unique(diff(y)))==1)
+assert(isscalar(unique(diff(y))))
 dy = diff(y(1:2));
-assert(numel(unique(diff(z)))==1)
+assert(isscalar(unique(diff(z))))
 dz = diff(z(1:2));
 
-% Size of the coarse grid
+% Size of the coarse g
 sz_coarse_grid = [numel(x) numel(y) numel(z)];
 
-% Fine grid
+% Fine g
 dxx=dx/nxx; dyy=dy/nyy; dzz=dz/nzz;
 xx=(x(1)-dx/2+dxx/2):dxx:(x(end)+dx/2-dxx/2);
 xx=single(reshape(xx,1,[]));
@@ -36,10 +36,10 @@ zz=single(reshape(zz,1,1,[]));
 
 sz_fine_grid = [numel(xx) numel(yy) numel(zz)];
 sz_fine_xy = sz_fine_grid(1:2);
-fprintf("grid: %d x %d x %d coarse | %d x %d x %d fine\n", numel(x), numel(y), numel(z), numel(xx), numel(yy), numel(zz))
+fprintf("g: %d x %d x %d coarse | %d x %d x %d fine\n", numel(x), numel(y), numel(z), numel(xx), numel(yy), numel(zz))
 
 
-%% Convert the Cartesian grid to polar coordinates accounting for Earth curvature
+%% Convert the Cartesian g to polar coordinates accounting for Earth curvature
 % xx,yy -> sigma, phi
 
 % range along the ground (great circle distance)
@@ -67,7 +67,7 @@ if mode == "fast"
     [i_range_max, RR, TT] = build_full_polar_grid(sigma, zz, r_e, theta0, simga_tp, elevation_kernel.range);
     Felevf = cell(i_range_max, numel(elevation_kernel.az));
     Felevid = cell(i_range_max, numel(elevation_kernel.az));
-    fprintf("fast mode: building full polar grid, %d ranges x %d azimuths\n", i_range_max, numel(elevation_kernel.az))
+    fprintf("fast mode: building full polar g, %d ranges x %d azimuths\n", i_range_max, numel(elevation_kernel.az))
 
     id_theta = find(TT>(theta0-3*simga_tp) & TT<(theta0+3*simga_tp));
     PP = repmat(PP, 1, 1, numel(zz));
@@ -195,31 +195,6 @@ Felevfc=cell2mat(tmp(id));
 save("F_" + elevation_kernel.name + "_" + num2str(max(x) / 1000) + "km.mat", ...
     'Felevidc', 'Felevfc', 'x', 'y', 'z', 'elevation_kernel')
 fprintf("saved F_%s_%dkm.mat\n", elevation_kernel.name, round(max(x) / 1000))
-
-
-%% Illustration
-
-if false
-    figure; hold on
-    xline(0:2:6,'k','linewidth',2)
-    yline(0:2:6,'k','linewidth',2)
-    for i=2:2:6
-        p = nsidedpoly(1000, 'Center', [0 0], 'Radius', i);
-        plot(p, 'edgeColor', [.7 .7 .7],'facealpha',0)
-    end
-    for i=-180:45:180
-        fplot( @(x) x*sind(i),'Color',[.7 .7 .7])
-    end
-
-    axis equal tight
-    xlim([0 6]); ylim([0 4])
-
-    gridsub=[2 0];
-    for i=0:.2:2%0:.05:2
-        plot(gridsub(1)+i*[1 1], gridsub(2)+[0 2],'Color',[.7 .7 .7])
-        plot(gridsub(1)+[0 2], gridsub(2)+i*[1 1],'Color',[.7 .7 .7])
-    end
-end
 
 end
 

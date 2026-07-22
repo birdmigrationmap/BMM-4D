@@ -25,3 +25,9 @@ export/*
 1*
 tmp/*
 functions/regtools/*
+
+# Track the full-US feasibility scripts while keeping generated data ignored.
+!08_full_US_synthetic/
+08_full_US_synthetic/figures/**
+!08_full_US_synthetic/scripts/
+!08_full_US_synthetic/scripts/**

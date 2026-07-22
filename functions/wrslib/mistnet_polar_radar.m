@@ -7,7 +7,7 @@ if strcmp(computer('arch'), 'maca64')
     pool_fix_cleanup = onCleanup(@() rmpath(pool_fix_dir));
 end
 
-% Run the upstream MistNet implementation on its Cartesian grid.
+% Run the upstream MistNet implementation on its Cartesian g.
 [PREDS, PROBS, classes, y, x, elevs] = mistnet(radar);
 
 % Map Cartesian predictions back to the original polar sample volumes.
