@@ -1,5 +1,5 @@
 function [preds, probs, classes, y, x, elevs] = mistnet(~)
-%MISTNET Deterministic Cartesian prediction grid for remapping tests.
+%MISTNET Deterministic Cartesian prediction g for remapping tests.
 
 y = [-1000 0 1000];
 x = [-1000 0 1000];

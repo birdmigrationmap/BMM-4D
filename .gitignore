@@ -19,7 +19,6 @@ archive/**
 
 # Local diagnostics and rendered exports
 **/diagnostics/
-manuscript/*
 export/*
 0*
 1*
@@ -31,3 +30,17 @@ functions/regtools/*
 08_full_US_synthetic/figures/**
 !08_full_US_synthetic/scripts/
 !08_full_US_synthetic/scripts/**
+
+# Keep the reproducible terrain-blockage source and its documentation.
+!02_preprocessing/
+02_preprocessing/*
+!02_preprocessing/beam_blockage/
+02_preprocessing/beam_blockage/*
+!02_preprocessing/beam_blockage/README.md
+!02_preprocessing/beam_blockage/beam_blockage_script.m
+/manuscript/references/files
+/manuscript/manuscript_main_files
+/manuscript/appendix_d/appendix_d_files
+/manuscript/appendix_c/appendix_c_files
+/manuscript/appendix_a/appendix_a_files
+/manuscript/appendix_b/appendix_b_files
