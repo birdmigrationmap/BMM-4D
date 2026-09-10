@@ -44,3 +44,7 @@ functions/regtools/*
 /manuscript/appendix_c/appendix_c_files
 /manuscript/appendix_a/appendix_a_files
 /manuscript/appendix_b/appendix_b_files
+/manuscript/review_documents
+manuscript/manuscript_main.tex
+manuscript/manuscript_main.log
+/manuscript/figures/figure_1_panels
