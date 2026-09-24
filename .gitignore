@@ -3,6 +3,7 @@
 .RData
 .Rproj.user/
 .codex_tmp/
+/.mcp.json
 *.asv
 *.m~
 *.mlx.autosave
@@ -20,16 +21,12 @@ archive/**
 # Local diagnostics and rendered exports
 **/diagnostics/
 export/*
-0*
-1*
 tmp/*
 functions/regtools/*
 
-# Track the full-US feasibility scripts while keeping generated data ignored.
-!08_full_US_synthetic/
-08_full_US_synthetic/figures/**
-!08_full_US_synthetic/scripts/
-!08_full_US_synthetic/scripts/**
+# Track numbered workflow scripts; keep their generated figures local
+0*/figures/
+1*/figures/
 
 # Keep the reproducible terrain-blockage source and its documentation.
 !02_preprocessing/
