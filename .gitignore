@@ -45,3 +45,5 @@ functions/regtools/*
 manuscript/manuscript_main.tex
 manuscript/manuscript_main.log
 /manuscript/figures/figure_1_panels
+manuscript/manuscript_main_save.pdf
+manuscript/manuscript_main.html
