@@ -50,3 +50,6 @@ manuscript/manuscript_main.html
 
 # Track paper rasters; keep optional vector exports local.
 /manuscript/figures/**/*.eps
+
+# Local submission preparation checklist
+/manuscript/tgrs/SUBMISSION_CHECKLIST.md
