@@ -315,9 +315,9 @@ for i_s = 1:numel(scans_filepath)
 
             [~, ~, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
 
-            % figure; hold on; 
-            % plot(sweep_az,quantile(dens_elev{i_elev}, [.2 .5 .8])'); 
-            % plot(sweep_az,mean(dens_elev{i_elev}, "omitnan")); 
+            % figure; hold on;
+            % plot(sweep_az,quantile(dens_elev{i_elev}, [.2 .5 .8])');
+            % plot(sweep_az,mean(dens_elev{i_elev}, "omitnan"));
             % plot(sweep_az,dens_elev_sm);
 
             dmse{i_elev} = [i_elev*ones(size(sweep_az)) sweep_az dens_elev_sm'];
@@ -329,7 +329,7 @@ for i_s = 1:numel(scans_filepath)
             % Remove when we don't have enough bird
             tmp = min(size(rh,1), size(dens_elev{i_elev},1));
             rh(dens_elev{i_elev}(1:tmp,:)<10)=nan;
-            
+
             % Compute the average rh along range weighted by density
             w = sum(dens_elev{i_elev}(1:tmp,:) .* ~isnan(rh(1:tmp,:)), "omitnan");
             tmp = sum(dens_elev{i_elev}(1:tmp,:) .* rh(1:tmp,:), "omitnan") ./ w;
@@ -358,14 +358,14 @@ for i_s = 1:numel(scans_filepath)
         Rfit = @(alpha, beta, xm, x) xm .* R(alpha, beta*1/alpha, (1-beta)*1/alpha, rad2deg(-mdl2.phi+pi), x);
         % figure; x=0:360; plot(x, R(1, 0.8, 0.6, 0, x))
 
-        
+
         % Fit the anisotropy model on azimuth sectors with positive smoothed density.
         id = dmse(:,3) > 0;
 
         % Perform fit
         mdl = fit(dmse(id,2), dmse(id,3), fittype(Rfit), StartPoint=[0 .5 mean(dmse(id,3),"omitnan")], Lower=[.1 .1 0], Upper=[5 .9 10000], Weights = dmse(id,3));
 
-        % figure; hold on; plot(mdl, dmse(id,2), dmse(id,3)); 
+        % figure; hold on; plot(mdl, dmse(id,2), dmse(id,3));
 
         dens_elev_corr = dens_elev;
 
@@ -388,35 +388,36 @@ for i_s = 1:numel(scans_filepath)
             i_elev=1;
             [rh, ~, sweep_az] = sweep2mat(radar_scan.rh.sweeps(i_elev));
 
-            fig = create_export_figure(1200, 600);
+            fig = create_export_figure(2400, 1500, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+            theme(fig,"light")
             tiledlayout(3,6,'TileSpacing','tight','Padding','tight');
 
             % Plot the data and the fitted curve
-            nexttile([1 3]); hold on; grid(gca, "on"); box on;
+            ax_summary_rh=nexttile([1 3]); hold on; grid(gca, "on"); box on;
             id = rhmse(:,3)>0;
             scatter(deg2rad(rhmse(id,2)),rhmse(id,3),rhmse(id,4)/500, rhmse(id,1),'filled',MarkerFaceAlpha=0.3)
             x_fit = linspace(0, 2*pi, 361)';
             plot(x_fit, mdl2(x_fit), "k-", DisplayName="Fitted sinusoid");
-            xline(mod(-mdl2.phi+3/2*pi,2*pi), LineWidth=4, Label="Orientation axis", DisplayName="Orientation axis")
+            xline(mod(-mdl2.phi+3/2*pi,2*pi), LineWidth=1.5, Label="Orientation axis", DisplayName="Orientation axis")
             xlabel('Azimuth (rad)');  ylabel('\rho_{HV}');
-            legend('Density-weighted azimuthal summary', 'Fitted sinusoid', 'Orientation axis', 'Location', 'northeast')
-            axis tight; xlim([0 2*pi]); c=colorbar;c.Label.String="Elevation angle";            
+            lg_rh=legend('Azimuthal summary', 'Sinusoid', 'Orientation axis', 'Location', 'southoutside');
+            axis tight; xlim([0 2*pi]); c=colorbar;c.Label.String="Elevation (°)";cb_angle_rh=c;
 
-            nexttile([1 3]);hold on; grid(gca, "on"); box on;
+            ax_summary_density=nexttile([1 3]);hold on; grid(gca, "on"); box on;
             scatter(dmse(:,2),dmse(:,3),dmse(:,3)/10, dmse(:,1),'filled',MarkerFaceAlpha=0.3)
             x_fit = linspace(0, 360, 361)';
             plot(x_fit, mdl(x_fit), "k-", DisplayName="Fitted anisotropy template");
-            xline(rad2deg(mod(-mdl2.phi+3/2*pi,2*pi)), LineWidth=4)
-            xlabel('Azimuth (deg)');  ylabel('Bird density');
-            legend('Smoothed azimuthal summary', 'Fitted anisotropy template', 'Location', 'northeast'); axis tight;
-            xlim([0 360]); c=colorbar;c.Label.String="Elevation angle";
-            
+            xline(rad2deg(mod(-mdl2.phi+3/2*pi,2*pi)), LineWidth=1.5)
+            xlabel('Azimuth (deg)');  ylabel('Bird density (birds km^{-3})');
+            lg_density=legend('Azimuthal summary', 'Anisotropy template', 'Location', 'southoutside'); axis tight;
+            xlim([0 360]); c=colorbar;c.Label.String="Elevation (°)";cb_angle_density=c;
 
-            ax = nexttile([2 2]); 
+
+            ax = nexttile([2 2]);ax_map_rh=ax;
             plot_sweep(rh, sweep_az, sweep_range, max_range=100000, show_colorbar=true, ...
                 ttl="\rho_{HV} and orientation axis");
             plot([0 -50000.*cos(mdl2.phi)], [0 -50000.*sin(mdl2.phi)], "k", LineWidth=4)
-            xticks([-100 0 100]*1000); xticklabels([-100 0 100])
+            xticks([-100 0 100]*1000); xticklabels([-100 0 100]); yticks([-100 0 100]*1000); yticklabels([-100 0 100]); xlabel("x (km)"); ylabel("y (km)")
             % clim([0 quantile(z(:),.999)])
             colormap(ax, colormap_wct("rh"))
 
@@ -432,16 +433,32 @@ for i_s = 1:numel(scans_filepath)
             %ax.ThetaZeroLocation = 'top';
             %ax.ThetaDir = 'clockwise';
 
-            nexttile([2 2]);
+            ax_map_before=nexttile([2 2]);
             z = plot_sweep(dens_elev{i_elev}, sweep_az, sweep_range, max_range=100000, show_colorbar=false);
             c_lim = [0 quantile(z(:),.99)];
-            xticks([-100 0 100]*1000); xticklabels([-100 0 100])
+            xticks([-100 0 100]*1000); xticklabels([-100 0 100]); yticks([-100 0 100]*1000); yticklabels([-100 0 100]); xlabel("x (km)"); ylabel("y (km)")
             clim(c_lim); title("Before shape correction")
 
-            nexttile([2 2]);
+            ax_map_after=nexttile([2 2]);
             plot_sweep(dens_elev_corr{i_elev}, sweep_az, sweep_range, max_range=100000, ...
                 c_lim=c_lim, ttl="After shape correction", show_colorbar=true);
-            xticks([-100 0 100]*1000); xticklabels([-100 0 100])
+            xticks([-100 0 100]*1000); xticklabels([-100 0 100]); yticks([-100 0 100]*1000); yticklabels([-100 0 100]); xlabel("x (km)"); ylabel("y (km)")
+            cb_map_rh=colorbar(ax_map_rh);cb_map_density=colorbar(ax_map_after);
+            shape_axes=[ax_summary_rh ax_summary_density ax_map_rh ax_map_before ax_map_after];
+            shape_positions=[0.06 0.65 0.34 0.29;0.55 0.65 0.34 0.29;0.065 0.13 0.20 0.34;0.39 0.13 0.20 0.34;0.715 0.13 0.20 0.34];
+            for i_axis=1:numel(shape_axes)
+                shape_axes(i_axis).Parent=fig;shape_axes(i_axis).Position=shape_positions(i_axis,:);
+            end
+            cb_angle_rh.Position=[0.415 0.65 0.012 0.29];cb_angle_density.Position=[0.91 0.65 0.012 0.29];
+            cb_map_rh.Position=[0.28 0.13 0.012 0.34];cb_map_density.Position=[0.93 0.13 0.012 0.34];
+            cb_map_density.Label.String="";
+            lg_rh.Units="normalized";lg_rh.Position=[0.08 0.52 0.29 0.09];lg_rh.Box="off";
+            lg_density.Units="normalized";lg_density.Position=[0.57 0.52 0.29 0.09];lg_density.Box="off";
+            style_paper_figure(fig,9.5)
+            lg_rh.String=["Data" "Sinusoid" "Orientation"];lg_rh.NumColumns=3;lg_rh.FontSize=8;
+            lg_rh.Position=[0.055 0.52 0.37 0.035];
+            lg_density.String=["Data" "Anisotropy template"];lg_density.NumColumns=2;lg_density.FontSize=8;
+            lg_density.Position=[0.555 0.52 0.34 0.035];
             if ismember("export", plot_opts)
                 export_fixed_figure(fig, fullfile(export_dir, filename + "_shape.png"), Resolution=300)
                 close(fig)
