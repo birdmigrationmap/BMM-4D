@@ -4,6 +4,8 @@ function g = create_grid(elevation_kernels, radar_scans, varargin)
 %   shared g used for reconstruction. The g uses x-fastest ordering
 %   to match SUB2IND with GRID.SZ = [numel(GRID.X) numel(GRID.Y) numel(GRID.Z)].
 
+% Preserve the time axis before flattening scans for spatial geometry.
+g.time = cellfun(@(x) x.datetime, radar_scans(1,:));
 empty_scan_id = cellfun(@isempty, radar_scans);
 if any(empty_scan_id)
     warning("Empty radar_scans at index: " + join(string(find(empty_scan_id)), ", "))
@@ -77,8 +79,6 @@ g.lon=g.f_lon(g.x);
 %     [~, radar_scans{i_r}.radar_lon_id] = min(abs(g.lon(:)' - radar_scans{i_r}.lon(:)),[],2);
 %     [~, radar_scans{i_r}.radar_lat_id] = min(abs(g.lat(:)' - radar_scans{i_r}.lat(:)),[],2);
 % end
-
-g.time = cellfun(@(x) x.datetime, radar_scans(1,:));
 
 % Load shared water mask and transpose it so the first dimension matches x
 % and the second dimension matches y.
