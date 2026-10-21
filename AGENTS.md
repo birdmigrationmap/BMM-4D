@@ -136,6 +136,8 @@ For synthetic case and inversion products, keep saved `.mat` files compact and i
 
 ## Manuscript Writing
 
+Before changing mathematical meaning (including coefficient powers or weighting conventions), or adding scientific claims or implementation-based explanations to the manuscript, present the proposed change and ask for explicit user approval. Do not infer authorization for these changes from a request to rename notation, shorten prose, or improve clarity. If a possible inconsistency is found, flag it for discussion rather than silently correcting it.
+
 Keep Results sections concise and focused on the new finding shown by each analysis or figure. Avoid repeating methodological details or conclusions already established in earlier sections, and avoid broad statements that are not directly supported by the presented result.
 
 Treat manuscript and appendix files as publication text, not as code documentation. Do not include function calls, filenames, script variable names, literal assignments, or other source-code syntax unless the user explicitly requests them. Describe methods with scientific notation and publication-appropriate terminology.
@@ -146,6 +148,14 @@ Do not add tables, new subsections, or other manuscript structure unless explici
 
 For manuscript and appendix figures exported from MATLAB:
 
+- Use Helvetica consistently for axes, tick labels, titles, legends, colorbars, annotations, and other text. Set the font family explicitly in the figure script rather than relying on session defaults; shared plotting helpers may override figure defaults, so verify the final objects before export.
+- Judge font sizes at the figure's final manuscript width. Aim for approximately 8 pt axis/tick/legend text and 8–9 pt headers at printed size. For the approved 3600-pixel-wide Figure 3 layout exported at 300 dpi and placed at full two-column width, use 13 pt axis/tick text, 14 pt case headers/shared axis labels, and 15 pt group labels. Scale export font sizes to maintain the same printed sizes when the canvas width changes.
+- Use normal weight for axis labels and ticks, and bold only for case/panel headers and group labels. Keep mathematical symbols and units consistent with the manuscript.
+- Replace repeated panel titles with shared column headers and group labels. Put slice coordinates and other explanatory details in the caption when they do not need to be repeated within the figure.
+- For paired true-density and reconstruction groups, use the approved Figure 3 convention: true density above reconstruction, each group covering its horizontal and vertical views, with a vertically centered label at the far left. Use clearly distinguishable light background bands (true density: RGB [0.87 0.93 0.98]; reconstruction: RGB [0.90 0.90 0.90]) behind the groups; keep the scientific colormaps unchanged and draw backgrounds behind the data axes.
+- Align shared y/z axis labels to the same horizontal position independently of tick-label widths. Keep tick values legible and prevent endpoint labels from colliding across adjacent panels.
+- Preserve data coverage, panel dimensions, aspect relationships, and matched color limits when improving typography. Reclaim redundant titles and unused margins before reducing the plotting area. Use manual axes positioning when needed to achieve shared labels and aligned panels.
+- Make layout changes in the MATLAB source so they reproduce on rerun; avoid manual EPS post-processing for labels and backgrounds. First export a separate test figure and inspect it at manuscript size. Replace the manuscript figure only after the user approves the test; do not commit or push without explicit instruction.
 - Assign colormaps by scientific quantity so the same color has the same meaning across workflows:
   - bird density and other primary field values: `parula`
   - error magnitudes such as RMSE and NRMSE: `hot(256)`
