@@ -45,7 +45,9 @@ if p.Results.water
     L2Dwater=L2D;
     [i,j] = find(L2Dwater);
     id = onwater(i) ~= onwater(j);
-    L2Dwater(i(id),j(id)) = 0;
+    % Cut only the land-water pairs; indexing L(i,j) with vectors would
+    % zero the whole submatrix and also cut along-shore links.
+    L2Dwater(sub2ind(size(L2Dwater), i(id), j(id))) = 0;
     L2Dwater = L2Dwater - diag(sum(L2Dwater,2));
     % figure; hold on; imagesc(g.lon,g.lat,reshape(diag(L2Dwater),g.sz(1),g.sz(2))); tmp=axis;borders('states','w'); axis equal tight; axis(tmp);
     

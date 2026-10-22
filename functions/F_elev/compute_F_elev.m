@@ -35,7 +35,8 @@ zz=(z(1)-dz/2+dzz/2):dzz:(z(end)+dz/2-dzz/2);
 zz=single(reshape(zz,1,1,[]));
 
 sz_fine_grid = [numel(xx) numel(yy) numel(zz)];
-sz_fine_xy = sz_fine_grid(1:2);
+% Polar arrays built from row xx and column yy are ordered [y x (z)].
+sz_fine_yx = sz_fine_grid([2 1]);
 fprintf("g: %d x %d x %d coarse | %d x %d x %d fine\n", numel(x), numel(y), numel(z), numel(xx), numel(yy), numel(zz))
 
 
@@ -89,11 +90,13 @@ if mode == "fast"
             end
 
             f = exp(-(RR(id_phi)-r0).^2/2/simga_r^2 -(TT(id_phi)-theta0).^2/simga_tp^2 - (diff_phi(id_range_phi)).^2/simga_tp^2 );
-            [id_xx,id_yy,id_zz] = ind2sub(sz_fine_grid,id_phi);
+            % Polar arrays are [y x z] (yy is a column, xx a row), and
+            % kernel cell ids are stored y-first to match load_F_elev.
+            [id_yy,id_xx,id_zz] = ind2sub(sz_fine_grid([2 1 3]),id_phi);
             id_x = floor((id_xx-1)/(dx/dxx))+1;
             id_y = floor((id_yy-1)/(dy/dyy))+1;
             id_z = floor((id_zz-1)/(dz/dzz))+1;
-            id_coarse = sub2ind(sz_coarse_grid,id_x,id_y,id_z);
+            id_coarse = sub2ind(sz_coarse_grid([2 1 3]),id_y,id_x,id_z);
 
             [f_keep, id_keep] = collapse_beam_weights(id_coarse, f, thr_cumsum);
             if isempty(f_keep)
@@ -149,10 +152,11 @@ else
                 end
 
                 f = exp(-(RR_layer(id_phi)-r0).^2/2/simga_r^2 -(TT_layer(id_phi)-theta0).^2/simga_tp^2 - (diff_phi(id_range_phi)).^2/simga_tp^2 );
-                [id_yy,id_xx] = ind2sub(sz_fine_xy,id_phi);
+                [id_yy,id_xx] = ind2sub(sz_fine_yx,id_phi);
                 id_x = floor((id_xx-1)/nxx)+1;
                 id_y = floor((id_yy-1)/nyy)+1;
-                id_coarse = sub2ind(sz_coarse_grid, id_x, id_y, id_z * ones(size(id_x)));
+                % Store kernel cell ids y-first, as in fast mode and load_F_elev.
+                id_coarse = sub2ind(sz_coarse_grid([2 1 3]), id_y, id_x, id_z * ones(size(id_x)));
 
                 Felevf{i_range,i_azim} = [Felevf{i_range,i_azim}; f(:)];
                 Felevid{i_range,i_azim} = [Felevid{i_range,i_azim}; uint32(id_coarse(:))];

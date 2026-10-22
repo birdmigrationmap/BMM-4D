@@ -53,3 +53,6 @@ manuscript/manuscript_main.html
 
 # Local submission preparation checklist
 /manuscript/tgrs/SUBMISSION_CHECKLIST.md
+
+# Machine-specific paths (raw NEXRAD cache location)
+local_settings.json

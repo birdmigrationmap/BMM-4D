@@ -11,7 +11,6 @@ function [scan, inversion_info] = compute_scan(F, obs_vector, g, varargin)
 %   - the overall magnitude of the field (identity)
 %   - smoothness in x, y, and z (smoothness)
 %   - agreement with a 1D vertical profile in absolute value (vp_absolute)
-%   - agreement with a 1D vertical profile in relative shape (vp_ratio)
 %   Each regularization block is scaled against the fitted data block so
 %   these weights stay comparable across observation counts and operators.
 
@@ -19,7 +18,6 @@ p = inputParser;
 addParameter(p,'identity',0);
 addParameter(p,'smoothness',0);
 addParameter(p,'vp_absolute',0);
-addParameter(p,'vp_ratio',0);
 addParameter(p,'water',true);
 addParameter(p,'tol', 1e-6); % same default as lsqr
 addParameter(p,'maxit', 100); % same default as lsqr
@@ -28,17 +26,6 @@ parse(p,varargin{:});
 
 num_grid_cells = prod(g.sz);
 num_horizontal_cells = prod(g.sz(1:2));
-use_vertical_profile = p.Results.vp_absolute > 0 || p.Results.vp_ratio > 0;
-
-if p.Results.water
-    if isfield(g,'mask_water')
-        water_mask = g.mask_water;
-    else
-        water_mask_data = load("data/reference/onwater/Fonwater.mat", "Fonwater");
-        water_mask = logical(water_mask_data.Fonwater({g.f_lat(g.y),g.f_lon(g.x)}))';
-    end
-    water_mask_3d = repmat(water_mask, 1, 1, g.sz(3));
-end
 
 % Keep only non-zero observations. Zero entries do not contribute to the
 % least-squares system and are dropped together with the corresponding rows
@@ -55,7 +42,7 @@ data_block_norm = max(norm(A_system, "fro"), 1);
 % Penalize large voxel values directly.
 if p.Results.identity > 0
     identity_operator = speye(num_grid_cells);
-    identity_scale = p.Results.identity .* data_block_norm ./ max(norm(identity_operator, "fro"), eps);
+    identity_scale = p.Results.identity .* data_block_norm ./ sqrt(num_grid_cells);
     A_system = [A_system; identity_scale .* identity_operator];
     b_system = [b_system; zeros(num_grid_cells,1)];
 end
@@ -68,49 +55,21 @@ if p.Results.smoothness > 0
     b_system = [b_system; sparse(num_grid_cells,1)];
 end
 
-% Estimate the vertical profile from the same observations whenever a
-% VP-based regularization term is active.
-if use_vertical_profile
-    vp = compute_vp(obs_vector(:,1), g, F);
-end
-
-% Expand a 1D vertical profile to the full 3D g by repeating each
-% altitude value across all horizontal cells. This is the operator U in the
-% notes used to map vp(z) to a full field d(x,y,z) = vp(z).
+% Penalize deviation from the vertical profile estimated from the same
+% observations in every voxel: d(x,y,z) ~= vp(z). The profile is repeated
+% across all horizontal cells (operator U in the notes) and set to zero
+% over water when the water mask is active.
 if p.Results.vp_absolute > 0
-    vertical_profile_expansion = repelem(speye(g.sz(3)), num_horizontal_cells, 1);
-
+    vp = compute_vp(obs_vector(:,1), g, F);
+    vp_field = repelem(vp(:), num_horizontal_cells, 1);
     if p.Results.water
-        vertical_profile_expansion(water_mask_3d(:) == 1, :) = 0;
+        water_mask_3d = repmat(get_water_mask(g), 1, 1, g.sz(3));
+        vp_field(water_mask_3d(:) == 1) = 0;
     end
 
-    % Penalize deviation from the absolute profile value in every voxel:
-    % d(x,y,z) ~= vp(z).
-    vp_absolute_scale = p.Results.vp_absolute .* data_block_norm ./ max(norm(speye(num_grid_cells), "fro"), eps);
+    vp_absolute_scale = p.Results.vp_absolute .* data_block_norm ./ sqrt(num_grid_cells);
     A_system = [A_system; vp_absolute_scale .* speye(num_grid_cells)];
-    b_system = [b_system; vp_absolute_scale .* vertical_profile_expansion * vp];
-end
-
-% Penalize deviation from the normalized profile shape while allowing each
-% horizontal column to keep its own total magnitude:
-% d(:,x,y) ~= s(x,y) * vp_ratio.
-if p.Results.vp_ratio > 0
-    vp_nonnegative = vp;
-    vp_nonnegative(vp_nonnegative < 0) = 0;
-    normalized_vp = vp_nonnegative ./ sum(vp_nonnegative);
-
-    % For each voxel, Q*d = 0 enforces equality between the voxel value and
-    % the profile-shaped share of the total mass in its vertical column.
-    repeated_column_identity = repmat(speye(num_horizontal_cells), g.sz(3), g.sz(3));
-    profile_ratio_operator = repeated_column_identity .* repelem(normalized_vp', 1, num_horizontal_cells) - speye(num_grid_cells);
-
-    if p.Results.water
-        profile_ratio_operator(water_mask_3d(:) == 1, :) = 0;
-    end
-
-    vp_ratio_scale = p.Results.vp_ratio .* data_block_norm ./ max(norm(profile_ratio_operator, "fro"), eps);
-    A_system = [A_system; vp_ratio_scale .* profile_ratio_operator];
-    b_system = [b_system; sparse(num_grid_cells, 1)];
+    b_system = [b_system; vp_absolute_scale .* vp_field];
 end
 
 % Solve the regularized inverse problem and reshape it back to the canonical

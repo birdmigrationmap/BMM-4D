@@ -18,9 +18,10 @@ Use one Cartesian grid convention across the whole project.
 
 - `construct_F.m`: build the sparse forward operator that maps grid cells to radar observations.
 - `compute/compute_scan.m`: reconstruct a single 3D density field from one observation vector with optional regularization; residual blocks are normalized by row count before weighting.
-- `compute/prepare_radar_observations.m`: compact the forward operator and observations to active rows for storage and inversion.
+- `compute/prepare_radar_observations.m`: compact the forward operator and observations to active rows for storage and inversion, keeping only rows with at least 90% of their beam weight inside the grid.
 - `compute/build_radar_density_prior.m`: estimate radar vertical density profiles from compact observations and interpolate them into a 4D prior field.
 - `compute/build_radar_advection_steps.m`: interpolate radar velocity one interval at a time and retain only compact advection mappings.
+- `compute/radar_uv_on_grid.m`: map a radar velocity profile (height above the antenna) to the sea-level grid layers.
 - `compute/prepare_scans_advection.m`: prepare reusable matrix-free data, smoothing, and advection components.
 - `compute/compute_scans_advection.m`: reconstruct a 4D field with matrix-free PCG applied to the original least-squares normal equations.
 - `compute/build_profile_advection_steps.m`: build one advection step per time interval from vertical-profile or grid-wise speed input.
@@ -36,8 +37,10 @@ Use one Cartesian grid convention across the whole project.
 
 ### Radar I/O and cleaning
 
-- `radar/load_rd.m`: locate or download raw radar files for requested radar-time combinations.
-- `radar/read_rd.m`: read radar files, remove precipitation and outliers, convert reflectivity to bird density, and optionally correct azimuthal shape bias.
+- `radar/load_rd.m`: locate or download (HTTPS, Unidata S3 bucket) raw radar files for requested radar-time combinations.
+- `radar/list_nexrad_day.m`: list Level II files for one station and UTC day from the public bucket.
+- `radar/nexrad_raw_dir.m`: local raw-volume cache folder, set in the gitignored `local_settings.json`.
+- `radar/read_rd.m`: read radar files, remove precipitation and outliers, convert reflectivity to bird density, and optionally correct azimuthal shape bias. `scan.height` is the antenna height from `radar.csv`.
 - `radar/select_radars_in_bbox.m`: read radar metadata and keep sites inside a lon/lat bounding box.
 
 ### Precomputed F-elevation support
@@ -64,7 +67,7 @@ Use one Cartesian grid convention across the whole project.
 
 ### Wrappers and external helpers
 
-- `wrslib/aws_list_datetime.m`, `wrslib/mistnet_polar_radar.m`, and `wrslib/rsl2mat_wrap.m`: wrappers or adapted helpers around upstream radar tooling.
+- `wrslib/mistnet_polar_radar.m` and `wrslib/rsl2mat_wrap.m`: wrappers or adapted helpers around upstream radar tooling.
 - `regtools/l_corner.m` and `regtools/l_curve_wo_fig.m`: local regularization helpers.
 - `regtools/regu/`: only the vendored Regularization Tools routines required by `compute_vp.m`.
 

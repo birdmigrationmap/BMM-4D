@@ -25,27 +25,23 @@ nxy = prod(g.sz(1:2));
     n_neighbors=p.Results.idw_neighbors, ...
     power=p.Results.idw_power);
 
-if isfield(g, "mask_water")
-    water_mask = g.mask_water;
-else
-    water_mask_data = load("data/reference/onwater/Fonwater.mat", "Fonwater");
-    water_mask = logical(water_mask_data.Fonwater({g.f_lat(g.y), g.f_lon(g.x)}))';
-end
+water_mask = logical(get_water_mask(g));
 
-% Map vertical profiles to field cells and then to observation rows.
-vertical_expansion_base = repelem(speye(nz), nxy, 1);
+% Map vertical profiles to field cells and then to observation rows. Each
+% cell takes the profile value of its altitude layer; water cells are mapped
+% to the water profile, or left at zero without land/water splitting.
+cell_id = (1:nxy * nz)';
+cell_layer = ceil(cell_id ./ nxy);
 water_mask_3d = repmat(water_mask, 1, 1, nz);
+is_land = ~water_mask_3d(:);
+land_expansion = sparse(cell_id(is_land), cell_layer(is_land), 1, nxy * nz, nz);
 if p.Results.split_land_water_profiles
-    land_expansion = vertical_expansion_base;
-    water_expansion = vertical_expansion_base;
-    land_expansion(water_mask_3d(:), :) = 0;
-    water_expansion(~water_mask_3d(:), :) = 0;
+    water_expansion = sparse(cell_id(~is_land), cell_layer(~is_land), 1, nxy * nz, nz);
     vertical_expansion = [land_expansion water_expansion];
     n_profile_type = 2;
     profile_labels = ["land" "water"];
 else
-    vertical_expansion = vertical_expansion_base;
-    vertical_expansion(water_mask_3d(:), :) = 0;
+    vertical_expansion = land_expansion;
     n_profile_type = 1;
     profile_labels = "land";
 end
@@ -65,9 +61,20 @@ if p.Results.split_land_water_profiles
     profile_smoothness_base = blkdiag(profile_smoothness_base, profile_smoothness_base);
 end
 profile_smoothness_base_norm = norm(profile_smoothness_base, "fro");
-nonzero_obs_indices = cell(n_time, 1);
+% Group the usable non-zero observation rows by radar once per time.
+profile_obs_indices = cell(n_radar, n_time);
 for i_t = 1:n_time
-    nonzero_obs_indices{i_t} = uint32(find(observations.values(:, i_t)));
+    nonzero_obs_idx = uint32(find(observations.values(:, i_t)));
+    nonzero_obs_idx = nonzero_obs_idx(vp_row_active(nonzero_obs_idx));
+    profile_obs_indices(:, i_t) = accumarray(obs_radar_id(nonzero_obs_idx), nonzero_obs_idx, ...
+        [n_radar 1], @(rows) {sort(rows)}, {zeros(0, 1, "uint32")});
+end
+
+% The temporal-difference operator is the same for every radar.
+use_time_profile = p.Results.lambda_time_profile > 0 && n_time > 1;
+if use_time_profile
+    temporal_difference = get_temporal_difference_matrix(profile_width, n_time);
+    temporal_difference_norm = norm(temporal_difference, "fro");
 end
 
 density_profiles_radar = zeros(nz, n_radar, n_time, n_profile_type);
@@ -78,8 +85,7 @@ for i_r = 1:n_radar
     A_parts = cell(n_time, 1);
     b_parts = cell(n_time, 1);
     for i_t = 1:n_time
-        nonzero_obs_idx = nonzero_obs_indices{i_t};
-        profile_obs_idx = nonzero_obs_idx(vp_row_active(nonzero_obs_idx) & obs_radar_id(nonzero_obs_idx) == i_r);
+        profile_obs_idx = profile_obs_indices{i_r, i_t};
         profile_obs_values = full(observations.values(profile_obs_idx, i_t));
         data_scale = 1 / sqrt(max(numel(profile_obs_values), 1));
         block_ids = (i_t - 1) * profile_width + (1:profile_width);
@@ -105,8 +111,7 @@ for i_r = 1:n_radar
 
     A_time = sparse(0, profile_width * n_time);
     b_time_regularization = sparse(0, 1);
-    if p.Results.lambda_time_profile > 0 && n_time > 1
-        temporal_difference = get_temporal_difference_matrix(profile_width, n_time);
+    if use_time_profile
         valid_data_norms = profile_data_norms(i_r, profile_data_norms(i_r, :) > 0);
         if isempty(valid_data_norms)
             reference_data_norm = 0;
@@ -115,20 +120,10 @@ for i_r = 1:n_radar
         end
         temporal_scale = compute_regularization_scale( ...
             reference_data_norm, ...
-            norm(temporal_difference, "fro"), ...
+            temporal_difference_norm, ...
             p.Results.lambda_time_profile);
         time_smoothness_scales(i_r) = temporal_scale;
-        row_id = zeros(2 * profile_width * (n_time - 1), 1);
-        col_id = zeros(2 * profile_width * (n_time - 1), 1);
-        values = zeros(2 * profile_width * (n_time - 1), 1);
-        for i_interval = 1:n_time - 1
-            row_block = (i_interval - 1) * profile_width + (1:profile_width)';
-            ids = (i_interval - 1) * 2 * profile_width + (1:(2 * profile_width))';
-            row_id(ids) = [row_block; row_block];
-            col_id(ids) = [(i_interval - 1) * profile_width + (1:profile_width)'; i_interval * profile_width + (1:profile_width)'];
-            values(ids) = temporal_scale .* [-ones(profile_width, 1); ones(profile_width, 1)];
-        end
-        A_time = sparse(row_id, col_id, values, profile_width * (n_time - 1), profile_width * n_time);
+        A_time = temporal_scale .* temporal_difference;
         b_time_regularization = sparse(profile_width * (n_time - 1), 1);
     end
 

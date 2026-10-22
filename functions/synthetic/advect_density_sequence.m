@@ -36,7 +36,8 @@ function field_out = shift_field(field_in, step, direction)
 % Apply the same compact mappings used by the advection inversion.
 field_out = zeros(size(field_in), "like", field_in);
 if direction == 1
-    field_out(step.dest_id_valid) = step.coeff_valid .* field_in(step.source_id_valid);
+    % Sum sources that land on the same cell so converging flow keeps mass.
+    field_out(:) = accumarray(double(step.dest_id_valid), step.coeff_valid .* field_in(step.source_id_valid), [numel(field_in) 1]);
 else
     field_out(step.source_id_valid) = step.coeff_valid .* field_in(step.dest_id_valid);
 end

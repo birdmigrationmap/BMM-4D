@@ -6,6 +6,7 @@ function system = prepare_scans_advection_active(observations, g, active_mask_3d
 
 p = inputParser;
 addParameter(p, "store_class", "single");
+addParameter(p, "min_row_mass", 0);
 parse(p, varargin{:});
 store_class = string(p.Results.store_class);
 
@@ -17,8 +18,13 @@ steps = steps(:);
 assert(numel(steps) == max(n_time - 1, 0), "prepare_scans_advection_active:InvalidStepCount", ...
     "Expected %d advection steps for %d time slices.", max(n_time - 1, 0), n_time)
 
+% Optionally keep only rows whose beam lies mostly in the active domain
+% (kernel rows sum to 1); a row cut by the domain pushes its full value into
+% the active cells that remain. The default 0 keeps every row.
 F = observations.F(:, active_id);
-obs_values = observations.values;
+row_keep = full(sum(F, 2)) >= p.Results.min_row_mass | p.Results.min_row_mass == 0;
+F = F(row_keep, :);
+obs_values = observations.values(row_keep, :);
 obs_mask = full(obs_values ~= 0);
 F_squared = F .^ 2;
 row_norm_squared = full(sum(F_squared, 2));

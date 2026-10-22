@@ -36,6 +36,27 @@ if numel(dt_seconds) ~= n_interval
         "dt_seconds must be scalar or have one value per interval.");
 end
 
+p = inputParser;
+addParameter(p, "boundary_mode", "open");
+addParameter(p, "shoreline_crossing_coeff", 1);
+addParameter(p, "active_mask_3d", []);
+parse(p, varargin{:});
+options = p.Results;
+options.boundary_mode = string(options.boundary_mode);
+if ~any(options.boundary_mode == ["open" "zero_gradient"])
+    error("build_profile_advection_steps:UnknownBoundaryMode", ...
+        "Unknown boundary_mode '%s'. Use 'open' or 'zero_gradient'.", options.boundary_mode);
+end
+
+% Source cell indices are identical for every interval, so build them once.
+nxy = g.sz(1) * g.sz(2);
+[x_id, y_id] = ind2sub(g.sz(1:2), (1:nxy)');
+source.x = repmat(x_id, g.sz(3), 1);
+source.y = repmat(y_id, g.sz(3), 1);
+source.z = repelem((1:g.sz(3))', nxy, 1);
+source.id = uint32((1:prod(g.sz))');
+source.horizontal_id = repmat((1:nxy)', g.sz(3), 1);
+
 steps = cell(n_interval, 1);
 for i_interval = 1:n_interval
     if iscell(uv_profiles)
@@ -51,31 +72,19 @@ for i_interval = 1:n_interval
     end
 
     steps{i_interval} = build_interval_step( ...
-        g, uv_interval, dt_seconds(i_interval), varargin{:});
+        g, uv_interval, dt_seconds(i_interval), options, source);
 end
 end
 
-function step = build_interval_step(g, uv_interval, dt_seconds, varargin)
+function step = build_interval_step(g, uv_interval, dt_seconds, options, source)
 
-p = inputParser;
-addParameter(p, "boundary_mode", "open");
-addParameter(p, "shoreline_crossing_coeff", 1);
-addParameter(p, "active_mask_3d", []);
-parse(p, varargin{:});
-boundary_mode = string(p.Results.boundary_mode);
-
+boundary_mode = options.boundary_mode;
 nx = g.sz(1);
 ny = g.sz(2);
-nz = g.sz(3);
-nxy = nx * ny;
 nxyz = prod(g.sz);
-
-[x_id, y_id] = ind2sub([nx ny], (1:nxy)');
-source_x = repmat(x_id, nz, 1);
-source_y = repmat(y_id, nz, 1);
-z_id = repelem((1:nz)', nxy, 1);
-source_id = uint32((1:nxyz)');
-source_horizontal_id = repmat((1:nxy)', nz, 1);
+source_x = source.x;
+source_y = source.y;
+z_id = source.z;
 
 if ismatrix(uv_interval) && size(uv_interval, 2) == 2
     shift_x_cells = round(uv_interval(:, 1) .* dt_seconds ./ g.dx);
@@ -100,13 +109,10 @@ if boundary_mode == "zero_gradient"
     is_valid = ~id_nonfinite;
 elseif boundary_mode == "open"
     is_valid = ~(id_edge | id_nonfinite);
-else
-    error("build_profile_advection_steps:UnknownBoundaryMode", ...
-        "Unknown boundary_mode '%s'. Use 'open' or 'zero_gradient'.", boundary_mode);
 end
 
-if ~isempty(p.Results.active_mask_3d)
-    active_mask_3d = logical(p.Results.active_mask_3d);
+if ~isempty(options.active_mask_3d)
+    active_mask_3d = logical(options.active_mask_3d);
     source_active = active_mask_3d(:);
     valid_dest_id = sub2ind(g.sz, dest_x(is_valid), dest_y(is_valid), z_id(is_valid));
     dest_active_valid = active_mask_3d(valid_dest_id);
@@ -115,15 +121,15 @@ if ~isempty(p.Results.active_mask_3d)
     is_valid = is_valid & source_active & active_valid;
 end
 
-source_id_valid = source_id(is_valid);
+source_id_valid = source.id(is_valid);
 dest_id_valid = uint32(sub2ind(g.sz, dest_x(is_valid), dest_y(is_valid), z_id(is_valid)));
 coeff_valid = 1;
-if p.Results.shoreline_crossing_coeff ~= 1
+if options.shoreline_crossing_coeff ~= 1
     coeff_valid = ones(numel(source_id_valid), 1);
     dest_horizontal_id_valid = sub2ind([nx ny], dest_x(is_valid), dest_y(is_valid));
     is_shoreline_crossing = find_land_water_transitions( ...
-        g, source_horizontal_id(is_valid), dest_horizontal_id_valid);
-    coeff_valid(is_shoreline_crossing) = p.Results.shoreline_crossing_coeff;
+        g, source.horizontal_id(is_valid), dest_horizontal_id_valid);
+    coeff_valid(is_shoreline_crossing) = options.shoreline_crossing_coeff;
     is_active = coeff_valid ~= 0;
     source_id_valid = source_id_valid(is_active);
     dest_id_valid = dest_id_valid(is_active);
@@ -133,7 +139,7 @@ end
 step = struct( ...
     "dt_seconds", dt_seconds, ...
     "boundary_mode", boundary_mode, ...
-    "shoreline_crossing_coeff", p.Results.shoreline_crossing_coeff, ...
+    "shoreline_crossing_coeff", options.shoreline_crossing_coeff, ...
     "coeff_valid", coeff_valid, ...
     "source_id_valid", source_id_valid, ...
     "dest_id_valid", dest_id_valid);

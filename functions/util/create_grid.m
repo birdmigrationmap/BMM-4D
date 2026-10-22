@@ -61,8 +61,17 @@ g.dx = median(diff(elevation_kernels{1}.x));
 g.x=(0:ceil(xmax/g.dx)+3)*g.dx;
 g.dy = median(diff(elevation_kernels{1}.y));
 g.y=(0:ceil(ymax/g.dy)+3)'*g.dy;
-g.z=elevation_kernels{1}.z(elevation_kernels{1}.z <= heightmax);
-g.dz = median(diff(g.z));
+% g.z is height above sea level. Kernel z only spans the beam heights above
+% one radar, so extend it with the same spacing when the grid must reach
+% higher (radars on high terrain).
+kernel_z = elevation_kernels{1}.z(:);
+kernel_dz = median(diff(kernel_z));
+g.z = kernel_z(kernel_z <= heightmax);
+if heightmax > max(kernel_z)
+    g.z = [g.z; (max(kernel_z) + kernel_dz:kernel_dz:heightmax)'];
+end
+g.z = reshape(g.z, 1, 1, []);  % same 1x1xN layout as the kernels
+g.dz = kernel_dz;
 
 g.sz = [numel(g.x) numel(g.y) numel(g.z)];
 

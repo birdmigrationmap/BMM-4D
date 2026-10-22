@@ -27,7 +27,7 @@ nz = g.sz(3);
 uv_profiles_radar = nan(nz, 2, n_radar, n_time);
 for i_r = 1:n_radar
     for i_t = 1:n_time
-        uv_profiles_radar(:, :, i_r, i_t) = radar_scans{i_r, i_t}.uv(1:nz, :);
+        uv_profiles_radar(:, :, i_r, i_t) = radar_uv_on_grid(radar_scans{i_r, i_t}, g);
     end
 end
 

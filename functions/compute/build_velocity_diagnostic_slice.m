@@ -58,7 +58,9 @@ radar_xy = nan(n_radar, 2);
 uv_radar = nan(n_radar, 2);
 for i_r = 1:n_radar
     radar_xy(i_r, :) = [g.f_X(radar_scans{i_r, 1}.lon) g.f_Y(radar_scans{i_r, 1}.lat)];
-    uv_radar(i_r, :) = 0.5 .* (radar_scans{i_r, interval_id}.uv(z_id, :) + radar_scans{i_r, interval_id + 1}.uv(z_id, :));
+    uv_start = radar_uv_on_grid(radar_scans{i_r, interval_id}, g);
+    uv_end = radar_uv_on_grid(radar_scans{i_r, interval_id + 1}, g);
+    uv_radar(i_r, :) = 0.5 .* (uv_start(z_id, :) + uv_end(z_id, :));
 end
 
 [radar_xy_unique, ~, site_id] = unique(radar_xy, "rows", "stable");

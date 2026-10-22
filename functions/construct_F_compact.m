@@ -15,15 +15,13 @@ for i_r = 1:height(radar_scans)
 
     [~, lon_id] = min(abs(g.lon - radar_sites{i_r}.lon));
     [~, lat_id] = min(abs(g.lat - radar_sites{i_r}.lat));
-    [~, z_id] = min(squeeze(abs(g.z - radar_sites{i_r}.height)));
 
     radar_sites{i_r}.lon_id = lon_id - ceil(elevation_kernels{1}.sz_coarse_grid(1) / 2);
     radar_sites{i_r}.lat_id = lat_id - ceil(elevation_kernels{1}.sz_coarse_grid(2) / 2);
-    if radar_sites{i_r}.height == 0
-        radar_sites{i_r}.z_id = 0;
-    else
-        radar_sites{i_r}.z_id = z_id;
-    end
+    % Kernel layers are relative to the antenna, so shift them by the radar
+    % height in whole layers. A ground-referenced radar (height 0) has no shift.
+    kernel_dz = median(diff(elevation_kernels{1}.z(:)));
+    radar_sites{i_r}.z_id = round(radar_sites{i_r}.height / kernel_dz);
 end
 
 %% Precompute retained kernel entries for the shared synthetic geometry ---

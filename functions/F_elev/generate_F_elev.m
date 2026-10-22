@@ -6,39 +6,34 @@
 % module load matlab/R2021a
 % matlab -nodisplay -nosplash -nodesktop -nojvm -r "elev_iter = $1 ;run('generate_F_elev.m');exit;"
 
-%% coarse g
-dx=2000; 
-dy=dx; 
-xy_max=150000;
-dz=100;
-z_0=dz/2;
-z_max=3000-dz/2;
-x=reshape(-xy_max:dx:xy_max,1,[]);
-y=reshape(-xy_max:dy:xy_max,[],1);
-z=reshape(z_0:dz:z_max,1,1,[]);
-nxx=40;
-nyy=40;
-nzz=5;
+%% Coarse grid of the kernel set ("150km" or "50km")
+kernel_set = "50km";
+dz = 100;
+z = reshape(dz/2:dz:3000-dz/2, 1, 1, []);
+nzz = 5;
+if kernel_set == "150km"
+    dx = 2000;
+    xy_max = 150000;
+    nxx = 40;
+else
+    dx = 500;
+    xy_max = 50000;
+    nxx = 10;
+end
+dy = dx;
+nyy = nxx;
+x = reshape(-xy_max:dx:xy_max, 1, []);
+y = reshape(-xy_max:dy:xy_max, [], 1);
 
-%%
-dx=500; 
-dy=dx; 
-xy_max=50000;
-dz=100;
-z_0=dz/2;
-z_max=3000-dz/2;
-x=reshape(-xy_max:dx:xy_max,1,[]);
-y=reshape(-xy_max:dy:xy_max,[],1);
-z=reshape(z_0:dz:z_max,1,1,[]);
+%% Compute the missing kernels
+load("data/reference/scan_pattern_new.mat", "dfnew")
 
-
-
-%%
-%load("data/reference/scan_pattern.mat")
-load("data/reference/scan_pattern_new.mat")
-
-nxx=10;
-nyy=10;
-nzz=5;
-
-compute_F_elev(x, y, z, nxx, nyy, nzz, dfnew(1), 0.1)
+% On the server, elev_iter selects one kernel per job; otherwise compute all.
+if exist("elev_iter", "var")
+    kernel_ids = elev_iter;
+else
+    kernel_ids = 1:numel(dfnew);
+end
+for i_kernel = kernel_ids
+    compute_F_elev(x, y, z, nxx, nyy, nzz, dfnew(i_kernel), 0.1)
+end

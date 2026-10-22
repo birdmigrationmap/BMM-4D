@@ -69,18 +69,11 @@ end
 use_vertical_profile = any(p.Results.vp_absolute_values > 0);
 if use_vertical_profile
     vp = compute_vp(obs_vector(:, 1), g, F);
-    vertical_profile_expansion = repelem(speye(g.sz(3)), num_horizontal_cells, 1);
+    vertical_profile_field = repelem(vp(:), num_horizontal_cells, 1);
     if p.Results.water
-        if isfield(g, "mask_water")
-            water_mask = g.mask_water;
-        else
-            water_mask_data = load("data/reference/onwater/Fonwater.mat", "Fonwater");
-            water_mask = logical(water_mask_data.Fonwater({g.f_lat(g.y), g.f_lon(g.x)}))';
-        end
-        water_mask_3d = repmat(water_mask, 1, 1, g.sz(3));
-        vertical_profile_expansion(water_mask_3d(:) == 1, :) = 0;
+        water_mask_3d = repmat(get_water_mask(g), 1, 1, g.sz(3));
+        vertical_profile_field(water_mask_3d(:) == 1) = 0;
     end
-    vertical_profile_field = vertical_profile_expansion * vp;
 else
     vertical_profile_field = sparse(num_grid_cells, 1);
 end

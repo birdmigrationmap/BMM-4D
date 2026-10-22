@@ -7,7 +7,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
 
     methods (TestClassSetup)
         function addProjectFunctions(testCase)
-            testCase.ProjectRoot = fileparts(fileparts(fileparts(fileparts(mfilename("fullpath")))));
+            testCase.ProjectRoot = fileparts(fileparts(mfilename("fullpath")));
             testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
                 fullfile(testCase.ProjectRoot, "functions"), IncludingSubfolders=true));
         end

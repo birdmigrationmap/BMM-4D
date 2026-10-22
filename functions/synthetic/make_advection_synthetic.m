@@ -1,5 +1,6 @@
-function [truth_sequences, obs_sequences] = make_advection_synthetic(g, F, cov_parm, vp_case, trans_finv_case, target_id, n_sim, uv_profile, time_offsets, dt, varargin)
-%MAKE_ADVECTION_SYNTHETIC Generate moving truth sequences and observations.
+function truth_sequences = make_advection_synthetic(g, cov_parm, vp_case, trans_finv_case, target_id, n_sim, uv_profile, time_offsets, dt, varargin)
+%MAKE_ADVECTION_SYNTHETIC Generate moving truth sequences.
+% Observations are rebuilt with forward_observation_sequence(F, truth).
 
 p = inputParser;
 addParameter(p, "seed", "shuffle");
@@ -20,23 +21,8 @@ steps = build_profile_advection_steps( ...
     shoreline_crossing_coeff=p.Results.shoreline_crossing_coeff);
 
 truth_sequences = cell(n_sim, 1);
-obs_sequences = cell(n_sim, 1);
 for i_sim = 1:n_sim
     truth_sequence_padded = advect_density_sequence(truth_fields{i_sim}, steps, time_offsets);
-    truth_sequence = truth_sequence_padded(crop.x_idx, crop.y_idx, :, :);
-    truth_sequences{i_sim} = truth_sequence;
-
-    obs_rows = cell(numel(time_offsets), 1);
-    obs_cols = cell(numel(time_offsets), 1);
-    obs_vals = cell(numel(time_offsets), 1);
-    for i_t = 1:numel(time_offsets)
-        field_t = truth_sequence(:, :, :, i_t);
-        obs_t = F * field_t(:);
-        obs_rows{i_t} = find(obs_t);
-        obs_cols{i_t} = repmat(i_t, numel(obs_rows{i_t}), 1);
-        obs_vals{i_t} = obs_t(obs_rows{i_t});
-    end
-    obs_sequence = sparse(vertcat(obs_rows{:}), vertcat(obs_cols{:}), vertcat(obs_vals{:}), size(F, 1), numel(time_offsets));
-    obs_sequences{i_sim} = obs_sequence;
+    truth_sequences{i_sim} = truth_sequence_padded(crop.x_idx, crop.y_idx, :, :);
 end
 end

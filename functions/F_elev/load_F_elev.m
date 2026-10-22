@@ -34,7 +34,6 @@ for i_s=1:numel(radar_scans)
                 [~, dfnew(u).range, dfnew(u).az] = sweep2mat(radar_scans{i_s}.dens.sweeps(i_elev));
                 dfnew(u).az = round(dfnew(u).az / 0.25)*.25;
                 dfnew(u).name = tmp_name;
-                i_s
             else
                 kernel_idx_by_scan{i_s}(i_elev) = matching_kernel_idx;
             end
@@ -67,12 +66,10 @@ for i_f = 1:numel(elevation_kernels)
         elevation_kernels{i_f}.z = kernel_data.z;
         elevation_kernels{i_f}.sz_coarse_grid = [numel(kernel_data.x) numel(kernel_data.y) numel(kernel_data.z)];
         
-        [elevation_kernels{i_f}.F_gr_y, elevation_kernels{i_f}.F_gr_x, elevation_kernels{i_f}.F_gr_z] = ind2sub(elevation_kernels{i_f}.sz_coarse_grid, kernel_data.Felevidc(:,3));
+        % Kernel cell ids are stored y-first by compute_F_elev.
+        [elevation_kernels{i_f}.F_gr_y, elevation_kernels{i_f}.F_gr_x, elevation_kernels{i_f}.F_gr_z] = ind2sub(elevation_kernels{i_f}.sz_coarse_grid([2 1 3]), kernel_data.Felevidc(:,3));
     
         elevation_kernels{i_f}.Fval = kernel_data.Felevfc;
-    
-    %     F = sparse(double(elevation_kernels{i_f}.F_raz_id), double(kernel_data.Felevidc(:,3)), double(kernel_data.Felevfc), prod(elevation_kernels{i_f}.sz_raz), prod(elevation_kernels{i_f}.sz_coarse_grid));
-    %     tmp2 = reshape(full(sum(F,1)), elevation_kernels{i_f}.sz_coarse_grid);
 end
 
 %% Order
@@ -100,7 +97,7 @@ ZMAX_M  = ZSTEP_M*numel(elevation_kernels{1}.z);
 
 parfor i = 1:numel(radar_scans)
     if ~isempty(radar_scans{i})
-        [ ~, ~, u, v, rmse, nll, cov] = epvvp(radar_scans{i}, ZSTEP_M, RMIN_M, RMAX_M, ZMAX_M);
+        [~, ~, u, v] = epvvp(radar_scans{i}, ZSTEP_M, RMIN_M, RMAX_M, ZMAX_M);
         radar_scans{i}.uv = [u v]; % write speed (m/s)
     end
 end
