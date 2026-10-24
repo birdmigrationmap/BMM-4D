@@ -6,7 +6,8 @@ function [preds, classes, probs] = mistnet_polar_radar(radar)
 % changes MistNet's predictions.
 persistent pooling_checked
 if isempty(pooling_checked)
-    if exist("vl_nnpool", "file") && vl_nnpool(single([-1 -2; -3 -4]), [2 2]) ~= -1
+    % exist 3: the compiled MEX (an uncompiled checkout has only the .m help)
+    if exist("vl_nnpool", "file") == 3 && vl_nnpool(single([-1 -2; -3 -4]), [2 2]) ~= -1
         error("mistnet_polar_radar:BrokenPooling", ...
             "MatConvNet's vl_nnpool returns wrong maxima for negative values. Rebuild wsrlib's MatConvNet (vl_compilenn) with -ffast-math -fno-finite-math-only.")
     end

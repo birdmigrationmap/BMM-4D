@@ -4,7 +4,7 @@ classdef matconvnetPoolingTest < matlab.unittest.TestCase
 
     methods (Test)
         function testMaxPoolingOfNegativeValues(testCase)
-            testCase.assumeTrue(exist("vl_nnpool", "file") > 0, "MatConvNet (wsrlib) not on the path.")
+            testCase.assumeTrue(exist("vl_nnpool", "file") == 3, "Compiled MatConvNet (wsrlib) not on the path.")
             x = -single(reshape(1:16, 4, 4));
 
             y = vl_nnpool(x, [2 2], 'stride', 2);

@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use BMM-4D, please cite it as below."
+type: software
+title: "BMM-4D: bird-migration reconstruction in space and time from weather radars"
+abstract: >-
+  MATLAB package to reconstruct animated 3D bird-density fields from a
+  network of weather radars (NEXRAD): radar cleaning, forward model,
+  density prior, advection-regularized inversion and maps.
+version: 0.1.0
+license: GPL-3.0-only
+repository-code: "https://github.com/birdmigrationmap/BMM-4D"
+keywords:
+  - bird migration
+  - weather radar
+  - NEXRAD
+  - aeroecology
+  - inverse problem
+authors:
+  - family-names: Nussbaumer
+    given-names: Raphaël
+    orcid: "https://orcid.org/0000-0002-8185-1020"
+    affiliation: Swiss Ornithological Institute
+  - family-names: Dokter
+    given-names: Adriaan
+    orcid: "https://orcid.org/0000-0001-6573-066X"
+    affiliation: Cornell University
