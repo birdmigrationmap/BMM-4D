@@ -37,6 +37,14 @@ jobs:
             Optimization_Toolbox
             Parallel_Computing_Toolbox
           cache: true
+      - name: Diagnose package install
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >
+            disp(version);
+            try, mpminstall(fullfile(pwd, "toolbox"), InPlace=true, Temporary=true, Prompt=false);
+            disp("install ok");
+            catch e, disp(getReport(e, "extended")); for c = e.cause', disp(getReport(c{1}, "extended")); end, end
       - uses: matlab-actions/run-build@v3
         with:
           tasks: check test
