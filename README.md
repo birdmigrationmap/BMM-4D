@@ -38,7 +38,7 @@ MathWorks toolboxes used: Optimization, Mapping, Image Processing, Statistics an
 
 ## Package and build
 
-`toolbox/` is a MATLAB package (R2024b or later; `toolbox/resources/mpackage.json`, version 0.1.0). Without `setup_paths`, install it with `mpminstall("toolbox")`, or as an add-on from the toolbox file of `buildtool package`. The external code above still has to be on the path.
+`toolbox/` is a MATLAB package (R2024b or later; `toolbox/resources/mpackage.json`, version 0.1.0). The manifest stays on schema 1.0.0 so that R2024b and R2025 can read it; recent MATLAB releases may rewrite it to a newer schema, which older releases reject. Without `setup_paths`, install it with `mpminstall("toolbox")`, or as an add-on from the toolbox file of `buildtool package`. The external code above still has to be on the path.
 
 ```matlab
 buildtool              % check (Code Analyzer, fails on errors) and test (unit tests)
@@ -63,4 +63,4 @@ Two more folders are set in `local_settings.json`: `nexrad_raw_dir`, the cache o
 
 ## License
 
-GPL-3.0 (`LICENSE`), as wsrlib, on which BMM-4D depends. The package manifest has no license field, so `mpackage.json` carries it as the tag `GPL-3.0`.
+GPL-3.0 (`LICENSE`), as wsrlib, on which BMM-4D depends. The package manifest has no license field; the toolbox file ships the license as `toolbox/license.txt`.

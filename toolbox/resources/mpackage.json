@@ -5,15 +5,6 @@
     "formerNames": [],
     "displayName": "BMM-4D",
     "summary": "Reconstruct animated 3D bird-migration density fields from weather-radar networks (NEXRAD): radar cleaning, forward model, density prior, advection-regularized inversion, maps.",
-    "tags": [
-        "radar",
-        "bird migration",
-        "NEXRAD",
-        "aeroecology",
-        "inverse problem",
-        "GPL-3.0"
-    ],
-    "readme": "README.md",
     "provider": {
         "name": "Raphaël Nussbaumer",
         "organization": "Swiss Ornithological Institute",
@@ -23,13 +14,5 @@
     "folders": [],
     "dependencies": [],
     "releaseCompatibility": ">=24.2.*",
-    "supportedPlatforms": [
-        {
-            "platform": "any",
-            "architectures": [
-                "any"
-            ]
-        }
-    ],
-    "schemaVersion": "1.2.0"
+    "schemaVersion": "1.0.0"
 }
