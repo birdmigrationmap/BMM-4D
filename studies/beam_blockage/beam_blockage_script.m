@@ -1,8 +1,8 @@
 %% Load paths and reference data
 project_root = setup_paths();
 
-radar = readtable(data_path("reference", "radar.csv"), TextType="string");
-load(data_path("reference", "DEM", "dem.mat"), "dem", "dem_lat", "dem_lon")
+radar = readtable(bmm4d.util.data_path("reference", "radar.csv"), TextType="string");
+load(bmm4d.util.data_path("reference", "DEM", "dem.mat"), "dem", "dem_lat", "dem_lon")
 
 dem = double(dem);
 dem(dem == -9999) = -2;
@@ -34,7 +34,7 @@ for i_r = 1:height(radar)
 end
 
 %% Save reference products
-output_dir = data_path("reference", "beam_blockage");
+output_dir = bmm4d.util.data_path("reference", "beam_blockage");
 bb_radar = radar.name;
 save(fullfile(output_dir, "beam_blockage.mat"), "bb", "bb_range", "bb_az", "bb_radar", "-v7.3")
 

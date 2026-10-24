@@ -17,14 +17,14 @@ end
 
 %% Find local files and download missing ones -----------------------------
 stage_tic = tic;
-raw_files = load_rd(c.radars, c.times, closest_accepted=c.closest_accepted_min);
+raw_files = bmm4d.radar.load_rd(c.radars, c.times, closest_accepted=c.closest_accepted_min);
 % Only night volumes are used (prod_case radar_night)
 raw_files(~c.radar_night) = "";
 need = raw_files == "" & c.radar_night;
 n_downloaded = 0;
 if any(need(:))
-    n_downloaded = download_volumes(c.radars, c.times, need, c.closest_accepted_min, 16);
-    raw_files = load_rd(c.radars, c.times, closest_accepted=c.closest_accepted_min);
+    n_downloaded = bmm4d.radar.download_volumes(c.radars, c.times, need, c.closest_accepted_min, 16);
+    raw_files = bmm4d.radar.load_rd(c.radars, c.times, closest_accepted=c.closest_accepted_min);
     raw_files(~c.radar_night) = "";
 end
 stage_log(c, "P1_get_volumes", stage_tic, sprintf("%d/%d night volumes, %d frames, %d downloaded", ...

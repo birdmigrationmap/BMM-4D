@@ -122,7 +122,7 @@ beam_agl = antenna_agl + beam_range_m(:) .* sind([0.5 0.9 1.3 1.8 2.4 3.1]) + be
 
 %% Plot -------------------------------------------------------------------------
 radar_colors = parula(n_radar + 4);
-fig = create_export_figure(3600, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 2, TileSpacing="tight", Padding="tight");
 title(t, "Column density / 150 km regional mean, per radar (mean over 6 frames)", FontSize=14, Color="k")
 for i_run = 1:numel(runs)
@@ -137,10 +137,10 @@ for i_run = 1:numel(runs)
     xlabel(ax, "Distance to own radar (km)"); ylabel(ax, "Column / regional mean")
     title(ax, runs{i_run}.name + " (black: median over radars)", FontWeight="normal", Interpreter="none")
 end
-export_fixed_figure(fig, fullfile(figure_dir, "near_range_columns.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "near_range_columns.png"), Resolution=150)
 close(fig)
 
-fig = create_export_figure(3600, 2000, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2000, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 2, 3, TileSpacing="tight", Padding="tight");
 title(t, "Observed / predicted per radar, prediction from the hard-cut solution (rows < 25 km held out)", FontSize=14, Color="k")
 for i_e = 1:n_elevation
@@ -155,10 +155,10 @@ for i_e = 1:n_elevation
     xlabel(ax, "Range (km)"); ylabel(ax, "Observed / predicted")
     title(ax, "Elevation " + elevation_label(i_e), FontWeight="normal")
 end
-export_fixed_figure(fig, fullfile(figure_dir, "near_range_observations.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "near_range_observations.png"), Resolution=150)
 close(fig)
 
-fig = create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 3, TileSpacing="tight", Padding="tight");
 title(t, "Reconstructed density by distance to own radar and height above ground (mean over radars and frames)", FontSize=14, Color="k")
 height_center = (height_edges(1:end - 1) + height_edges(2:end)) / 2;
@@ -180,5 +180,5 @@ for i_p = 1:3
     end
     title(ax, panel_titles(i_p) + " (white: beam centres 0.5-3.1°)", FontWeight="normal", Interpreter="none")
 end
-export_fixed_figure(fig, fullfile(figure_dir, "near_range_vertical.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "near_range_vertical.png"), Resolution=150)
 close(fig)

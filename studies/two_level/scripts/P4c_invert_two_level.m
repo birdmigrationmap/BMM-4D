@@ -22,9 +22,9 @@ stage_tic = tic;
 load(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans")
 column_mask = [];
 if ~isempty(c.domain)
-    column_mask = build_domain_mask(g, c.domain);
+    column_mask = bmm4d.grid.build_domain_mask(g, c.domain);
 end
-active_mask_3d = build_active_mask(g, radar_scans, c.active_range_m, c.flight_layer_agl_m, column_mask);
+active_mask_3d = bmm4d.grid.build_active_mask(g, radar_scans, c.active_range_m, c.flight_layer_agl_m, column_mask);
 active_id = find(active_mask_3d(:));
 stage_log(c, "P4c_load_case", stage_tic, sprintf("%.3g active cells, %.3g rows", numel(active_id), size(observations.F, 1)))
 
@@ -37,8 +37,8 @@ stage_tic = tic;
 prior_args = {"lambda_profile", inv.lambda_profile, "lambda_time_profile", inv.lambda_time_profile, ...
     "idw_neighbors", inv.density_prior_idw_neighbors, "idw_power", inv.density_prior_idw_power, "maxit", inv.maxit, ...
     "interpolation", inv.prior_interpolation, "length_scale_m", inv.prior_length_scale_m, "include_water", inv.prior_include_water};
-prior_active = build_density_prior_fast(g, radar_scans, observations, prior_args{:}, active_id=active_id);
-[~, profile_info] = build_density_prior_fast(g, radar_scans, observations, "lambda_profile", 1, ...
+prior_active = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, prior_args{:}, active_id=active_id);
+[~, profile_info] = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, "lambda_profile", 1, ...
     "lambda_time_profile", inv.lambda_time_profile, "maxit", inv.maxit, "active_id", 1, "include_water", true);
 patterns = load(fullfile(prod_case("us_east").data_dir, "shape_patterns.mat"));
 n_pattern = 3;
@@ -48,7 +48,7 @@ stage_log(c, "P4c_prior_and_shape", stage_tic)
 
 %% Advection mappings ----------------------------------------------------------
 stage_tic = tic;
-steps = build_radar_advection_steps( ...
+steps = bmm4d.advect.build_radar_advection_steps( ...
     g, radar_scans, seconds(diff(c.times)), ...
     idw_neighbors=inv.velocity_idw_neighbors, ...
     idw_power=inv.velocity_idw_power, ...

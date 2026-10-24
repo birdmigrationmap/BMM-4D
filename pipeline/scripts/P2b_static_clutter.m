@@ -24,7 +24,7 @@ n_radar = numel(c.radars);
 clutter_masks = cell(n_radar, 1);
 parfor i_r = 1:n_radar
     files = raw_files(i_r, raw_files(i_r, :) ~= "");
-    clutter_masks{i_r} = static_clutter_mask(files, settings);
+    clutter_masks{i_r} = bmm4d.radar.static_clutter_mask(files, settings);
 end
 delete(gcp("nocreate"))
 clutter_radars = c.radars;

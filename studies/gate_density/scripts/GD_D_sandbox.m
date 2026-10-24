@@ -60,7 +60,7 @@ for i_r = 1:n_radar
         if ismissing(raw_file) || ~isfile(raw_file) || ismissing(volume_file) || ~isfile(volume_file)
             continue
         end
-        level2 = read_level2_moments(raw_file, ["REF" "CFP"], 4.5);
+        level2 = bmm4d.radar.read_level2_moments(raw_file, ["REF" "CFP"], 4.5);
         level2 = level2(arrayfun(@(s) ~isempty(s.CFP) && ~isempty(s.REF), level2));
         cleaned = load(volume_file).volume.dens.sweeps;
         for i_e = 1:numel(level2)
@@ -144,7 +144,7 @@ writetable(reference_table, fullfile(figure_dir, "GD_D_reference.csv"), WriteRow
 method_colors = [0.1 0.4 0.8; 0.5 0.5 0.5; 0 0 0; 0.65 0.65 0.65; 0.55 0.3 0.75; 0.8 0.2 0.15];
 method_style = ["-" "-" "-" "--" "-" "-"];
 plot_layers = [2 3 4];
-fig = create_export_figure(3600, 2400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 2, numel(plot_layers), TileSpacing="tight", Padding="tight");
 title(t, "Near-range echo deficit by method (sandbox, 28 radars, 3 frames): density / 30-60 km density in the same layer", ...
     FontSize=14, Color="k")
@@ -176,7 +176,7 @@ for i_m = [1 3 5]
     xlabel(ax, "Range (km)"); ylabel(ax, "Per radar, 300-500 m")
     title(ax, method_name(i_m) + " (black: median)", FontWeight="normal")
 end
-export_fixed_figure(fig, fullfile(figure_dir, "GD_D_deficit.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_D_deficit.png"), Resolution=150)
 close(fig)
 
 %% Plot: maps of the example sweep -----------------------------------------------------
@@ -191,7 +191,7 @@ cfp_map(example_sweep.code < 8) = nan;
 panels = {example_sweep.output, example_sweep.window_mean, example_sweep.step1, example_sweep.step2, cfp_map};
 panel_titles = ["Radar output (each gate)" "Window mean (2 km)" "Step 1: sampling estimator" "Step 2: + CFP bounds" ...
     "CFP: power removed by the radar (dB)"];
-fig = create_export_figure(3600, 820, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 820, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, numel(panels), TileSpacing="tight", Padding="tight");
 title(t, sprintf("%s, %s UTC, %.1f deg, within 40 km", example.radar, string(manifest.times(example.frame), "HH:mm"), example_sweep.elev), ...
     FontSize=13, Color="k")
@@ -213,5 +213,5 @@ for i_p = 1:numel(panels)
 end
 ax = nexttile(t, 4);
 cb = colorbar(ax, Color="k"); cb.Label.String = "log_{10} birds km^{-3}";
-export_fixed_figure(fig, fullfile(figure_dir, "GD_D_maps.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_D_maps.png"), Resolution=150)
 close(fig)

@@ -104,7 +104,7 @@ If logic is reused only within one script, prefer inline code first. If repetiti
 
 For numbered workflow scripts such as `A_*.m`, `B_*.m`, and `C_*.m`, keep the script body linear and move reusable helper functions into shared files under `toolbox/` (package) or a script folder's own `functions/` instead of defining local functions at the end of the script.
 
-Before adding any new helper for plotting, exporting, formatting labels, or figure layout, first check `toolbox/plot/` and reuse an existing helper when possible.
+Before adding any new helper for plotting, exporting, formatting labels, or figure layout, first check `toolbox/+bmm4d/+plot/` (`bmm4d.plot.*`) and reuse an existing helper when possible.
 
 Do not introduce local helper functions inside numbered workflow scripts when the logic is already covered by an existing shared helper. Prefer calling the shared helper and applying a few explicit script-level axis adjustments afterward.
 

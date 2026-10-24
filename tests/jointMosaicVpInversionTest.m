@@ -27,7 +27,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             obs_matrix = sparse([1 3 1], [1 1 2], [2 3 4], 4, 2);
             info.obs_grid_size = [1 1 4 1];
 
-            observations = prepare_radar_observations(F, obs_matrix, info);
+            observations = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info);
 
             testCase.verifyEqual(observations.row_ids, uint32([1; 3]))
             testCase.verifyEqual(observations.F, F([1 3], :))
@@ -38,11 +38,11 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
         function testPriorOnlyReturnsPrior(testCase)
             g = jointMosaicVpInversionTest.smallGrid();
             info.obs_grid_size = [0 1 1 1];
-            observations = prepare_radar_observations( ...
+            observations = bmm4d.forward.prepare_radar_observations( ...
                 sparse(0, prod(g.sz)), sparse(0, 2), info);
-            steps = build_profile_advection_steps(g, {zeros(g.sz(3), 2)}, 1000);
+            steps = bmm4d.advect.build_profile_advection_steps(g, {zeros(g.sz(3), 2)}, 1000);
 
-            fields = solve_advection_lean(observations, g, true(g.sz), steps, 4 .* ones(prod(g.sz), 2), ...
+            fields = bmm4d.solve.solve_advection_lean(observations, g, true(g.sz), steps, 4 .* ones(prod(g.sz), 2), ...
                 advection=0, prior=1, smoothness=0, maxit=20, tol=1e-12, store_class="double");
 
             testCase.verifyEqual(fields, 4 .* ones(prod(g.sz), 2), AbsTol=1e-10)
@@ -53,7 +53,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
                 jointMosaicVpInversionTest.explicitReferenceSystem();
             % No water cells, so the land-water cut of the lean solver's
             % Laplacian leaves it equal to the continuous one used here.
-            fields = solve_advection_lean(observations, g, true(g.sz), steps, reshape(prior_field, [], 2), ...
+            fields = bmm4d.solve.solve_advection_lean(observations, g, true(g.sz), steps, reshape(prior_field, [], 2), ...
                 advection=0.9, prior=0.4, smoothness=0.3, coeff_horver=0, maxit=500, tol=1e-12, store_class="double");
             x_explicit = lsqr(A_explicit, b_explicit, 1e-12, 500);
 
@@ -68,10 +68,10 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             F = sparse(rand(5, prod(g.sz)));
             obs_matrix = sparse([1 3 2 5], [1 1 2 2], [2 4 3 5], 5, 2);
             info.obs_grid_size = [1 1 5 1];
-            observations = prepare_radar_observations(F, obs_matrix, info);
-            steps = build_profile_advection_steps(g, {zeros(g.sz(3), 2)}, 1000);
+            observations = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info);
+            steps = bmm4d.advect.build_profile_advection_steps(g, {zeros(g.sz(3), 2)}, 1000);
 
-            fields = solve_advection_lean(observations, g, true(g.sz), steps, ones(prod(g.sz), 2), ...
+            fields = bmm4d.solve.solve_advection_lean(observations, g, true(g.sz), steps, ones(prod(g.sz), 2), ...
                 prior=0.3, smoothness=0.2, advection=0.5, maxit=100, tol=1e-10, store_class="double");
 
             testCase.verifySize(fields, [prod(g.sz) 2])
@@ -90,9 +90,9 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             F = speye(prod(g.sz));
             obs_matrix = sparse([-1; 2]);
             info.obs_grid_size = [1 1 2 1];
-            observations = prepare_radar_observations(F, obs_matrix, info);
+            observations = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info);
 
-            [fields, inversion_info] = solve_advection_lean(observations, g, true(g.sz), cell(0, 1), zeros(2, 1), ...
+            [fields, inversion_info] = bmm4d.solve.solve_advection_lean(observations, g, true(g.sz), cell(0, 1), zeros(2, 1), ...
                 nonnegative=true, prior=0, smoothness=0, advection=0, ...
                 projected_maxit=50, projected_tol=1e-12, store_class="double");
 
@@ -104,9 +104,9 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
         function testTemporalDensityPriorReducesProfileJumps(testCase)
             [g, radar_scans, observations] = jointMosaicVpInversionTest.temporalPriorInputs();
 
-            [~, unsmoothed] = build_density_prior_fast( ...
+            [~, unsmoothed] = bmm4d.prior.build_density_prior_fast( ...
                 g, radar_scans, observations, lambda_profile=0, lambda_time_profile=0, maxit=100, tol=1e-12);
-            [~, smoothed] = build_density_prior_fast( ...
+            [~, smoothed] = bmm4d.prior.build_density_prior_fast( ...
                 g, radar_scans, observations, lambda_profile=0, lambda_time_profile=10, maxit=100, tol=1e-12);
             unsmoothed_jump = sum(abs(diff(squeeze(unsmoothed.radar_profiles(:, 1, :)), 1, 2)), "all");
             smoothed_jump = sum(abs(diff(squeeze(smoothed.radar_profiles(:, 1, :)), 1, 2)), "all");
@@ -126,9 +126,9 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             F = speye(prod(g.sz));
             obs_matrix = sparse([1; 2; 10; 20]);
             info.obs_grid_size = [1 1 1 4];
-            observations = prepare_radar_observations(F, obs_matrix, info);
+            observations = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info);
 
-            [density_prior, density_prior_info] = build_density_prior_fast( ...
+            [density_prior, density_prior_info] = bmm4d.prior.build_density_prior_fast( ...
                 g, radar_scans, observations, ...
                 lambda_profile=0, lambda_time_profile=0, ...
                 split_land_water=true, maxit=50, tol=1e-12);
@@ -143,8 +143,8 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             g = jointMosaicVpInversionTest.smallGrid();
             g.mask_water = logical([0 1; 0 1]);
 
-            land_water = LaplacianMatrix(g, water=true);
-            continuous = LaplacianMatrix(g, water=false);
+            land_water = bmm4d.grid.LaplacianMatrix(g, water=true);
+            continuous = bmm4d.grid.LaplacianMatrix(g, water=false);
 
             testCase.verifyGreaterThan(norm(land_water - continuous, "fro"), 0)
         end
@@ -157,11 +157,11 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             g.z = 500;
             g.mask_water = logical([0; 1; 1]);
 
-            continuous = build_profile_advection_steps( ...
+            continuous = bmm4d.advect.build_profile_advection_steps( ...
                 g, [1 0], 1000, boundary_mode="open", shoreline_crossing_coeff=1);
-            disconnected = build_profile_advection_steps( ...
+            disconnected = bmm4d.advect.build_profile_advection_steps( ...
                 g, [1 0], 1000, boundary_mode="open", shoreline_crossing_coeff=0);
-            downweighted = build_profile_advection_steps( ...
+            downweighted = bmm4d.advect.build_profile_advection_steps( ...
                 g, [1 0], 1000, boundary_mode="open", shoreline_crossing_coeff=0.25);
 
             testCase.verifyEqual(double(continuous{1}.source_id_valid), [1; 2])
@@ -172,7 +172,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
         function testAdvectionStepsUseCompactStorage(testCase)
             g = jointMosaicVpInversionTest.smallGrid();
 
-            steps = build_profile_advection_steps(g, {[1 0; 0 0]}, 1000, boundary_mode="open");
+            steps = bmm4d.advect.build_profile_advection_steps(g, {[1 0; 0 0]}, 1000, boundary_mode="open");
 
             testCase.verifyClass(steps{1}.source_id_valid, "uint32")
             testCase.verifyClass(steps{1}.dest_id_valid, "uint32")
@@ -181,10 +181,10 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
 
         function testRadarAdvectionBuilderMatchesFullVelocityPath(testCase)
             [g, radar_scans] = jointMosaicVpInversionTest.velocityInputs();
-            velocity = build_radar_velocity_prior(g, radar_scans, idw_neighbors=2, idw_power=2);
-            expected = build_profile_advection_steps(g, velocity, 1000, boundary_mode="open");
+            velocity = bmm4d.prior.build_radar_velocity_prior(g, radar_scans, idw_neighbors=2, idw_power=2);
+            expected = bmm4d.advect.build_profile_advection_steps(g, velocity, 1000, boundary_mode="open");
 
-            actual = build_radar_advection_steps( ...
+            actual = bmm4d.advect.build_radar_advection_steps( ...
                 g, radar_scans, 1000, idw_neighbors=2, idw_power=2, boundary_mode="open");
 
             testCase.verifyEqual(actual, expected)
@@ -193,7 +193,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
         function testRadarAdvectionBuilderUsesVaryingIntervals(testCase)
             [g, radar_scans] = jointMosaicVpInversionTest.varyingIntervalInputs();
 
-            steps = build_radar_advection_steps(g, radar_scans, [600 1200]);
+            steps = bmm4d.advect.build_radar_advection_steps(g, radar_scans, [600 1200]);
 
             testCase.verifyEqual([steps{1}.dt_seconds; steps{2}.dt_seconds], [600; 1200], AbsTol=0)
         end
@@ -201,7 +201,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
         function testAdvectionStepsDropNonfiniteDestinations(testCase)
             g = jointMosaicVpInversionTest.smallGrid();
 
-            steps = build_profile_advection_steps( ...
+            steps = bmm4d.advect.build_profile_advection_steps( ...
                 g, cat(4, nan(g.sz), zeros(g.sz)), 1000, boundary_mode="open");
 
             testCase.verifyEmpty(steps{1}.source_id_valid)
@@ -212,7 +212,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             [g, radar_scans] = jointMosaicVpInversionTest.varyingIntervalInputs();
             radar_scans{1, 2}.uv(1, :) = [nan nan];
 
-            steps = build_radar_advection_steps(g, radar_scans, [600 1200], ...
+            steps = bmm4d.advect.build_radar_advection_steps(g, radar_scans, [600 1200], ...
                 idw_neighbors=1, idw_power=1, boundary_mode="open");
 
             testCase.verifyEqual(double(steps{1}.source_id_valid), (5:8)')
@@ -223,10 +223,10 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
         function testInvalidStepCountErrors(testCase)
             g = jointMosaicVpInversionTest.smallGrid();
             info.obs_grid_size = [0 1 1 1];
-            observations = prepare_radar_observations(sparse(0, prod(g.sz)), sparse(0, 2), info);
+            observations = bmm4d.forward.prepare_radar_observations(sparse(0, prod(g.sz)), sparse(0, 2), info);
 
             testCase.verifyError( ...
-                @() solve_advection_lean(observations, g, true(g.sz), cell(0, 1), zeros(prod(g.sz), 2)), ...
+                @() bmm4d.solve.solve_advection_lean(observations, g, true(g.sz), cell(0, 1), zeros(prod(g.sz), 2)), ...
                 "solve_advection_lean:InvalidStepCount")
         end
     end
@@ -249,10 +249,10 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             F = sparse(rand(n_obs, nxyz));
             obs_matrix = sparse(rand(n_obs, 2));
             info.obs_grid_size = [1 1 n_obs 1];
-            observations = prepare_radar_observations(F, obs_matrix, info);
+            observations = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info);
             prior_field = reshape(1:(2 * nxyz), [g.sz 2]) ./ 10;
-            steps = build_profile_advection_steps(g, {[1 0; 0 0]}, 1000, boundary_mode="open");
-            laplacian = LaplacianMatrix(g, water=false, coeff_horver=0);
+            steps = bmm4d.advect.build_profile_advection_steps(g, {[1 0; 0 0]}, 1000, boundary_mode="open");
+            laplacian = bmm4d.grid.LaplacianMatrix(g, water=false, coeff_horver=0);
             data_scale = 1 / sqrt(n_obs);
             data_norm = max(norm(data_scale .* F, "fro"), 1);
             prior_scale = 0.4 .* data_norm ./ sqrt(nxyz);
@@ -290,7 +290,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             F = speye(2);
             obs_matrix = sparse([0 10 0; 0 10 0]);
             info.obs_grid_size = [1 1 1 2];
-            observations = prepare_radar_observations(F, obs_matrix, info);
+            observations = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info);
         end
 
         function [g, radar_scans] = velocityInputs()

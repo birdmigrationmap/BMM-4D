@@ -70,7 +70,7 @@ manifest = load(fullfile(c.data_dir, "manifest.mat"));
 radar_ids = 1:3:28;
 real_sweeps = {};
 for i_r = radar_ids
-    level2 = read_level2_moments(manifest.raw_files(i_r, 3), ["REF" "CFP"], 3.5);
+    level2 = bmm4d.radar.read_level2_moments(manifest.raw_files(i_r, 3), ["REF" "CFP"], 3.5);
     level2 = level2(arrayfun(@(s) ~isempty(s.CFP) && ~isempty(s.REF), level2));
     for i_e = 1:numel(level2)
         n_gate = min(size(level2(i_e).REF, 1), size(level2(i_e).CFP, 1));
@@ -123,7 +123,7 @@ save(fullfile(figure_dir, "GD_C_calibration.mat"), "calibrated_sigma_log_sd", "c
 % Colour: log10(1 + max - log likelihood), so 0 is the best pair
 surfaces = {synthetic_ll(:, :, 1), synthetic_ll(:, :, 2), synthetic_ll(:, :, 3), real_ll(:, :, 1), real_ll(:, :, 2)};
 surface_titles = [compose("Simulated %g / x%.2f", truths)' "Real, 4-15 km" "Real, 15-45 km"];
-fig = create_export_figure(3600, 1050, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1050, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, numel(surfaces), TileSpacing="tight", Padding="tight");
 title(t, "Profile log likelihood over cross-section log-sd and beam volume factor (white cross: best; black circle: simulated truth; white line: 3 below the best)", ...
     FontSize=13, Color="k")
@@ -143,5 +143,5 @@ for i_p = 1:numel(surfaces)
     title(ax, surface_titles(i_p), FontWeight="normal", FontSize=12)
 end
 cb = colorbar(ax, Color="k"); cb.Layout.Tile = "east"; cb.Label.String = "log_{10}(1 + max - log likelihood)";
-export_fixed_figure(fig, fullfile(figure_dir, "GD_C_calibration.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_C_calibration.png"), Resolution=150)
 close(fig)

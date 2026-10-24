@@ -52,9 +52,9 @@ if ~isempty(clutter_mask)
         end
     end
 end
-[elevation_kernels, scans, n_dropped] = attach_kernels(scans, kernel_dir);
-[F, obs_matrix, info] = construct_F(scans, elevation_kernels, g, aggregate=aggregate);
-radar_obs = prepare_radar_observations(F, obs_matrix, info, min_row_mass=min_row_mass);
+[elevation_kernels, scans, n_dropped] = bmm4d.forward.attach_kernels(scans, kernel_dir);
+[F, obs_matrix, info] = bmm4d.forward.construct_F(scans, elevation_kernels, g, aggregate=aggregate);
+radar_obs = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info, min_row_mass=min_row_mass);
 % Range (m) and elevation (deg) of each kept row, for data weighting
 [range_id, ~, ~, kernel_id] = ind2sub(info.obs_grid_size, double(radar_obs.row_ids));
 kernel_range = cellfun(@(k) k.range(:), elevation_kernels, UniformOutput=false);

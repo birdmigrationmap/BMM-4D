@@ -8,11 +8,11 @@ c = prod_case(case_name);
 load(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected")
 column_mask = [];
 if ~isempty(c.domain)
-    column_mask = build_domain_mask(g, c.domain);
+    column_mask = bmm4d.grid.build_domain_mask(g, c.domain);
 end
-active_mask_3d = build_active_mask(g, radar_scans, c.active_range_m, c.flight_layer_agl_m, column_mask);
+active_mask_3d = bmm4d.grid.build_active_mask(g, radar_scans, c.active_range_m, c.flight_layer_agl_m, column_mask);
 inv = c.inversion;
-steps = build_radar_advection_steps(g, radar_scans, seconds(diff(c.times)), ...
+steps = bmm4d.advect.build_radar_advection_steps(g, radar_scans, seconds(diff(c.times)), ...
     idw_neighbors=inv.velocity_idw_neighbors, idw_power=inv.velocity_idw_power, boundary_mode="open", ...
     shoreline_crossing_coeff=inv.shoreline_crossing_coeff, active_mask_3d=active_mask_3d);
 % No-echo rows: every observed value of the row is a zero (stored as eps)

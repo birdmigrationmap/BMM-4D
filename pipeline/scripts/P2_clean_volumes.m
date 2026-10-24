@@ -42,7 +42,7 @@ status = strings(numel(todo), 1);
 todo_raw = raw_files(todo);
 todo_out = volume_files(todo);
 parfor k = 1:numel(todo)
-    status(k) = clean_volume(todo_raw(k), read_options, vp, filter, todo_out(k));
+    status(k) = bmm4d.radar.clean_volume(todo_raw(k), read_options, vp, filter, todo_out(k));
 end
 failed = status ~= "ok";
 for k = find(failed)'

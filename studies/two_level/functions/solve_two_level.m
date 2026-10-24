@@ -244,7 +244,7 @@ clear position coeff coeff2 w
 %% Prior operators and term scales --------------------------------------------------
 column_mask = false([g.sz(1:2) 1]);
 column_mask(column_xy) = true;
-L_h = active_laplacian(column_mask, get_water_mask(g), 0.5) / 0.25;      % unit-weight graph Laplacian
+L_h = bmm4d.grid.active_laplacian(column_mask, bmm4d.grid.get_water_mask(g), 0.5) / 0.25;      % unit-weight graph Laplacian
 L_fine = (opt.fine_length_m / mean([g.dx g.dy])) ^ 2 * L_h;   % Q_fine = I + L_fine
 R_level = (opt.level_length_m / opt.node_spacing_m) ^ 2 * L_c;
 fine_scales2 = (opt.fine_prior .* data_block_norms ./ sqrt(n_column)) .^ 2;

@@ -26,13 +26,13 @@ classdef radarFileSelectionTest < matlab.unittest.TestCase
 
     methods (Test)
         function testClosestFileWithinSameDay(testCase)
-            files = load_rd("KXXX", datetime(2020, 1, 1, 2, 3, 0), closest_accepted=10, search_dirs=fullfile(pwd, "nexrad"));
+            files = bmm4d.radar.load_rd("KXXX", datetime(2020, 1, 1, 2, 3, 0), closest_accepted=10, search_dirs=fullfile(pwd, "nexrad"));
 
             testCase.verifyTrue(endsWith(files, "KXXX20200101_020508_V06"))
         end
 
         function testRejectsFilesBeyondAcceptedOffset(testCase)
-            files = load_rd("KXXX", datetime(2020, 1, 1, 3, 0, 0), closest_accepted=10, search_dirs=fullfile(pwd, "nexrad"));
+            files = bmm4d.radar.load_rd("KXXX", datetime(2020, 1, 1, 3, 0, 0), closest_accepted=10, search_dirs=fullfile(pwd, "nexrad"));
 
             testCase.verifyEqual(files, "")
         end
@@ -41,7 +41,7 @@ classdef radarFileSelectionTest < matlab.unittest.TestCase
             % Requested 00:01 UTC; the 23:58 file of the previous day is
             % 3 min away, the 00:10 file of the same day is 9 min away.
             % load_rd only searches the folder of the requested day.
-            files = load_rd("KXXX", datetime(2020, 1, 2, 0, 1, 0), closest_accepted=10, search_dirs=fullfile(pwd, "nexrad"));
+            files = bmm4d.radar.load_rd("KXXX", datetime(2020, 1, 2, 0, 1, 0), closest_accepted=10, search_dirs=fullfile(pwd, "nexrad"));
 
             testCase.verifyTrue(endsWith(files, "KXXX20200101_235800_V06"), ...
                 "load_rd ignores closer files stored in the previous day's folder.")

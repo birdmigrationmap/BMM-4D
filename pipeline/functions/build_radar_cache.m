@@ -16,7 +16,7 @@ end
 scans = cell(1, numel(available_id));
 for i_f = 1:numel(radar_files)
     try
-        scan_cell = read_rd(radar_files(i_f), read_options{:});
+        scan_cell = bmm4d.radar.read_rd(radar_files(i_f), read_options{:});
         scans{i_f} = scan_cell{1};
     catch err
         warning("UN_B:ReadFailed", "%s: %s", radar_files(i_f), err.message)
@@ -34,19 +34,19 @@ end
 % then keep only what the forward model uses before building the rows.
 % load_F_elev fails when a scan pattern has no precomputed kernel.
 try
-    [elevation_kernels, scans] = load_F_elev(kernel_dir, scans);
+    [elevation_kernels, scans] = bmm4d.forward.load_F_elev(kernel_dir, scans);
     for i_s = 1:numel(scans)
         scans{i_s} = struct( ...
             "station", scans{i_s}.station, "lat", scans{i_s}.lat, "lon", scans{i_s}.lon, ...
             "height", scans{i_s}.height, "datetime", scans{i_s}.datetime, ...
             "dens", scans{i_s}.dens, "kernel_idx", scans{i_s}.kernel_idx, "uv", scans{i_s}.uv);
     end
-    [F, obs_matrix, info] = construct_F(scans, elevation_kernels, g);
+    [F, obs_matrix, info] = bmm4d.forward.construct_F(scans, elevation_kernels, g);
 catch err
     status = sprintf("%s | skipped, forward model failed: %s", station, err.message);
     return
 end
-radar_obs = prepare_radar_observations(F, obs_matrix, info, min_row_mass=min_row_mass);
+radar_obs = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info, min_row_mass=min_row_mass);
 clear F obs_matrix info elevation_kernels
 
 % Place observed columns at their requested times; missing times stay zero.

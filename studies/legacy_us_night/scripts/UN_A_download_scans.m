@@ -23,15 +23,15 @@ bucket_url = "https://unidata-nexrad-level2.s3.amazonaws.com";
 n_parallel_download = 16;
 
 night_tag = string(night_date, "yyyyMMdd");
-night_dir = fullfile(local_data_dir(), "us_night", "data", night_tag);
+night_dir = fullfile(bmm4d.util.local_data_dir(), "us_night", "data", night_tag);
 if ~exist(night_dir, "dir")
     mkdir(night_dir)
 end
 % Raw volumes go to the local cache outside OneDrive (local_settings.json).
-raw_dir = nexrad_raw_dir();
+raw_dir = bmm4d.radar.nexrad_raw_dir();
 
 %% Select radars ----------------------------------------------------------
-radar_selected = select_radars_in_bbox(data_path("reference", "radar.csv"), radar_bounds);
+radar_selected = bmm4d.radar.select_radars_in_bbox(bmm4d.util.data_path("reference", "radar.csv"), radar_bounds);
 n_radar = height(radar_selected);
 n_time = numel(scan_time_requested);
 fprintf("[UN/A] night %s | %d radars, %d times (%s to %s UTC)\n", night_tag, n_radar, n_time, ...
@@ -48,7 +48,7 @@ for i_r = 1:n_radar
     files = cell(numel(scan_days), 1);
     for i_d = 1:numel(scan_days)
         try
-            files{i_d} = list_nexrad_day(station, scan_days(i_d), bucket_url);
+            files{i_d} = bmm4d.radar.list_nexrad_day(station, scan_days(i_d), bucket_url);
         catch err
             warning("UN_A:ListFailed", "Listing failed for %s on %s: %s", station, string(scan_days(i_d)), err.message)
         end

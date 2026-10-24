@@ -10,7 +10,7 @@ script_tic = tic;
 
 night_date = datetime("2026-10-21");
 night_tag = string(night_date, "yyyyMMdd");
-night_dir = fullfile(local_data_dir(), "us_night", "data", night_tag);
+night_dir = fullfile(bmm4d.util.local_data_dir(), "us_night", "data", night_tag);
 
 %% Controls ---------------------------------------------------------------
 coverage_range_m = 160000;
@@ -104,7 +104,7 @@ for i_chunk = 1:numel(chunk_start)
     chunk_tic = tic;
     time_id = chunk_start(i_chunk):min(chunk_start(i_chunk) + chunk_length - 1, n_time);
     fprintf("[UN/C] chunk %d/%d | building advection mappings\n", i_chunk, numel(chunk_start))
-    steps = build_radar_advection_steps( ...
+    steps = bmm4d.advect.build_radar_advection_steps( ...
         g, radar_scans(:, time_id), dt_seconds(time_id(1:end - 1)), ...
         idw_neighbors=velocity_idw_neighbors, ...
         idw_power=velocity_idw_power, ...

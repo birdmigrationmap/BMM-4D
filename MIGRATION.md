@@ -2,6 +2,91 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Step 5: bmm4d namespace
+
+The toolbox modules became namespaces: `toolbox/<module>/` moved to `toolbox/+bmm4d/+<module>/`, and every call was rewritten to its full name. 391 calls in 85 files changed.
+- The rewrite was mechanical: code only, not comments, strings, field names or function definition lines.
+- Calls built inside `evalc` strings (sandbox, two-level study, a forward-operator test) and the `which` check of the regression script were updated by hand.
+- Function names are unchanged, and no code changed otherwise. All 59 tests pass, including the paper-v1 regression test.
+
+**Not in the namespace:**
+- `toolbox/matconvnet_fix/vl_nnpool.m`: it must override MatConvNet's function of the same name, so it stays a plain folder on the path. `mistnet_polar_radar` looks for it there.
+- `generate_F_elev.m`: it is a script, which a namespace cannot hold, so it moved to `pipeline/scripts/`.
+- `tests/regression/regression_case_paper_v1.m`: it keeps the paper-v1 names, since it runs only on a checkout of `paper-v1`.
+
+**Short names in a script:** add `import bmm4d.radar.*` (or another module) at the top.
+
+### Old name → new name
+
+| Old | New |
+| --- | --- |
+| `build_profile_advection_steps` | `bmm4d.advect.build_profile_advection_steps` |
+| `build_radar_advection_steps` | `bmm4d.advect.build_radar_advection_steps` |
+| `compute_continuity_balance` | `bmm4d.advect.compute_continuity_balance` |
+| `attach_kernels` | `bmm4d.forward.attach_kernels` |
+| `compute_F_elev` | `bmm4d.forward.compute_F_elev` |
+| `construct_F` | `bmm4d.forward.construct_F` |
+| `format_data` | `bmm4d.forward.format_data` |
+| `load_F_elev` | `bmm4d.forward.load_F_elev` |
+| `prepare_radar_observations` | `bmm4d.forward.prepare_radar_observations` |
+| `LaplacianMatrix` | `bmm4d.grid.LaplacianMatrix` |
+| `LaplacianMatrix1D` | `bmm4d.grid.LaplacianMatrix1D` |
+| `active_laplacian` | `bmm4d.grid.active_laplacian` |
+| `build_active_mask` | `bmm4d.grid.build_active_mask` |
+| `build_domain_mask` | `bmm4d.grid.build_domain_mask` |
+| `coarsen_grid` | `bmm4d.grid.coarsen_grid` |
+| `create_grid` | `bmm4d.grid.create_grid` |
+| `find_land_water_transitions` | `bmm4d.grid.find_land_water_transitions` |
+| `get_conus_mask` | `bmm4d.grid.get_conus_mask` |
+| `get_water_mask` | `bmm4d.grid.get_water_mask` |
+| `add_velocity_arrow` | `bmm4d.plot.add_velocity_arrow` |
+| `colormap_wct` | `bmm4d.plot.colormap_wct` |
+| `create_diagnostic_figure` | `bmm4d.plot.create_diagnostic_figure` |
+| `create_export_figure` | `bmm4d.plot.create_export_figure` |
+| `export_fixed_figure` | `bmm4d.plot.export_fixed_figure` |
+| `get_plot_radar_xy` | `bmm4d.plot.get_plot_radar_xy` |
+| `plot_map_scale` | `bmm4d.plot.plot_map_scale` |
+| `plot_night_map` | `bmm4d.plot.plot_night_map` |
+| `plot_obs` | `bmm4d.plot.plot_obs` |
+| `plot_radar_interpolation_diag` | `bmm4d.plot.plot_radar_interpolation_diag` |
+| `plot_satellite_density` | `bmm4d.plot.plot_satellite_density` |
+| `plot_sweep` | `bmm4d.plot.plot_sweep` |
+| `plot_volume` | `bmm4d.plot.plot_volume` |
+| `plot_xy` | `bmm4d.plot.plot_xy` |
+| `plot_xyt` | `bmm4d.plot.plot_xyt` |
+| `plot_xz` | `bmm4d.plot.plot_xz` |
+| `radar_distance_bias` | `bmm4d.plot.radar_distance_bias` |
+| `set_axis_ticks_minmax_zero` | `bmm4d.plot.set_axis_ticks_minmax_zero` |
+| `style_paper_figure` | `bmm4d.plot.style_paper_figure` |
+| `build_density_prior_fast` | `bmm4d.prior.build_density_prior_fast` |
+| `build_gaussian_weights` | `bmm4d.prior.build_gaussian_weights` |
+| `build_horizontal_idw_weights` | `bmm4d.prior.build_horizontal_idw_weights` |
+| `build_radar_velocity_prior` | `bmm4d.prior.build_radar_velocity_prior` |
+| `compute_vp` | `bmm4d.prior.compute_vp` |
+| `l_curve_wo_fig` | `bmm4d.prior.l_curve_wo_fig` |
+| `radar_uv_on_grid` | `bmm4d.prior.radar_uv_on_grid` |
+| `clean_volume` | `bmm4d.radar.clean_volume` |
+| `download_volumes` | `bmm4d.radar.download_volumes` |
+| `list_nexrad_day` | `bmm4d.radar.list_nexrad_day` |
+| `load_rd` | `bmm4d.radar.load_rd` |
+| `local_contrast` | `bmm4d.radar.local_contrast` |
+| `mistnet_polar_radar` | `bmm4d.radar.mistnet_polar_radar` |
+| `nexrad_raw_dir` | `bmm4d.radar.nexrad_raw_dir` |
+| `read_level2_moments` | `bmm4d.radar.read_level2_moments` |
+| `read_rd` | `bmm4d.radar.read_rd` |
+| `rsl2mat_wrap` | `bmm4d.radar.rsl2mat_wrap` |
+| `select_radars_in_bbox` | `bmm4d.radar.select_radars_in_bbox` |
+| `static_clutter_mask` | `bmm4d.radar.static_clutter_mask` |
+| `compute_scan` | `bmm4d.solve.compute_scan` |
+| `solve_advection_lean` | `bmm4d.solve.solve_advection_lean` |
+| `data_path` | `bmm4d.util.data_path` |
+| `difference_operator` | `bmm4d.util.difference_operator` |
+| `format_hour_labels` | `bmm4d.util.format_hour_labels` |
+| `getSunriseSunset` | `bmm4d.util.getSunriseSunset` |
+| `local_data_dir` | `bmm4d.util.local_data_dir` |
+| `local_folder` | `bmm4d.util.local_folder` |
+| `sun_elevation` | `bmm4d.util.sun_elevation` |
+
 ## Step 4: data paths and external code
 
 **Data folder:**

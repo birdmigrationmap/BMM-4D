@@ -10,16 +10,16 @@ max_range = 150000;
 file = case_row.file;
 
 %% Read raw fields and clean with every method ----------------------------
-radar = rsl2mat_wrap(file, struct("max_elev", 7));
+radar = bmm4d.radar.rsl2mat_wrap(file, struct("max_elev", 7));
 read_options = [read_options(:)' {"data_res", [0 0]}];
 scans = cell(1, numel(method_names));
 for i_m = 1:numel(method_names)
-    scan_cell = read_rd(file, "removeRain", method_names(i_m), read_options{:});
+    scan_cell = bmm4d.radar.read_rd(file, "removeRain", method_names(i_m), read_options{:});
     scans{i_m} = scan_cell{1};
 end
 sweep_elev = [scans{1}.dens.sweeps.elev];
 
-fig = create_export_figure(3600, 2700, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2700, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 % Keep the top 7% of the canvas for the two-line case title.
 t = tiledlayout(fig, 3, 4, TileSpacing="compact", Padding="compact", OuterPosition=[0 0 1 0.93]);
 title_lines = [ ...
@@ -38,7 +38,7 @@ for i_f = 1:numel(raw_fields)
     sweeps = unique_elev_sweeps(radar, raw_fields(i_f));
     [~, i_sweep] = min(abs([sweeps.elev] - 0.5));
     [data, sweep_range, sweep_az] = sweep2mat(sweeps(i_sweep));
-    [cmap, c_lim] = colormap_wct(raw_fields(i_f));
+    [cmap, c_lim] = bmm4d.plot.colormap_wct(raw_fields(i_f));
     if raw_fields(i_f) == "rh"
         data = 100 .* data;  % WCT rhoHV colormap is in percent
     elseif raw_fields(i_f) == "vr"
@@ -81,7 +81,7 @@ grid(ax, "on")
 style_axes(ax)
 
 
-export_fixed_figure(fig, output_file, Resolution=300)
+bmm4d.plot.export_fixed_figure(fig, output_file, Resolution=300)
 close(fig)
 end
 

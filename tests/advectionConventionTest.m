@@ -24,7 +24,7 @@ classdef advectionConventionTest < matlab.unittest.TestCase
             reference(2, 3, 1) = 1;
             reference(2, 3, 2) = 2;
             % One cell per step in layer 1, still air in layer 2.
-            steps = build_profile_advection_steps(g, {[1 0; 0 0]}, 1000);
+            steps = bmm4d.advect.build_profile_advection_steps(g, {[1 0; 0 0]}, 1000);
 
             fields = advect_density_sequence(reference, steps, [0 1]);
 
@@ -38,7 +38,7 @@ classdef advectionConventionTest < matlab.unittest.TestCase
             g = advectionConventionTest.grid([5 4 1]);
             reference = zeros(g.sz);
             reference(2, 2, 1) = 1;
-            steps = build_profile_advection_steps(g, {[0 1]}, 1000); % 2 cells, dy = 500 m
+            steps = bmm4d.advect.build_profile_advection_steps(g, {[0 1]}, 1000); % 2 cells, dy = 500 m
 
             fields = advect_density_sequence(reference, steps, [0 1]);
 
@@ -51,7 +51,7 @@ classdef advectionConventionTest < matlab.unittest.TestCase
             g = advectionConventionTest.grid([6 5 2]);
             reference = zeros(g.sz);
             reference(3, 3, :) = [4 5];
-            steps = build_profile_advection_steps(g, {[1 -1; -1 1], [1 -1; -1 1]}, 1000);
+            steps = bmm4d.advect.build_profile_advection_steps(g, {[1 -1; -1 1], [1 -1; -1 1]}, 1000);
 
             fields = advect_density_sequence(reference, steps, [-1 0 1]);
 
@@ -73,8 +73,8 @@ classdef advectionConventionTest < matlab.unittest.TestCase
                 uv_field(:, :, i_z, 2) = uv_profile(i_z, 2);
             end
 
-            profile_steps = build_profile_advection_steps(g, {uv_profile}, 1000);
-            field_steps = build_profile_advection_steps(g, uv_field, 1000);
+            profile_steps = bmm4d.advect.build_profile_advection_steps(g, {uv_profile}, 1000);
+            field_steps = bmm4d.advect.build_profile_advection_steps(g, uv_field, 1000);
 
             testCase.verifyEqual(field_steps{1}.source_id_valid, profile_steps{1}.source_id_valid)
             testCase.verifyEqual(field_steps{1}.dest_id_valid, profile_steps{1}.dest_id_valid)
@@ -82,7 +82,7 @@ classdef advectionConventionTest < matlab.unittest.TestCase
 
         function testOpenBoundaryDropsOutgoingCells(testCase)
             g = advectionConventionTest.grid([4 3 1]);
-            steps = build_profile_advection_steps(g, {[1 0]}, 1000, boundary_mode="open");
+            steps = bmm4d.advect.build_profile_advection_steps(g, {[1 0]}, 1000, boundary_mode="open");
             [source_x, ~] = ind2sub(g.sz(1:2), double(steps{1}.source_id_valid));
             [dest_x, ~] = ind2sub(g.sz(1:2), double(steps{1}.dest_id_valid));
 
@@ -99,8 +99,8 @@ classdef advectionConventionTest < matlab.unittest.TestCase
             % flow behave differently at the outflow edge.
             g = advectionConventionTest.grid([3 1 1]);
             field = reshape([1; 2; 3], g.sz);
-            east = build_profile_advection_steps(g, {[1 0]}, 1000, boundary_mode="zero_gradient");
-            west = build_profile_advection_steps(g, {[-1 0]}, 1000, boundary_mode="zero_gradient");
+            east = bmm4d.advect.build_profile_advection_steps(g, {[1 0]}, 1000, boundary_mode="zero_gradient");
+            west = bmm4d.advect.build_profile_advection_steps(g, {[-1 0]}, 1000, boundary_mode="zero_gradient");
 
             east_fields = advect_density_sequence(field, east, [0 1]);
             west_fields = advect_density_sequence(flip(field, 1), west, [0 1]);
@@ -119,8 +119,8 @@ classdef advectionConventionTest < matlab.unittest.TestCase
             reference = zeros(g.sz);
             reference(3, 1, 1) = 1;
             u_profiles = arrayfun(@(i) [real(uv(1, i)) 0], 1:3, UniformOutput=false);
-            steps = build_profile_advection_steps(g, u_profiles(2:3), dt_seconds(2:3));
-            fields = advect_density_sequence(reference, [build_profile_advection_steps(g, u_profiles(1), dt_seconds(1)); steps], [-1 0 1 2]);
+            steps = bmm4d.advect.build_profile_advection_steps(g, u_profiles(2:3), dt_seconds(2:3));
+            fields = advect_density_sequence(reference, [bmm4d.advect.build_profile_advection_steps(g, u_profiles(1), dt_seconds(1)); steps], [-1 0 1 2]);
             x_feature = zeros(1, 4);
             for i_t = 1:4
                 [x_id, ~] = ind2sub(g.sz(1:2), find(fields(:, :, 1, i_t)));

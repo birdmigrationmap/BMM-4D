@@ -82,7 +82,7 @@ for i_r = 1:n_radar
         volume = load(volume_file).volume;
         uv = mean(volume.uv, 1, "omitnan");
         flight_az = mod(atan2d(uv(1), uv(2)), 360);           % direction of travel, clockwise from north
-        level2 = read_level2_moments(raw_file, ["REF" "CFP"], 7);
+        level2 = bmm4d.radar.read_level2_moments(raw_file, ["REF" "CFP"], 7);
         level2 = level2(arrayfun(@(s) ~isempty(s.CFP) && ~isempty(s.REF), level2));
         % Sweeps of each stage as {elev, range (m), az, density}
         sweeps = {};
@@ -190,7 +190,7 @@ writetable(cfp_table, fullfile(figure_dir, "near_range_cfp.csv"))
 %% Plot: relative density per radar, three stages ---------------------------------
 radar_colors = parula(n_radar + 4);
 plot_layers = [1 2 3 4];
-fig = create_export_figure(3600, 2700, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2700, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, n_stage, numel(plot_layers), TileSpacing="tight", Padding="tight");
 title(t, "Density at the same height above ground, relative to 30-60 km, per radar (6 frames pooled; black: median)", ...
     FontSize=14, Color="k")
@@ -211,11 +211,11 @@ for stage = 1:n_stage
         title(ax, "Beam centre " + layer_label(i_l) + " AGL", FontWeight="normal")
     end
 end
-export_fixed_figure(fig, fullfile(figure_dir, "near_range_raw.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "near_range_raw.png"), Resolution=150)
 close(fig)
 
 %% Plot: clutter filter power removed, and the flight-direction split -------------
-fig = create_export_figure(3600, 2400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 2, 2, TileSpacing="tight", Padding="tight");
 elevation_colors = parula(n_elevation + 2);
 ax = nexttile(t); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
@@ -256,5 +256,5 @@ for i_h = 1:2
 end
 set(ax, FontSize=12); xlabel(ax, "Reflectivity, radar output (dBZ)"); ylabel(ax, "Share of gates")
 legend(ax, Location="northwest"); title(ax, "Reflectivity distribution, beam centre 300-500 m AGL", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "near_range_cfp.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "near_range_cfp.png"), Resolution=150)
 close(fig)

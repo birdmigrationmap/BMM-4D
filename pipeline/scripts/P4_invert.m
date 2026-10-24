@@ -27,9 +27,9 @@ if solver_path == "lean"
     % Geographic domain when the case defines one, else radar ranges
     column_mask = [];
     if ~isempty(c.domain)
-        column_mask = build_domain_mask(g, c.domain);
+        column_mask = bmm4d.grid.build_domain_mask(g, c.domain);
     end
-    active_mask_3d = build_active_mask(g, radar_scans, c.active_range_m, c.flight_layer_agl_m, column_mask);
+    active_mask_3d = bmm4d.grid.build_active_mask(g, radar_scans, c.active_range_m, c.flight_layer_agl_m, column_mask);
 else
     active_mask_3d = true(g.sz);
 end
@@ -42,15 +42,15 @@ prior_args = {"lambda_profile", inv.lambda_profile, "lambda_time_profile", inv.l
     "idw_neighbors", inv.density_prior_idw_neighbors, "idw_power", inv.density_prior_idw_power, "maxit", inv.maxit, ...
     "interpolation", inv.prior_interpolation, "length_scale_m", inv.prior_length_scale_m, "include_water", inv.prior_include_water};
 if solver_path == "lean"
-    prior_active = build_density_prior_fast(g, radar_scans, observations, prior_args{:}, active_id=active_id);
+    prior_active = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, prior_args{:}, active_id=active_id);
 else
-    prior_field = build_density_prior_fast(g, radar_scans, observations, prior_args{:});
+    prior_field = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, prior_args{:});
 end
 stage_log(c, "P4_density_prior", stage_tic)
 
 %% Advection mappings ----------------------------------------------------------
 stage_tic = tic;
-steps = build_radar_advection_steps( ...
+steps = bmm4d.advect.build_radar_advection_steps( ...
     g, radar_scans, seconds(diff(c.times)), ...
     idw_neighbors=inv.velocity_idw_neighbors, ...
     idw_power=inv.velocity_idw_power, ...
@@ -73,7 +73,7 @@ if solver_path == "paper"
     nonnegative = false;
     store_class = "double";
 end
-[active_field, inversion_info] = solve_advection_lean( ...
+[active_field, inversion_info] = bmm4d.solve.solve_advection_lean( ...
     observations, g, active_mask_3d, steps, prior_active, ...
     prior=inv.prior, smoothness=inv.smoothness, advection=inv.advection, ...
     coeff_horver=inv.coeff_horver, tol=inv.tol, maxit=inv.maxit, store_class=store_class, ...

@@ -148,7 +148,7 @@ disp(per_radar)
 writetable(per_radar, fullfile(figure_dir, "validation_per_radar_misfit.csv"), WriteRowNames=true)
 
 %% Plot results -----------------------------------------------------------------
-fig = create_export_figure(3600, 1500, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1500, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 3, TileSpacing="tight", Padding="tight");
 method_names = categorical(scores.method, scores.method);
 ax = nexttile(t);
@@ -170,5 +170,5 @@ plot(ax, [0 1.2], [0 1.2], "k--", HandleVisibility="off")
 xlabel(ax, "Trusted misfit, " + methods{reference}.name); ylabel(ax, "Trusted misfit, each method")
 legend(ax, Location="southoutside", FontSize=10); set(ax, FontSize=12); axis(ax, "equal"); xlim(ax, [0 1.2]); ylim(ax, [0 1.2])
 title(ax, "Per withheld radar", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "validation.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "validation.png"), Resolution=150)
 close(fig)

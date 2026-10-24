@@ -39,7 +39,7 @@ key = sprintf("%g|%s|%g", option.lambda_profile, option.prior_interpolation, opt
 if isKey(S.prior_cache, key)
     prior_active = S.prior_cache(key);
 else
-    evalc("prior_active = build_density_prior_fast(S.g, S.radar_scans, S.observations, " + ...
+    evalc("prior_active = bmm4d.prior.build_density_prior_fast(S.g, S.radar_scans, S.observations, " + ...
         """lambda_profile"", option.lambda_profile, ""lambda_time_profile"", inv.lambda_time_profile, " + ...
         """maxit"", inv.maxit, ""active_id"", S.active_id, ""interpolation"", option.prior_interpolation, " + ...
         """length_scale_m"", option.prior_length_scale_m, ""include_water"", true);");
@@ -67,7 +67,7 @@ if ~isempty(option.row_weight)
 end
 
 solve_tic = tic;
-[field, info] = solve_advection_lean(S.observations, S.g, S.active_mask_3d, S.steps, prior_active, ...
+[field, info] = bmm4d.solve.solve_advection_lean(S.observations, S.g, S.active_mask_3d, S.steps, prior_active, ...
     prior=option.prior, smoothness=option.smoothness, advection=option.advection, coeff_horver=option.coeff_horver, ...
     tol=inv.tol, maxit=inv.maxit, store_class="single", advection_relax_exponent=inv.advection_relax_exponent, ...
     nonnegative=option.nonnegative, projected_maxit=inv.projected_maxit, row_weights=row_weights, ...
@@ -76,7 +76,7 @@ solve_tic = tic;
 seconds_used = toc(solve_tic);
 
 % Metrics: radar-distance bias and misfit on all original rows
-[ratio, edges_km, bias_all] = radar_distance_bias(field, S.active_id, S.g, S.radar_selected);
+[ratio, edges_km, bias_all] = bmm4d.plot.radar_distance_bias(field, S.active_id, S.g, S.radar_selected);
 within = edges_km(2:end) <= 200;
 ratio_within = ratio(within, :) ./ mean(ratio(within, :), 1, "omitnan");
 bias_200 = sqrt(mean(log(ratio_within) .^ 2, 1, "omitnan"));
@@ -128,7 +128,7 @@ file_stem = fullfile(out_dir, matlab.lang.makeValidName(result.name));
 video = VideoWriter(file_stem + ".mp4", "MPEG-4");
 video.FrameRate = 2;
 open(video)
-fig = create_export_figure(2400, 1500, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(2400, 1500, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 for i_t = 1:n_time
     clf(fig)
     t = tiledlayout(fig, 2, 2, TileSpacing="tight", Padding="tight");
@@ -137,11 +137,11 @@ for i_t = 1:n_time
         result.misfit_trusted, result.detail, 100 * result.negative_share, result.seconds)], ...
         FontSize=13, Color="k", Interpreter="none")
     ax = nexttile(t);
-    plot_night_map(ax, g, background, column(:, :, i_t), [0 200], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
+    bmm4d.plot.plot_night_map(ax, g, background, column(:, :, i_t), [0 200], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
     yline(ax, g.lat(section_y), "w--")
     cb = colorbar(ax, Color="k"); cb.Label.String = "Column density (birds km^{-2})";
     ax = nexttile(t);
-    plot_night_map(ax, g, background, log2(relative(:, :, i_t)), [-1 1], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
+    bmm4d.plot.plot_night_map(ax, g, background, log2(relative(:, :, i_t)), [-1 1], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
     colormap(ax, signed_map); cb = colorbar(ax, Color="k"); cb.Label.String = "log_2(column / 150 km regional mean)";
     ax = nexttile(t);
     field = nan(g.sz, "single");
@@ -161,7 +161,7 @@ for i_t = 1:n_time
     drawnow
     writeVideo(video, getframe(fig))
     if i_t == ceil(n_time / 2)
-        export_fixed_figure(fig, file_stem + ".png", Resolution=150)
+        bmm4d.plot.export_fixed_figure(fig, file_stem + ".png", Resolution=150)
     end
 end
 close(video)

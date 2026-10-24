@@ -16,7 +16,7 @@ classdef mistnetPolarRadarTest < matlab.unittest.TestCase
         function testPredictionsFollowYXCoordinates(testCase)
             radar = mistnetPolarRadarTest.testRadar();
 
-            preds = mistnet_polar_radar(radar);
+            preds = bmm4d.radar.mistnet_polar_radar(radar);
 
             testCase.verifyEqual(preds{1}, [32 23 12 21])
         end
@@ -24,7 +24,7 @@ classdef mistnetPolarRadarTest < matlab.unittest.TestCase
         function testProbabilitiesFollowYXCoordinates(testCase)
             radar = mistnetPolarRadarTest.testRadar();
 
-            [~, ~, probs] = mistnet_polar_radar(radar);
+            [~, ~, probs] = bmm4d.radar.mistnet_polar_radar(radar);
 
             testCase.verifyEqual(probs{1}(:,:,1), [32 23 12 21], AbsTol=0)
             testCase.verifyEqual(probs{1}(:,:,2), [132 123 112 121], AbsTol=0)
@@ -33,7 +33,7 @@ classdef mistnetPolarRadarTest < matlab.unittest.TestCase
         function testOutsideMistnetGridIsUnclassified(testCase)
             radar = mistnetPolarRadarTest.testRadar(2000);
 
-            preds = mistnet_polar_radar(radar);
+            preds = bmm4d.radar.mistnet_polar_radar(radar);
 
             testCase.verifyTrue(all(isnan(preds{1}), "all"))
         end

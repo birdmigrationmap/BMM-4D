@@ -36,7 +36,7 @@ plot_range_m = logspace(log10(1000), log10(100000), 200)';
 example_density = [5 20 50 200];
 birds_per_gate = example_density .* beam.volume_sample_km3(plot_range_m);
 one_bird_density = beam.sigma_mean_cm2 ./ beam.volume_eff_km3(plot_range_m) / 11;   % one bird on the beam axis
-fig = create_export_figure(3600, 1150, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1150, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 3, TileSpacing="tight", Padding="tight");
 density_colors = [0.55 0.75 0.95; 0.25 0.5 0.85; 0.1 0.3 0.6; 0 0.1 0.3];
 ax = nexttile(t); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
@@ -62,7 +62,7 @@ end
 set(ax, XScale="log", YScale="log", FontSize=12); xlim(ax, [1 100]); ylim(ax, [1 1e5]); xticks(ax, [1 2 5 10 20 50 100])
 xlabel(ax, "Range (km)"); ylabel(ax, "Gate density it produces (birds km^{-3})"); legend(ax, Location="northeast")
 title(ax, "... and the few occupied gates are spikes", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "GD_A_why_spikes.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_A_why_spikes.png"), Resolution=150)
 close(fig)
 
 %% 2 and 3. One simulated sweep: values by range, and maps ----------------------------
@@ -80,7 +80,7 @@ truth_window = gd_window_mean(true_density, range_m, az_step_deg, radius_m);   %
 
 dbz_edges = -40:2.5:50;
 dbz_center = (dbz_edges(1:end - 1) + dbz_edges(2:end)) / 2;
-fig = create_export_figure(2400, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(2400, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 ax = axes(fig); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
 ring_plot = [3 5; 5 10; 15 20; 30 60];
 ring_colors = [0.8 0.3 0.1; 0.9 0.6 0.1; 0.3 0.6 0.3; 0.1 0.4 0.8];
@@ -92,7 +92,7 @@ for i_p = 1:size(ring_plot, 1)
 end
 set(ax, FontSize=13); xlabel(ax, "Gate reflectivity (dBZ)"); ylabel(ax, "Share of gates"); legend(ax, Location="northwest")
 title(ax, "Simulated sweep, ~20 birds km^{-3}: background (left mode) and gates holding birds (right)", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "GD_A_gate_values.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_A_gate_values.png"), Resolution=150)
 close(fig)
 
 map_range = range_m <= 30000;
@@ -103,7 +103,7 @@ y = r_grid .* cosd(az_grid);
 panels = {true_density, output, cleaned, window_mean, estimate.density};
 panel_titles = ["True density" "Radar output (each gate)" "Our current cleaning (read_rd)" ...
     "Window mean (2 km)" "Estimator (2 km)"];
-fig = create_export_figure(3600, 820, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 820, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, numel(panels), TileSpacing="tight", Padding="tight");
 for i_p = 1:numel(panels)
     ax = nexttile(t);
@@ -113,7 +113,7 @@ for i_p = 1:numel(panels)
     xlabel(ax, "x (km)"); ylabel(ax, "y (km)"); title(ax, panel_titles(i_p), FontWeight="normal", Interpreter="none")
 end
 cb = colorbar(ax, Color="k"); cb.Layout.Tile = "east"; cb.Label.String = "log_{10} birds km^{-3}";
-export_fixed_figure(fig, fullfile(figure_dir, "GD_A_maps.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_A_maps.png"), Resolution=150)
 close(fig)
 
 %% 4. Recovery by range, four densities --------------------------------------------
@@ -154,7 +154,7 @@ disp(summary)
 writetable(summary, fullfile(figure_dir, "GD_A_recovery.csv"))
 
 method_colors = [0.1 0.4 0.8; 0.8 0.2 0.15; 0.5 0.5 0.5; 0 0 0];
-fig = create_export_figure(3600, 2100, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2100, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 2, numel(test_density), TileSpacing="tight", Padding="tight");
 for i_d = 1:numel(test_density)
     ax = nexttile(t, i_d); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
@@ -178,5 +178,5 @@ for i_d = 1:numel(test_density)
         legend(ax, Location="northeast", FontSize=10)
     end
 end
-export_fixed_figure(fig, fullfile(figure_dir, "GD_A_recovery.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_A_recovery.png"), Resolution=150)
 close(fig)

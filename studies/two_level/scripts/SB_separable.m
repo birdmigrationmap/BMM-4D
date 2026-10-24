@@ -80,7 +80,7 @@ disp(projection)
 writetable(projection, fullfile(figure_dir, "separable_projection.csv"))
 
 %% Compare the radar-distance curves ------------------------------------
-fig = create_export_figure(3200, 1400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3200, 1400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 ax = axes(fig); hold(ax, "on"); box(ax, "on")
 center = (results{1}.edges_km(1:end-1) + results{1}.edges_km(2:end)) / 2;
 colors = lines(numel(results));
@@ -96,14 +96,14 @@ yline(ax, 1, "k--", HandleVisibility="off")
 xlabel(ax, "Distance to the nearest radar (km)"); ylabel(ax, "Column density / regional mean")
 legend(ax, Location="eastoutside", FontSize=11); set(ax, FontSize=13); ylim(ax, [0.6 1.4])
 title(ax, "Sandbox: separable solver against the current solver")
-export_fixed_figure(fig, fullfile(figure_dir, "separable_curves.png"), Resolution=300)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "separable_curves.png"), Resolution=300)
 close(fig)
 
 %% Map gallery at the middle frame ------------------------------------------
 t_mid = ceil(size(results{1}.field, 2) / 2);
 background = permute(reshape([0.96 0.96 0.94], 1, 1, 3) .* ~g.mask_water + reshape([0.85 0.92 0.97], 1, 1, 3) .* g.mask_water, [2 1 3]);
 states = shaperead(which("usastatehi.shp"), UseGeoCoords=true);
-fig = create_export_figure(3600, 2400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2400, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 3, 3, TileSpacing="tight", Padding="tight");
 for i_o = 1:numel(results)
     field = nan(g.sz, "single");
@@ -111,10 +111,10 @@ for i_o = 1:numel(results)
     column = sum(field, 3, "omitnan") .* g.dz ./ 1000;
     column(~any(S.active_mask_3d, 3)) = nan;
     ax = nexttile(t);
-    plot_night_map(ax, g, background, column, [0 200], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
+    bmm4d.plot.plot_night_map(ax, g, background, column, [0 200], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
     title(ax, {results{i_o}.name, sprintf("bias %.3f, trusted %.3f, detail %.2f", results{i_o}.bias_200km, ...
         results{i_o}.misfit_trusted, results{i_o}.detail)}, FontSize=12, FontWeight="normal")
 end
 cb = colorbar(ax); cb.Layout.Tile = "east"; cb.Label.String = "Column density (birds km^{-2}), " + string(S.c.times(t_mid), "HH:mm") + " UTC";
-export_fixed_figure(fig, fullfile(figure_dir, "gallery_separable.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "gallery_separable.png"), Resolution=150)
 close(fig)

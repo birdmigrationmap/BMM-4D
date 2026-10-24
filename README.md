@@ -8,7 +8,7 @@ This repository was split from the paper repository `BMM-within` on 24 October 2
 
 | Path | Content |
 | --- | --- |
-| `toolbox/` | The package: radar reading and cleaning (`radar/`), beam kernels and forward operator (`forward/`), grid and masks (`grid/`), priors (`prior/`), advection (`advect/`), solvers (`solve/`), plotting (`plot/`), helpers (`util/`). |
+| `toolbox/` | The package, in the `bmm4d` namespace (`toolbox/+bmm4d/`): radar reading and cleaning (`bmm4d.radar`), beam kernels and forward operator (`bmm4d.forward`), grid and masks (`bmm4d.grid`), priors (`bmm4d.prior`), advection (`bmm4d.advect`), solvers (`bmm4d.solve`), plotting (`bmm4d.plot`), helpers (`bmm4d.util`). Calls are written in full, e.g. `bmm4d.radar.read_rd(...)`; a script can `import bmm4d.radar.*` to use short names. `toolbox/matconvnet_fix/` overrides one MatConvNet function (outside the namespace). |
 | `pipeline/` | Operational pipeline P1–P5 with its case settings, caches and logging (`pipeline/functions/`). See `pipeline/README.md`. |
 | `synthetic/` | Synthetic truths, advection and observations for tests and studies; not part of the package. |
 | `studies/` | Research beside the package: gate density near the radar, cleaning study, sandbox, two-level model, beam-blockage maps, legacy US night, notes. |
@@ -34,15 +34,15 @@ MathWorks toolboxes used: Optimization, Mapping, Image Processing, Statistics an
 
 ## Data
 
-Code reads data through `data_path(...)`, from the data folder: `data_dir` in `local_settings.json`, or `data/` in the repository root. Nothing in it is tracked.
+Code reads data through `bmm4d.util.data_path(...)`, from the data folder: `data_dir` in `local_settings.json`, or `data/` in the repository root. Nothing in it is tracked.
 
 | Path in the data folder | Content | Source |
 | --- | --- | --- |
 | `reference/radar.csv` | Radar sites | Copied from the paper repository |
 | `reference/DEM/`, `onwater/`, `scan_pattern_new.mat` | Terrain, land–water mask, scan patterns | Copied from the paper repository |
 | `reference/beam_blockage/` | Terrain-horizon maps | `studies/beam_blockage/beam_blockage_script.m` |
-| `derived/F_elev/150km/` | Beam elevation kernels | Copied; `toolbox/forward/generate_F_elev.m` rebuilds them |
+| `derived/F_elev/150km/` | Beam elevation kernels | Copied; `pipeline/scripts/generate_F_elev.m` rebuilds them |
 | `raw_scans/nexrad/` | Older raw volumes | Symbolic link to the paper repository's folder (read only) |
 | `regression/` | Reference of the paper-v1 regression test | `tests/regression/make_regression_reference.m` |
 
-Two more folders are set in `local_settings.json`: `nexrad_raw_dir`, the cache of downloaded raw volumes (`nexrad_raw_dir()`), and `local_data_dir`, the large generated products such as radar caches, cases and inversions (`local_data_dir()`).
+Two more folders are set in `local_settings.json`: `nexrad_raw_dir`, the cache of downloaded raw volumes (`bmm4d.radar.nexrad_raw_dir()`), and `local_data_dir`, the large generated products such as radar caches, cases and inversions (`bmm4d.util.local_data_dir()`).

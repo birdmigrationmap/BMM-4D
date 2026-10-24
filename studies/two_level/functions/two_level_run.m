@@ -51,7 +51,7 @@ key = sprintf("%g|%s|%g", option.lambda_profile, option.prior_interpolation, opt
 if isKey(S.prior_cache, key)
     prior_active = S.prior_cache(key);
 else
-    evalc("prior_active = build_density_prior_fast(S.g, S.radar_scans, S.observations, " + ...
+    evalc("prior_active = bmm4d.prior.build_density_prior_fast(S.g, S.radar_scans, S.observations, " + ...
         """lambda_profile"", option.lambda_profile, ""lambda_time_profile"", inv.lambda_time_profile, " + ...
         """maxit"", inv.maxit, ""active_id"", S.active_id, ""interpolation"", option.prior_interpolation, " + ...
         """length_scale_m"", option.prior_length_scale_m, ""include_water"", true);");
@@ -86,7 +86,7 @@ if option.solver == "separable" || option.solver == "two_level"
         % Radar profiles with weak vertical smoothing (the prior's lambda_profile 10 flattens them)
         shape_key = sprintf("%g|profiles only", option.regional_lambda_profile);
         if ~isKey(S.prior_cache, shape_key)
-            evalc("[~, shape_info] = build_density_prior_fast(S.g, S.radar_scans, S.observations, " + ...
+            evalc("[~, shape_info] = bmm4d.prior.build_density_prior_fast(S.g, S.radar_scans, S.observations, " + ...
                 """lambda_profile"", option.regional_lambda_profile, ""lambda_time_profile"", inv.lambda_time_profile, " + ...
                 """maxit"", inv.maxit, ""active_id"", 1, ""include_water"", true);");
             S.prior_cache(shape_key) = shape_info.radar_profiles;
@@ -115,7 +115,7 @@ elseif option.solver == "separable"
         negative_penalty=option.negative_penalty, row_weights=row_weights, tol=inv.tol, maxit=inv.maxit, ...
         projected_maxit=inv.projected_maxit);
 else
-    [field, info] = solve_advection_lean(S.observations, S.g, S.active_mask_3d, S.steps, prior_active, ...
+    [field, info] = bmm4d.solve.solve_advection_lean(S.observations, S.g, S.active_mask_3d, S.steps, prior_active, ...
         prior=option.prior, smoothness=option.smoothness, advection=option.advection, coeff_horver=option.coeff_horver, ...
         tol=inv.tol, maxit=inv.maxit, store_class="single", advection_relax_exponent=inv.advection_relax_exponent, ...
         nonnegative=true, projected_maxit=inv.projected_maxit, row_weights=row_weights, ...
@@ -125,7 +125,7 @@ end
 seconds_used = toc(run_tic);
 
 % Metrics: radar-distance bias and misfit on all original rows
-[ratio, edges_km, bias_all] = radar_distance_bias(field, S.active_id, S.g, S.radar_selected);
+[ratio, edges_km, bias_all] = bmm4d.plot.radar_distance_bias(field, S.active_id, S.g, S.radar_selected);
 within = edges_km(2:end) <= 200;
 ratio_within = ratio(within, :) ./ mean(ratio(within, :), 1, "omitnan");
 bias_200 = sqrt(mean(log(ratio_within) .^ 2, 1, "omitnan"));
@@ -155,12 +155,12 @@ column = sum(field, 3, "omitnan") .* g.dz ./ 1000;
 column(~any(S.active_mask_3d, 3)) = nan;
 k = find(S.radar_selected.name == "KDMX", 1);
 [~, section_y] = min(abs(g.lat - S.radar_selected.lat(k)));
-fig = create_export_figure(3600, 1100, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1100, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 3, TileSpacing="tight", Padding="tight");
 ax = nexttile(t);
 background = permute(reshape([0.96 0.96 0.94], 1, 1, 3) .* ~g.mask_water + reshape([0.85 0.92 0.97], 1, 1, 3) .* g.mask_water, [2 1 3]);
 states = shaperead(which("usastatehi.shp"), UseGeoCoords=true);
-plot_night_map(ax, g, background, column, [0 200], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
+bmm4d.plot.plot_night_map(ax, g, background, column, [0 200], states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
 yline(ax, g.lat(section_y), "w--")
 colorbar(ax, Color="k");
 title(ax, result.name + " | " + string(S.c.times(t_mid), "HH:mm") + " UTC", FontSize=13, Interpreter="none")
@@ -178,7 +178,7 @@ yline(ax, 1, "k--"); ylim(ax, [0.6 1.4]); set(ax, FontSize=12)
 xlabel(ax, "Distance to nearest radar (km)"); ylabel(ax, "Column / regional mean")
 title(ax, sprintf("bias %.3f, misfit %.3f (trusted %.3f), detail %.2f", result.bias_200km, result.misfit, result.misfit_trusted, result.detail), FontSize=12)
 out_dir = fullfile(setup_paths(), "studies", "two_level", "figures", "sandbox");
-export_fixed_figure(fig, fullfile(out_dir, matlab.lang.makeValidName(result.name) + ".png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(out_dir, matlab.lang.makeValidName(result.name) + ".png"), Resolution=150)
 close(fig)
 end
 

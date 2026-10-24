@@ -14,7 +14,7 @@ disp(summary)
 figure_dir = fullfile(setup_paths(), "studies", "sandbox", "figures");
 writetable(summary, fullfile(figure_dir, test_name + ".csv"))
 
-fig = create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 3, TileSpacing="tight", Padding="tight");
 title(t, "Sandbox: " + strrep(test_name, "_", " "), FontSize=14, Color="k")
 colors = lines(numel(results));
@@ -42,6 +42,6 @@ end
 ylim(ax, [0 max(ylim(ax))])
 xlabel(ax, "Trusted misfit (30-120 km rows)"); ylabel(ax, "Radar-distance bias"); set(ax, FontSize=12)
 title(ax, "Trade-off (best: bottom left; colours as left)", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, test_name + ".png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, test_name + ".png"), Resolution=150)
 close(fig)
 end

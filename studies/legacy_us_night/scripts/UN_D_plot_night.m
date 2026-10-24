@@ -8,7 +8,7 @@ addpath(fullfile(project_root, "us_night", "functions"))
 
 night_date = datetime("2026-10-21");
 night_tag = string(night_date, "yyyyMMdd");
-night_dir = fullfile(local_data_dir(), "us_night", "data", night_tag);
+night_dir = fullfile(bmm4d.util.local_data_dir(), "us_night", "data", night_tag);
 figure_dir = fullfile(project_root, "us_night", "figures", night_tag);
 if ~exist(figure_dir, "dir")
     mkdir(figure_dir)
@@ -45,29 +45,29 @@ map_bounds = [g.lon(1) g.lon(end) g.lat(1) g.lat(end)];
 
 %% Nine-time overview -----------------------------------------------------
 frame_ids = unique(round(linspace(1, n_time, 9)));
-fig = create_export_figure(3600, 2600, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2600, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 3, 3, TileSpacing="tight", Padding="tight");
 for i_frame = 1:numel(frame_ids)
     ax = nexttile(t);
-    plot_night_map(ax, g, background, column_density(:, :, frame_ids(i_frame)), c_lim, states, radar_selected, map_bounds);
+    bmm4d.plot.plot_night_map(ax, g, background, column_density(:, :, frame_ids(i_frame)), c_lim, states, radar_selected, map_bounds);
     title(ax, frame_labels(frame_ids(i_frame)), FontSize=14, FontWeight="bold")
 end
 cb = colorbar(ax);
 cb.Layout.Tile = "east";
 cb.Label.String = "Vertically integrated density (birds km^{-2})";
 set(cb, FontName="Helvetica", FontSize=13, Color="k")
-export_fixed_figure(fig, fullfile(figure_dir, "column_density_" + night_tag + ".png"), Resolution=300)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "column_density_" + night_tag + ".png"), Resolution=300)
 close(fig)
 
 %% Animation of all times -------------------------------------------------
 video = VideoWriter(fullfile(figure_dir, "column_density_" + night_tag + ".mp4"), "MPEG-4");
 video.FrameRate = 2;
 open(video)
-fig = create_export_figure(2400, 1800, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(2400, 1800, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 for i_t = 1:n_time
     clf(fig)
     ax = axes(fig);
-    plot_night_map(ax, g, background, column_density(:, :, i_t), c_lim, states, radar_selected, map_bounds);
+    bmm4d.plot.plot_night_map(ax, g, background, column_density(:, :, i_t), c_lim, states, radar_selected, map_bounds);
     title(ax, frame_labels(i_t), FontSize=14, FontWeight="bold")
     cb = colorbar(ax, Color="k");
     cb.Label.String = "Vertically integrated density (birds km^{-2})";

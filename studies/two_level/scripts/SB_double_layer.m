@@ -17,7 +17,7 @@ out_dir = fullfile(project_root, "studies", "two_level", "figures", "sandbox");
 c = prod_case("us_east");
 load(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected")
 % active_id = 1: only the per-radar profiles are needed, not the gridded prior
-[~, prior_info] = build_density_prior_fast(g, radar_scans, observations, "lambda_profile", 1, ...
+[~, prior_info] = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, "lambda_profile", 1, ...
     "active_id", 1, "interpolation", "gaussian", "include_water", true);
 profiles_asl = prior_info.radar_profiles;   % [nz n_radar n_time], birds km^-3, layers above sea level
 clear observations
@@ -145,7 +145,7 @@ fprintf("Misplaced share on double layers, median K=3/4/6: %.3f / %.3f / %.3f; s
     median(misplaced(3, ~is_double)))
 
 %% Plot results
-fig = create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 4, TileSpacing="tight", Padding="tight");
 % Shape patterns
 ax = nexttile(t); hold(ax, "on"); box(ax, "on")
@@ -179,5 +179,5 @@ for i_example = 1:2
     title(ax, sprintf("%s %s UTC, VID %.0f", radar_selected.name(kept_radar(i_p)), ...
         string(times(kept_time(i_p)), "HH:mm"), weights(i_p)))
 end
-export_fixed_figure(fig, fullfile(out_dir, "double_layer_eofs.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(out_dir, "double_layer_eofs.png"), Resolution=150)
 close(fig)

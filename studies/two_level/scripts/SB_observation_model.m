@@ -80,7 +80,7 @@ end
 disp(array2table(round(ratio, 2), VariableNames=compose("%d-%d km", range_edges(1:end - 1)', range_edges(2:end)'), ...
     RowNames=compose("%.1f-%.1f deg", elev_edges(1:end - 1)', elev_edges(2:end)')))
 
-fig = create_export_figure(3600, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 2, TileSpacing="tight", Padding="tight");
 ax = nexttile(t); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
 colors = parula(numel(elev_edges));
@@ -110,5 +110,5 @@ yline(ax, 1, "k--", HandleVisibility="off")
 xlabel(ax, "Distance to the nearest radar (km)"); ylabel(ax, "Column density / regional mean"); ylim(ax, [0.6 1.3])
 legend(ax, Location="southwest", FontSize=11); set(ax, FontSize=13)
 title(ax, "Radar-distance curves", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "observation_model.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "observation_model.png"), Resolution=150)
 close(fig)

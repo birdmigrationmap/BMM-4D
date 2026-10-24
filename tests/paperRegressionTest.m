@@ -19,12 +19,12 @@ classdef (TestTags = {'Regression'}) paperRegressionTest < matlab.unittest.TestC
             testCase.ProjectRoot = setup_paths();
             addpath(fullfile(testCase.ProjectRoot, "pipeline", "functions"), ...
                 fullfile(testCase.ProjectRoot, "tests", "regression"))
-            reference_file = data_path("regression", "paper_v1_reference.mat");
+            reference_file = bmm4d.util.data_path("regression", "paper_v1_reference.mat");
             testCase.assumeTrue(isfile(reference_file), "No regression reference; run make_regression_reference.")
             loaded = load(reference_file, "reference");
             testCase.Reference = loaded.reference;
             testCase.assumeTrue(all(isfile(testCase.Reference.raw_files)), "Raw KBYX volumes not found.")
-            testCase.KernelDir = data_path("derived", "F_elev", "150km");
+            testCase.KernelDir = bmm4d.util.data_path("derived", "F_elev", "150km");
         end
     end
 

@@ -123,7 +123,7 @@ level = max(column_sum_op * double(level_reference), opt.level_floor);   % birds
 W = median(level(:)) ./ level;                                           % [n_column n_time]
 column_mask = false([g.sz(1:2) 1]);
 column_mask(column_xy) = true;
-L_h = active_laplacian(column_mask, get_water_mask(g), 0.5) / 0.25;      % unit-weight graph Laplacian
+L_h = bmm4d.grid.active_laplacian(column_mask, bmm4d.grid.get_water_mask(g), 0.5) / 0.25;      % unit-weight graph Laplacian
 Q = speye(n_column) + (opt.shape_length_m / mean([g.dx g.dy])) ^ 2 * L_h;
 
 smoothness_scales2 = (opt.smoothness .* data_block_norms ./ norm(L_h, "fro")) .^ 2;

@@ -31,7 +31,7 @@ for i_r = 1:n_radar
     radar_amount(i_r, :) = sum(profile_agl, 1) * g.dz / 1000;
 end
 
-weights = build_gaussian_weights(g, radar_scans, length_scale_m);
+weights = bmm4d.prior.build_gaussian_weights(g, radar_scans, length_scale_m);
 coefficients = zeros(prod(g.sz(1:2)), n_pattern - 1, n_time);
 for i_t = 1:n_time
     amount = radar_amount(:, i_t);

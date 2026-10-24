@@ -12,15 +12,15 @@
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
 addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "tests", "regression"))
-reference_dir = data_path("regression");
+reference_dir = bmm4d.util.data_path("regression");
 if ~isfolder(reference_dir)
     mkdir(reference_dir)
 end
-kernel_dir = data_path("derived", "F_elev", "150km");
+kernel_dir = bmm4d.util.data_path("derived", "F_elev", "150km");
 
 %% Case and settings ----------------------------------------------------------
 times = datetime("2018-04-23 03:00") + minutes([0 15 30]);
-raw_files = load_rd("KBYX", times, closest_accepted=15);
+raw_files = bmm4d.radar.load_rd("KBYX", times, closest_accepted=15);
 assert(all(isfile(raw_files)), "Missing KBYX raw volumes")
 
 % Paper settings (09_key_west S09_A and S09_C), without the manual removal of
@@ -70,7 +70,7 @@ path(current_path)
 system(sprintf('git -C "%s" worktree remove --force "%s"', project_root, worktree_dir));
 
 %% Paper path on today's code ---------------------------------------------------
-assert(startsWith(which("read_rd"), project_root))
+assert(startsWith(which("bmm4d.radar.read_rd"), project_root))
 paper_today = regression_case_paper(raw_files, kernel_dir, paper_settings);
 difference = regression_compare(paper_v1, paper_today);
 disp(difference)

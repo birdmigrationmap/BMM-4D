@@ -22,7 +22,7 @@ n_time = numel(c.times);
 stage_tic = tic;
 kernel_files = dir(fullfile(c.kernel_dir, "F_*.mat"));
 kernel_ref = load(fullfile(kernel_files(1).folder, kernel_files(1).name), "x", "y", "z");
-radar = readtable(data_path("reference", "radar.csv"), TextType="string");
+radar = readtable(bmm4d.util.data_path("reference", "radar.csv"), TextType="string");
 [~, radar_id] = ismember(c.radars, radar.name);
 radar_meta = cell(n_radar, n_time);
 for i_r = 1:n_radar
@@ -30,7 +30,7 @@ for i_r = 1:n_radar
         radar_meta{i_r, i_t} = struct("lon", radar.lon(radar_id(i_r)), "lat", radar.lat(radar_id(i_r)), "datetime", c.times(i_t));
     end
 end
-g = create_grid({struct("x", kernel_ref.x, "y", kernel_ref.y, "z", kernel_ref.z)}, radar_meta, ...
+g = bmm4d.grid.create_grid({struct("x", kernel_ref.x, "y", kernel_ref.y, "z", kernel_ref.z)}, radar_meta, ...
     c.grid_bounds(1), c.grid_bounds(2), c.grid_bounds(3), c.grid_bounds(4), c.heightmax);
 if ~isempty(c.water_override)
     [lon_grid, lat_grid] = ndgrid(g.lon, g.lat);
@@ -40,7 +40,7 @@ clear radar_meta
 % Solve grid: blocks of c.solve_aggregate fine cells (forward-operator
 % columns are summed per block in construct_F)
 g_fine = g;
-g = coarsen_grid(g_fine, c.solve_aggregate);
+g = bmm4d.grid.coarsen_grid(g_fine, c.solve_aggregate);
 stage_log(c, "P3_grid", stage_tic, sprintf("grid %dx%dx%d (fine %dx%dx%d)", g.sz, g_fine.sz))
 
 %% Build each radar's rows in parallel ----------------------------------------

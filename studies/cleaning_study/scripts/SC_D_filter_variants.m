@@ -8,7 +8,7 @@
 project_root = setup_paths();
 addpath(fullfile(project_root, "pipeline", "functions"))
 addpath(fullfile(project_root, "studies", "cleaning_study", "functions"))
-data_dir = fullfile(local_data_dir(), "prod", "cleaning_variants");
+data_dir = fullfile(bmm4d.util.local_data_dir(), "prod", "cleaning_variants");
 figure_dir = fullfile(project_root, "studies", "cleaning_study", "figures", "variants");
 if ~isfolder(figure_dir)
     mkdir(figure_dir)
@@ -16,7 +16,7 @@ end
 
 %% Volumes ----------------------------------------------------------------
 load(fullfile(project_root, "studies", "cleaning_study", "data", "cases.mat"), "cases")
-raw_dir = data_path("raw_scans", "nexrad");
+raw_dir = bmm4d.util.data_path("raw_scans", "nexrad");
 problem = table( ...
     ["P01"; "P02"; "P03"; "P04"; "P05"; "P06"], ...
     ["kilx_rings"; "kfsd_streaks"; "kfsd_dawn"; "kbyx_cells"; "kbyx_cells"; "kdmx_night"], ...
@@ -64,7 +64,7 @@ job_raw_todo = volumes.file(i_vol(todo));
 job_options_todo = variant_options(i_var(todo));
 status_todo = strings(numel(todo), 1);
 parfor k = 1:numel(todo)
-    status_todo(k) = clean_volume(job_raw_todo(k), job_options_todo{k}, c.vp, c.filter, job_file_todo(k));
+    status_todo(k) = bmm4d.radar.clean_volume(job_raw_todo(k), job_options_todo{k}, c.vp, c.filter, job_file_todo(k));
 end
 status(todo) = status_todo;
 delete(gcp("nocreate"))

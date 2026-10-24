@@ -1,8 +1,8 @@
 classdef vlNnPoolFixTest < matlab.unittest.TestCase
     methods (Test)
         function maxPoolingMatchesExplicitLocalMax(testCase)
-            addpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "radar", "matconvnet_fix"), "-begin")
-            cleanup = onCleanup(@() rmpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "radar", "matconvnet_fix"))); %#ok<NASGU>
+            addpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "matconvnet_fix"), "-begin")
+            cleanup = onCleanup(@() rmpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "matconvnet_fix"))); %#ok<NASGU>
 
             rng(1)
             x = single(randn(4, 4, 3));
@@ -14,8 +14,8 @@ classdef vlNnPoolFixTest < matlab.unittest.TestCase
         end
 
         function avgPoolingMatchesExplicitLocalMean(testCase)
-            addpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "radar", "matconvnet_fix"), "-begin")
-            cleanup = onCleanup(@() rmpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "radar", "matconvnet_fix"))); %#ok<NASGU>
+            addpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "matconvnet_fix"), "-begin")
+            cleanup = onCleanup(@() rmpath(fullfile(fileparts(mfilename("fullpath")), "..", "..", "toolbox", "matconvnet_fix"))); %#ok<NASGU>
 
             rng(2)
             x = single(randn(5, 4, 2));

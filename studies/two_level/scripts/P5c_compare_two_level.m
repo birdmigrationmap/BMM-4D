@@ -49,7 +49,7 @@ total = cell2mat(cellfun(@(m) squeeze(sum(m, [1 2], "omitnan")) * cell_area_km2 
 ratio = cell(1, 2);
 bias_200km = nan(n_time, 2);
 for i_run = 1:2
-    [ratio{i_run}, edges_km] = radar_distance_bias(fields{i_run}, active_id, g, radar_selected);
+    [ratio{i_run}, edges_km] = bmm4d.plot.radar_distance_bias(fields{i_run}, active_id, g, radar_selected);
     within = edges_km(2:end) <= 200;
     ratio_within = ratio{i_run}(within, :) ./ mean(ratio{i_run}(within, :), 1, "omitnan");
     bias_200km(:, i_run) = sqrt(mean(log(ratio_within) .^ 2, 1, "omitnan"))';
@@ -94,13 +94,13 @@ background = permute(reshape([0.96 0.96 0.94], 1, 1, 3) .* ~g.mask_water + resha
 states = shaperead(which("usastatehi.shp"), UseGeoCoords=true);
 signed_map = interp1([0 0.5 1], [0.13 0.4 0.75; 1 1 1; 0.8 0.2 0.15], linspace(0, 1, 256));
 c_lim = [0 quantile(column{1}(:), 0.99)];
-fig = create_export_figure(3600, 3000, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 3000, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 3, 3, TileSpacing="tight", Padding="tight");
 for i_f = 1:3
     i_t = frame_id(i_f);
     for i_run = 1:2
         ax = nexttile(t);
-        plot_night_map(ax, g, background, column{i_run}(:, :, i_t), c_lim, states, radar_selected, c_production.figure_bounds, ones(g.sz(1:2)));
+        bmm4d.plot.plot_night_map(ax, g, background, column{i_run}(:, :, i_t), c_lim, states, radar_selected, c_production.figure_bounds, ones(g.sz(1:2)));
         title(ax, sprintf("%s | %s UTC | bias %.3f", names(i_run), string(times(i_t), "HH:mm"), bias_200km(i_t, i_run)), ...
             FontSize=13, FontWeight="normal")
         if i_run == 2
@@ -111,15 +111,15 @@ for i_f = 1:3
     both = column{1}(:, :, i_t) > 5 & column{2}(:, :, i_t) > 5;
     log_ratio = log2(column{2}(:, :, i_t) ./ column{1}(:, :, i_t));
     log_ratio(~both) = nan;
-    plot_night_map(ax, g, background, log_ratio, [-1 1], states, radar_selected, c_production.figure_bounds, ones(g.sz(1:2)));
+    bmm4d.plot.plot_night_map(ax, g, background, log_ratio, [-1 1], states, radar_selected, c_production.figure_bounds, ones(g.sz(1:2)));
     colormap(ax, signed_map); cb = colorbar(ax); cb.Label.String = "log_2(two-level / production)";
     title(ax, "Ratio (columns > 5 birds km^{-2})", FontSize=13, FontWeight="normal")
 end
-export_fixed_figure(fig, fullfile(figure_dir, "two_level_maps.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "two_level_maps.png"), Resolution=150)
 close(fig)
 
 %% Plot: radar-distance curves and time series ----------------------------------------
-fig = create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 3, TileSpacing="tight", Padding="tight");
 colors = [0.4 0.4 0.4; 0 0.45 0.74];
 center = (edges_km(1:end - 1) + edges_km(2:end)) / 2;
@@ -144,5 +144,5 @@ for i_run = 1:2
 end
 ylabel(ax, "Birds aloft in the domain (millions)"); legend(ax, Location="northwest"); set(ax, FontSize=13)
 title(ax, "Domain total", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "two_level_bias.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "two_level_bias.png"), Resolution=150)
 close(fig)

@@ -45,20 +45,20 @@ radar_scan_geometry = build_mosaic_scan_geometry(template_scan, radar_table, tim
 
 if isempty(p.Results.grid_bounds)
     if isempty(p.Results.heightmax)
-        g = create_grid(elevation_kernels, radar_scan_geometry);
+        g = bmm4d.grid.create_grid(elevation_kernels, radar_scan_geometry);
     else
-        g = create_grid(elevation_kernels, radar_scan_geometry);
+        g = bmm4d.grid.create_grid(elevation_kernels, radar_scan_geometry);
         g.z = g.z(g.z <= p.Results.heightmax);
         g.sz = [numel(g.x) numel(g.y) numel(g.z)];
         g.dz = median(diff(g.z));
     end
 elseif isempty(p.Results.heightmax)
-    g = create_grid( ...
+    g = bmm4d.grid.create_grid( ...
         elevation_kernels, radar_scan_geometry, ...
         p.Results.grid_bounds(1), p.Results.grid_bounds(2), ...
         p.Results.grid_bounds(3), p.Results.grid_bounds(4));
 else
-    g = create_grid( ...
+    g = bmm4d.grid.create_grid( ...
         elevation_kernels, radar_scan_geometry, ...
         p.Results.grid_bounds(1), p.Results.grid_bounds(2), ...
         p.Results.grid_bounds(3), p.Results.grid_bounds(4), ...
@@ -70,7 +70,7 @@ if ~p.Results.use_water_mask
 end
 g.mask_water_raw = g.mask_water;
 if p.Results.use_conus_mask
-    g.mask_conus = get_conus_mask(g);
+    g.mask_conus = bmm4d.grid.get_conus_mask(g);
     g.mask_water = g.mask_water | ~g.mask_conus;
 else
     g.mask_conus = true(g.sz(1:2));
@@ -79,7 +79,7 @@ g.dem = zeros(g.sz(1:2));
 if string(p.Results.observation_constructor) == "compact"
     [F_mosaic, ~, info_mosaic] = construct_F_compact(radar_scan_geometry, elevation_kernels, g);
 else
-    [F_mosaic, ~, info_mosaic] = construct_F(radar_scan_geometry, elevation_kernels, g);
+    [F_mosaic, ~, info_mosaic] = bmm4d.forward.construct_F(radar_scan_geometry, elevation_kernels, g);
 end
 
 % Saved scans contain only the velocity measurements needed by inversion.
@@ -234,7 +234,7 @@ generation_grid.sz = [numel(generation_grid.x) numel(generation_grid.y) numel(ge
 generation_grid.lat = generation_grid.f_lat(generation_grid.y);
 generation_grid.lon = generation_grid.f_lon(generation_grid.x);
 if isfield(g, "mask_water") && any(g.mask_water(:))
-    generation_grid.mask_water = get_water_mask(generation_grid);
+    generation_grid.mask_water = bmm4d.grid.get_water_mask(generation_grid);
 else
     generation_grid.mask_water = false(generation_grid.sz(1:2));
 end

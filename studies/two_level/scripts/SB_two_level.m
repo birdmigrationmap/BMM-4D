@@ -59,7 +59,7 @@ disp(summary)
 writetable(summary, fullfile(figure_dir, "two_level_comparison.csv"))
 
 %% Trade-off: radar bias against trusted misfit ---------------------------------
-fig = create_export_figure(2400, 1600, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(2400, 1600, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 ax = axes(fig); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
 groups = ["current" "step 2" "2L K3" "2L K6"];
 colors = [0.4 0.4 0.4; 0.85 0.33 0.1; 0 0.45 0.74; 0.47 0.67 0.19];
@@ -72,7 +72,7 @@ end
 xlabel(ax, "Trusted misfit (30-120 km)"); ylabel(ax, "Radar-distance bias (within 200 km)")
 legend(ax, Location="northwest"); set(ax, FontSize=13); xlim(ax, [0.22 0.36])
 title(ax, "Sandbox: two-level solver against the current solver")
-export_fixed_figure(fig, fullfile(figure_dir, "two_level_tradeoff.png"), Resolution=300)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "two_level_tradeoff.png"), Resolution=300)
 close(fig)
 
 %% Level, deviation and shape maps of one two-level run -----------------------------
@@ -89,7 +89,7 @@ level = to_grid(r.info.column_level(:, t_mid));
 background = permute(reshape([0.96 0.96 0.94], 1, 1, 3) .* ~g.mask_water + reshape([0.85 0.92 0.97], 1, 1, 3) .* g.mask_water, [2 1 3]);
 states = shaperead(which("usastatehi.shp"), UseGeoCoords=true);
 signed_map = interp1([0 0.5 1], [0.13 0.4 0.75; 1 1 1; 0.8 0.2 0.15], linspace(0, 1, 256));
-fig = create_export_figure(3600, 2200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 2200, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 2, 3, TileSpacing="tight", Padding="tight");
 panels = {amount, [0 200], "Column amount x_1 (birds km^{-2})", parula(256)
     level, [0 200], "Level V_L (birds km^{-2})", parula(256)
@@ -102,7 +102,7 @@ for k = 2:3
 end
 for i_p = 1:size(panels, 1)
     ax = nexttile(t);
-    plot_night_map(ax, g, background, panels{i_p, 1}, panels{i_p, 2}, states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
+    bmm4d.plot.plot_night_map(ax, g, background, panels{i_p, 1}, panels{i_p, 2}, states, S.radar_selected, S.c.figure_bounds, ones(g.sz(1:2)));
     colormap(ax, panels{i_p, 4}); colorbar(ax)
     title(ax, panels{i_p, 3}, FontSize=13, FontWeight="normal")
 end
@@ -114,5 +114,5 @@ plot(ax, patterns.shape_patterns(:, 1), patterns.z_agl / 1000, "k--", LineWidth=
 plot(ax, patterns.shape_patterns(:, 1:3) * [1 mean_c]', patterns.z_agl / 1000, LineWidth=2.5, DisplayName="sandbox mean shape")
 xlabel(ax, "Shape (km^{-1})"); ylabel(ax, "Height above smoothed ground (km)"); legend(ax); set(ax, FontSize=13)
 title(ax, "Domain-mean shape, " + string(S.c.times(t_mid), "HH:mm") + " UTC", FontSize=13, FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "two_level_fields.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "two_level_fields.png"), Resolution=150)
 close(fig)

@@ -132,14 +132,14 @@ switch base_name
     case "midwest"
         c.grid_bounds = [-97, -85, 38, 45];
         c.figure_bounds = [-97, -86, 38.5, 45];
-        c.radars = select_radars_in_bbox(data_path("reference", "radar.csv"), c.grid_bounds).name';
+        c.radars = bmm4d.radar.select_radars_in_bbox(bmm4d.util.data_path("reference", "radar.csv"), c.grid_bounds).name';
         c.times = datetime("2020-05-16") + (1.5:0.5:12) ./ 24;
     case "us_east"
         night_date = datetime("2026-10-21");
         radar_bounds = [-104 -66 24 50];
-        c.radars = select_radars_in_bbox(data_path("reference", "radar.csv"), radar_bounds).name';
+        c.radars = bmm4d.radar.select_radars_in_bbox(bmm4d.util.data_path("reference", "radar.csv"), radar_bounds).name';
         c.times = (night_date + hours(23.5)):minutes(30):(night_date + hours(36));
-        radar = select_radars_in_bbox(data_path("reference", "radar.csv"), radar_bounds);
+        radar = bmm4d.radar.select_radars_in_bbox(bmm4d.util.data_path("reference", "radar.csv"), radar_bounds);
         pad_lat = 160 / 111.32;
         pad_lon = 160 / (111.32 * cosd(max(radar.lat)));
         c.grid_bounds = [min(radar.lon) - pad_lon, max(radar.lon) + pad_lon, min(radar.lat) - pad_lat, max(radar.lat) + pad_lat];
@@ -155,7 +155,7 @@ switch base_name
         % night, 6 frames at the start of the night, same cleaning (shared
         % volume cache), no data cuts in P3 (decided at run time).
         radar_bounds = [-100 -85 36 46];
-        c.radars = select_radars_in_bbox(data_path("reference", "radar.csv"), radar_bounds).name';
+        c.radars = bmm4d.radar.select_radars_in_bbox(bmm4d.util.data_path("reference", "radar.csv"), radar_bounds).name';
         c.times = datetime("2026-10-22 00:30"):minutes(30):datetime("2026-10-22 03:00");
         c.grid_bounds = radar_bounds;
         c.figure_bounds = radar_bounds;
@@ -186,20 +186,20 @@ end
 % radar at least, and use each radar only while it is night there
 % (radar_night, [radar time]). Daytime echo is insects or landed birds,
 % and takeoff/landing are not migration.
-radar_table = readtable(data_path("reference", "radar.csv"), TextType="string");
+radar_table = readtable(bmm4d.util.data_path("reference", "radar.csv"), TextType="string");
 [~, radar_id] = ismember(c.radars, radar_table.name);
 c.radar_night = false(numel(c.radars), numel(c.times));
 for i_t = 1:numel(c.times)
-    c.radar_night(:, i_t) = sun_elevation(radar_table.lat(radar_id), radar_table.lon(radar_id), c.times(i_t)) < c.sun_limit_deg;
+    c.radar_night(:, i_t) = bmm4d.util.sun_elevation(radar_table.lat(radar_id), radar_table.lon(radar_id), c.times(i_t)) < c.sun_limit_deg;
 end
 night_frame = any(c.radar_night, 1);
 c.times = c.times(night_frame);
 c.radar_night = c.radar_night(:, night_frame);
 
 % Folders: products outside the synced project (local_settings.json).
-c.data_dir = fullfile(local_data_dir(), "prod", c.name);
-c.figure_dir = fullfile(local_folder("pipeline_figure_dir", fullfile("pipeline", "figures")), c.name);
-c.kernel_dir = data_path("derived", "F_elev", num2str(c.r_lim / 1000) + "km");
+c.data_dir = fullfile(bmm4d.util.local_data_dir(), "prod", c.name);
+c.figure_dir = fullfile(bmm4d.util.local_folder("pipeline_figure_dir", fullfile("pipeline", "figures")), c.name);
+c.kernel_dir = bmm4d.util.data_path("derived", "F_elev", num2str(c.r_lim / 1000) + "km");
 end
 
 function options = set_option(options, name, value)

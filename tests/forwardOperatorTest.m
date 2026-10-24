@@ -43,7 +43,7 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
         function testConstructFPlacesKernelAroundRadar(testCase)
             [g, elevation_kernels, radar_scans] = forwardOperatorTest.constructInputs([0 0]);
 
-            [F, obs_matrix, info] = construct_F(radar_scans, elevation_kernels, g);
+            [F, obs_matrix, info] = bmm4d.forward.construct_F(radar_scans, elevation_kernels, g);
 
             testCase.verifyEqual(info.obs_grid_size, [10 10 2 2])
             testCase.verifySize(F, [prod(info.obs_grid_size) prod(g.sz)])
@@ -75,18 +75,18 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
                 radar_scans{i_r}.dens.sweeps = radar_scans{i_r}.dens.sweeps(1);
             end
 
-            [~, ~, info] = construct_F(radar_scans, elevation_kernels, g);
+            [~, ~, info] = bmm4d.forward.construct_F(radar_scans, elevation_kernels, g);
 
             testCase.verifyEqual(info.obs_grid_size, [10 10 2 1])
         end
 
         function testObservationRowsRoundTripThroughFormatData(testCase)
             [g, elevation_kernels, radar_scans] = forwardOperatorTest.constructInputs([0 0]);
-            [F, obs_matrix, info] = construct_F(radar_scans, elevation_kernels, g);
-            observations = prepare_radar_observations(F, obs_matrix, info);
+            [F, obs_matrix, info] = bmm4d.forward.construct_F(radar_scans, elevation_kernels, g);
+            observations = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info);
 
             [obs_values, obs_id, azimuth_deg, elevation_deg, range_m] = ...
-                format_data(obs_matrix(:, 1), elevation_kernels, info);
+                bmm4d.forward.format_data(obs_matrix(:, 1), elevation_kernels, info);
 
             testCase.verifyEqual(obs_values, full(obs_matrix(obs_id, 1)))
             [i_range, i_az, i_r, i_f] = ind2sub(info.obs_grid_size, obs_id);
@@ -109,7 +109,7 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
                 radar_scans{i_r}.dens.sweeps(2).data(1, 1) = nan;
             end
 
-            [F_full, ~, info_full] = construct_F(radar_scans, elevation_kernels, g);
+            [F_full, ~, info_full] = bmm4d.forward.construct_F(radar_scans, elevation_kernels, g);
             [F_compact, ~, info_compact] = construct_F_compact(radar_scans, elevation_kernels, g);
 
             full_rows = find(any(F_full, 2));
@@ -125,7 +125,7 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
             % must shift them by round(height / dz) = 0 layers, not one.
             [g, elevation_kernels, radar_scans] = forwardOperatorTest.constructInputs([3 0]);
 
-            [F, ~, info] = construct_F(radar_scans, elevation_kernels, g);
+            [F, ~, info] = bmm4d.forward.construct_F(radar_scans, elevation_kernels, g);
 
             east_row = sub2ind(info.obs_grid_size, 1, 1, 1, 1);
             [~, ~, z_id] = ind2sub(g.sz, find(F(east_row, :)));
@@ -138,8 +138,8 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
             % times the block membership matrix (row sums preserved).
             [g, elevation_kernels, radar_scans] = forwardOperatorTest.constructInputs([0 0]);
             aggregate = [2 2 2];
-            F_fine = construct_F(radar_scans, elevation_kernels, g);
-            F_coarse = construct_F(radar_scans, elevation_kernels, g, aggregate=aggregate);
+            F_fine = bmm4d.forward.construct_F(radar_scans, elevation_kernels, g);
+            F_coarse = bmm4d.forward.construct_F(radar_scans, elevation_kernels, g, aggregate=aggregate);
 
             coarse_size = ceil(g.sz ./ aggregate);
             [ix, iy, iz] = ind2sub(g.sz, (1:prod(g.sz))');
@@ -161,7 +161,7 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
                 "range", 1000:500:2500, ...
                 "az", [0 90 180 270]);
 
-            evalc("compute_F_elev(x, y, z, 1, 1, 5, elevation_kernel, 0, mode)");
+            evalc("bmm4d.forward.compute_F_elev(x, y, z, 1, 1, 5, elevation_kernel, 0, mode)");
 
             files = dir(fullfile(working_folder.Folder, "F_test_*.mat"));
             testCase.assertNumElements(files, 1)

@@ -5,14 +5,14 @@ function plot_filter_variants(raw_file, variant_files, variant_names, output_fil
 %   (grey: zero density from no-echo gates; white: missing). A last panel
 %   shows the mean density profile of each variant.
 
-raw = rsl2mat_wrap(char(raw_file), struct("max_elev", 7));
+raw = bmm4d.radar.rsl2mat_wrap(char(raw_file), struct("max_elev", 7));
 variants = cellfun(@(f) load(f, "volume").volume, cellstr(variant_files));
 n_var = numel(variants);
 elev = [variants(1).dens.sweeps.elev];
 [~, i_upper] = min(abs(elev - 1.5));
 sweep_ids = unique([1 i_upper]);
 
-fig = create_export_figure(450 * (n_var + 3), 420 * numel(sweep_ids), Visible="off");
+fig = bmm4d.plot.create_export_figure(450 * (n_var + 3), 420 * numel(sweep_ids), Visible="off");
 t = tiledlayout(fig, numel(sweep_ids), n_var + 3, TileSpacing="tight", Padding="tight");
 density_cmap = [0.72 0.72 0.72; parula(255)];
 for k = 1:numel(sweep_ids)
@@ -51,7 +51,7 @@ for k = 1:numel(sweep_ids)
     end
 end
 title(t, sprintf("%s %s", variants(1).station, string(variants(1).datetime, "yyyy-MM-dd HH:mm")) + " UTC")
-export_fixed_figure(fig, output_file, Resolution=300)
+bmm4d.plot.export_fixed_figure(fig, output_file, Resolution=300)
 close(fig)
 end
 

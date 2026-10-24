@@ -98,7 +98,7 @@ sensitivity = cell2table(rows, VariableNames=["factor" "level" "band" "estimator
 writetable(sensitivity, fullfile(figure_dir, "GD_B_sensitivity.csv"))
 
 %% Plot: bias and error by range band, one panel per factor ---------------------------------
-fig = create_export_figure(3600, 3600, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 3600, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 3, 3, TileSpacing="tight", Padding="tight");
 title(t, "Estimator sensitivity on simulated sweeps (solid: estimator, dashed: window mean; legend: per-gate RMS error of the estimator over the bands)", ...
     FontSize=14, Color="k")
@@ -120,5 +120,5 @@ for i_f = 1:n_factor
     ylabel(ax, "Estimate / truth (median)"); legend(ax, Location="northwest", FontSize=9, Interpreter="none")
     title(ax, label, FontWeight="normal")
 end
-export_fixed_figure(fig, fullfile(figure_dir, "GD_B_sensitivity.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_B_sensitivity.png"), Resolution=150)
 close(fig)

@@ -12,7 +12,7 @@ script_tic = tic;
 
 night_date = datetime("2026-10-21");
 night_tag = string(night_date, "yyyyMMdd");
-night_dir = fullfile(local_data_dir(), "us_night", "data", night_tag);
+night_dir = fullfile(bmm4d.util.local_data_dir(), "us_night", "data", night_tag);
 radar_cache_dir = fullfile(night_dir, "radar_cache");
 if ~exist(radar_cache_dir, "dir")
     mkdir(radar_cache_dir)
@@ -42,7 +42,7 @@ read_options = { ...
     "smoothing", 2000, ...
     "data_res", [2000 2000], ...
     "waitbar", false};
-kernel_dir = data_path("derived", "F_elev", num2str(r_lim / 1000) + "km");
+kernel_dir = bmm4d.util.data_path("derived", "F_elev", num2str(r_lim / 1000) + "km");
 
 n_radar = height(radar_selected);
 n_time = numel(scan_time_requested);
@@ -69,7 +69,7 @@ for i_r = 1:n_radar
             "datetime", scan_time_requested(i_t));
     end
 end
-g = create_grid(grid_kernels, radar_meta, grid_bounds(1), grid_bounds(2), grid_bounds(3), grid_bounds(4), heightmax);
+g = bmm4d.grid.create_grid(grid_kernels, radar_meta, grid_bounds(1), grid_bounds(2), grid_bounds(3), grid_bounds(4), heightmax);
 clear radar_meta
 fprintf("[UN/B] grid %d x %d x %d (%.3g cells), %d times\n", g.sz, prod(g.sz), n_time)
 

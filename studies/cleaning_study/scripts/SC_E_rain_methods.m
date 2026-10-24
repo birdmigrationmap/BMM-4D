@@ -45,7 +45,7 @@ parfor i_v = 1:height(volumes)
     try
         scans = cell(1, numel(method_names));
         for i_m = 1:numel(method_names)
-            scan = read_rd(volume_files(i_v), read_options{:}, method_options{i_m}{:});
+            scan = bmm4d.radar.read_rd(volume_files(i_v), read_options{:}, method_options{i_m}{:});
             scans{i_m} = scan{1};
         end
         volume_metrics{i_v} = compare_to_reference(scans, method_names, reference_id, z_edges);

@@ -42,7 +42,7 @@ read_options = { ...
 z_edges = 0:100:3000;
 
 %% Draw the sample --------------------------------------------------------
-radar = select_radars_in_bbox(data_path("reference", "radar.csv"), radar_bounds);
+radar = bmm4d.radar.select_radars_in_bbox(bmm4d.util.data_path("reference", "radar.csv"), radar_bounds);
 radar_id = randi(height(radar), n_volume, 1);
 season_id = randi(size(season_windows, 1), n_volume, 1);
 year_id = years(randi(numel(years), n_volume, 1))';
@@ -62,7 +62,7 @@ screening.season(season_id == 2) = "fall";
 %% Download volumes to the local cache ------------------------------------
 screening.file = strings(n_volume, 1);
 for i_v = 1:n_volume
-    screening.file(i_v) = load_rd(screening.radar(i_v), screening.scan_time(i_v), download=true);
+    screening.file(i_v) = bmm4d.radar.load_rd(screening.radar(i_v), screening.scan_time(i_v), download=true);
 end
 fprintf("[SC/A] %d/%d volumes available (%.1f min)\n", nnz(screening.file ~= ""), n_volume, toc(script_tic) / 60)
 
@@ -78,7 +78,7 @@ parfor i_v = 1:n_volume
     try
         scans = cell(1, numel(method_names));
         for i_m = 1:numel(method_names)
-            scan_cell = read_rd(volume_files(i_v), "removeRain", method_names(i_m), read_options{:});
+            scan_cell = bmm4d.radar.read_rd(volume_files(i_v), "removeRain", method_names(i_m), read_options{:});
             scans{i_m} = scan_cell{1};
         end
         volume_metrics{i_v} = compare_cleaning_methods(scans, method_names, z_edges);

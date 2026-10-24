@@ -51,8 +51,9 @@ if isfolder(fgs_dir)
     addpath(fgs_dir);
 end
 
-% Package code last, so it comes first on the path (the MatConvNet pooling
-% fix in toolbox/radar/matconvnet_fix overrides wsrlib's copy).
+% Package code last, so it comes first on the path: the bmm4d namespace
+% (toolbox/+bmm4d) and the MatConvNet pooling fix (toolbox/matconvnet_fix),
+% which overrides wsrlib's copy.
 addpath(genpath(fullfile(project_root, "toolbox")));
 
 end

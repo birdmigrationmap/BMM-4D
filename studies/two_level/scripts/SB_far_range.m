@@ -59,7 +59,7 @@ disp(summary)
 writetable(summary, fullfile(figure_dir, "far_range_comparison.csv"))
 
 %% Plot results -----------------------------------------------------------------
-fig = create_export_figure(3600, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+fig = bmm4d.plot.create_export_figure(3600, 1300, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, 2, TileSpacing="tight", Padding="tight");
 colors = lines(numel(results));
 ax = nexttile(t); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
@@ -79,5 +79,5 @@ end
 yline(ax, 0, "k--", HandleVisibility="off")
 ylabel(ax, "Mean x_1 - V_L on data-free columns (birds km^{-2})"); set(ax, FontSize=13)
 title(ax, "Deviation where no beam reaches", FontWeight="normal")
-export_fixed_figure(fig, fullfile(figure_dir, "far_range.png"), Resolution=150)
+bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "far_range.png"), Resolution=150)
 close(fig)
