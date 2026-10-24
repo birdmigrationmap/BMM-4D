@@ -7,7 +7,7 @@ end
 
 project_root = char(project_root);
 
-while ~isfolder(fullfile(project_root, "functions")) || ~isfile(fullfile(project_root, "setup_paths.m"))
+while ~isfolder(fullfile(project_root, "toolbox")) || ~isfile(fullfile(project_root, "setup_paths.m"))
     parent_root = fileparts(project_root);
     if strcmp(parent_root, project_root)
         error("setup_paths:ProjectRootNotFound", "Could not find the BMM-4D project root.")
@@ -36,6 +36,6 @@ for i_path = 1:numel(fgs_paths)
 end
 
 % Load local project code.
-addpath(genpath(fullfile(project_root, "functions")));
+addpath(genpath(fullfile(project_root, "toolbox")));
 
 end

@@ -20,7 +20,9 @@ archive/**
 **/diagnostics/
 export/*
 tmp/*
-functions/regtools/*
+# Hansen regularization tools: only l_curve_wo_fig is ours
+toolbox/util/regtools/*
+!toolbox/util/regtools/l_curve_wo_fig.m
 
 # Machine-specific paths (raw NEXRAD cache and generated products)
 local_settings.json

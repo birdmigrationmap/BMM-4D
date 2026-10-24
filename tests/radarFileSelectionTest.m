@@ -11,7 +11,7 @@ classdef radarFileSelectionTest < matlab.unittest.TestCase
         function addProjectFunctions(testCase)
             testCase.ProjectRoot = fileparts(fileparts(mfilename("fullpath")));
             testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
-                fullfile(testCase.ProjectRoot, "functions"), IncludingSubfolders=true));
+                fullfile(testCase.ProjectRoot, "toolbox"), IncludingSubfolders=true));
         end
     end
 

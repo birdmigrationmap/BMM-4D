@@ -12,7 +12,10 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
         function addProjectFunctions(testCase)
             testCase.ProjectRoot = fileparts(fileparts(mfilename("fullpath")));
             testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
-                fullfile(testCase.ProjectRoot, "functions"), IncludingSubfolders=true));
+                fullfile(testCase.ProjectRoot, "toolbox"), IncludingSubfolders=true));
+            % Synthetic tools are not part of the package
+            testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
+                fullfile(testCase.ProjectRoot, "synthetic")));
         end
     end
 

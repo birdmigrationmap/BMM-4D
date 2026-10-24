@@ -16,7 +16,7 @@ classdef (TestTags = {'Regression'}) paperRegressionTest < matlab.unittest.TestC
     methods (TestClassSetup)
         function loadReference(testCase)
             testCase.ProjectRoot = setup_paths();
-            addpath(fullfile(testCase.ProjectRoot, "prod", "functions"), ...
+            addpath(fullfile(testCase.ProjectRoot, "pipeline", "functions"), ...
                 fullfile(testCase.ProjectRoot, "tests", "regression"))
             reference_file = fullfile(testCase.ProjectRoot, "data", "regression", "paper_v1_reference.mat");
             testCase.assumeTrue(isfile(reference_file), "No regression reference; run make_regression_reference.")
