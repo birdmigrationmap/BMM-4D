@@ -11,7 +11,7 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "tests", "regression"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "tests", "regression"))
 reference_dir = bmm4d.util.data_path("regression");
 if ~isfolder(reference_dir)
     mkdir(reference_dir)
@@ -39,7 +39,7 @@ paper_settings = struct( ...
         "shoreline_crossing_coeff", 0.3, "maxit", 50));
 
 % Production settings as of today, frozen in the reference file
-prod_settings = prod_case("keywest");
+prod_settings = case_settings("keywest");
 prod_settings.inversion.maxit = 50;
 % Plain PCG: the projected FISTA step (nonnegative) is not reproducible from
 % run to run (0.1-0.5% relative difference in the field, single-precision
@@ -57,7 +57,7 @@ if isfolder(worktree_dir)
 end
 assert(system(sprintf('git -C "%s" worktree add --detach "%s" paper-v1', project_root, worktree_dir)) == 0)
 current_path = path;
-rmpath(genpath(fullfile(project_root, "toolbox")), fullfile(project_root, "pipeline", "functions"))
+rmpath(genpath(fullfile(project_root, "toolbox")), fullfile(project_root, "examples"))
 addpath(genpath(fullfile(worktree_dir, "functions")))
 try
     assert(startsWith(which("read_rd"), worktree_dir))

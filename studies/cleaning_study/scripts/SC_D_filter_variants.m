@@ -6,7 +6,7 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"))
+addpath(fullfile(project_root, "examples"))
 addpath(fullfile(project_root, "studies", "cleaning_study", "functions"))
 data_dir = fullfile(bmm4d.util.local_data_dir(), "prod", "cleaning_variants");
 figure_dir = fullfile(project_root, "studies", "cleaning_study", "figures", "variants");
@@ -34,7 +34,7 @@ volumes = volumes(isfile(volumes.file), :);
 % "current": prod defaults before this study (MistNet, no-echo missing).
 % "hybrid95" / "hybrid90": MistNet or median rhoHV above 0.95 / 0.90, rain
 % mask grown by 2 km, no-echo gates kept as zero density.
-c = prod_case("midwest");
+c = case_settings("midwest");
 current_options = c.read_options;
 id = find(cellfun(@(x) string(x) == "noEchoRange", current_options(1:2:end)));
 current_options([2*id-1 2*id]) = [];

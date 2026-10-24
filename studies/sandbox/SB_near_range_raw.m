@@ -25,9 +25,9 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "sandbox"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "sandbox"))
 figure_dir = fullfile(project_root, "studies", "sandbox", "figures");
-c = prod_case("sandbox");
+c = case_settings("sandbox");
 manifest = load(fullfile(c.data_dir, "manifest.mat"));
 load(fullfile(c.data_dir, "case.mat"), "radar_selected")
 [n_radar, n_time] = size(manifest.raw_files);

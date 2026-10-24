@@ -1,23 +1,21 @@
-%% Production test 3: build the observation system
-% Build the shared grid, then each radar's forward-operator rows from its
-% cleaned volumes (radars in parallel), and stack them into one compact
-% observation system with per-radar velocity profiles.
+function obs_case = build_observations(c)
+%BUILD_OBSERVATIONS Grid and observation system of a case.
+%   OBS_CASE = BMM4D.BUILD_OBSERVATIONS(C) builds the shared grid from the
+%   case bounds (C.grid_bounds, C.heightmax, C.water_override, coarsened by
+%   C.solve_aggregate), then each radar's forward-operator rows from its
+%   cleaned volumes (clean_volumes; radars in parallel, with the static
+%   clutter, near-range and far no-echo cuts of C), and stacks them into
+%   one compact observation system with per-radar velocity profiles.
+%   OBS_CASE has observations, g, radar_scans, radar_selected and
+%   scan_available; they are also saved to <C.data_dir>/case.mat with the
+%   settings (case_controls).
 
-%% Load packages and paths ------------------------------------------------
-project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"))
-% Case: "keywest", "midwest" or "us_east"; suffix _rho or _none for other rain
-% removal. A case_name already set in the workspace (batch runs) is kept.
-if ~exist("case_name", "var")
-    case_name = "keywest";
-end
-c = prod_case(case_name);
 n_workers = 6;
 load(fullfile(c.data_dir, "manifest.mat"), "volume_files")
 n_radar = numel(c.radars);
 n_time = numel(c.times);
 
-%% Build the shared grid ------------------------------------------------------
+%% Build the shared grid
 % Only the kernel x/y/z spacing is needed, so one kernel file is enough.
 stage_tic = tic;
 kernel_files = dir(fullfile(c.kernel_dir, "F_*.mat"));
@@ -41,9 +39,9 @@ clear radar_meta
 % columns are summed per block in construct_F)
 g_fine = g;
 g = bmm4d.grid.coarsen_grid(g_fine, c.solve_aggregate);
-stage_log(c, "P3_grid", stage_tic, sprintf("grid %dx%dx%d (fine %dx%dx%d)", g.sz, g_fine.sz))
+bmm4d.util.stage_log(c, "build_observations_grid", stage_tic, sprintf("grid %dx%dx%d (fine %dx%dx%d)", g.sz, g_fine.sz))
 
-%% Build each radar's rows in parallel ----------------------------------------
+%% Build each radar's rows in parallel
 stage_tic = tic;
 pool = gcp("nocreate");
 if isempty(pool) || pool.NumWorkers ~= n_workers
@@ -54,7 +52,7 @@ rows = cell(n_radar, 1);
 kernel_dir = c.kernel_dir;
 min_row_mass = c.min_row_mass;
 aggregate = c.solve_aggregate;
-% Static clutter masks from P2b, if computed
+% Static clutter masks (static_clutter stage), if computed
 clutter_masks = cell(n_radar, 1);
 clutter_file = fullfile(c.data_dir, "static_clutter.mat");
 if isfile(clutter_file)
@@ -67,10 +65,10 @@ near_range_m = c.near_range_m;
 no_echo_max_range_m = c.no_echo_max_range_m;
 parfor i_r = 1:n_radar
     try
-        rows{i_r} = build_radar_rows(volume_files(i_r, :), n_time, g_fine, kernel_dir, min_row_mass, aggregate, ...
+        rows{i_r} = bmm4d.forward.build_radar_rows(volume_files(i_r, :), n_time, g_fine, kernel_dir, min_row_mass, aggregate, ...
             clutter_masks{i_r}, clutter_max_elev, near_range_m, no_echo_max_range_m);
     catch err
-        warning("P3:RadarFailed", "%s: %s", c.radars(i_r), err.message)
+        warning("bmm4d:build_observations:RadarFailed", "%s: %s", c.radars(i_r), err.message)
     end
 end
 delete(gcp("nocreate"))   % release worker memory before stacking and the inversion
@@ -78,10 +76,10 @@ clear g_fine
 kept = ~cellfun(@isempty, rows);
 rows = rows(kept);
 radar_selected = radar(radar_id(kept), :);
-stage_log(c, "P3_radar_rows", stage_tic, sprintf("%d/%d radars, %d sweeps without kernel", ...
+bmm4d.util.stage_log(c, "build_observations_rows", stage_tic, sprintf("%d/%d radars, %d sweeps without kernel", ...
     nnz(kept), n_radar, sum(cellfun(@(r) r.n_dropped_sweeps, rows))))
 
-%% Stack the observation system ------------------------------------------------
+%% Stack the observation system--------
 % Rows are stacked radar by radar; row_radar_id gives each row's radar.
 stage_tic = tic;
 n_radar = numel(rows);
@@ -110,4 +108,7 @@ clear rows
 case_controls = c;
 save(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected", ...
     "scan_available", "case_controls", "-v7.3")
-stage_log(c, "P3_save_case", stage_tic, sprintf("%.3g rows, nnz(F) %.3g", size(observations.F, 1), nnz(observations.F)))
+bmm4d.util.stage_log(c, "build_observations_save", stage_tic, sprintf("%.3g rows, nnz(F) %.3g", size(observations.F, 1), nnz(observations.F)))
+obs_case = struct("observations", observations, "g", g, "radar_scans", {radar_scans}, ...
+    "radar_selected", radar_selected, "scan_available", scan_available);
+end

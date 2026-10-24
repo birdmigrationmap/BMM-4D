@@ -1,4 +1,6 @@
-# BMM-4D restructure: scope and target layout (draft for review)
+# BMM-4D restructure: scope and target layout
+
+Status (24 October 2026): steps 1–7 done (see MIGRATION.md); step 8, package and build files, is next.
 
 ## 1. Scope
 

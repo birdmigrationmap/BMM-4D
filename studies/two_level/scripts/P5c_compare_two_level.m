@@ -11,9 +11,9 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "two_level", "functions"))
-c_production = prod_case("us_east");
-c_two_level = prod_case("us_east_near0_zero150");
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "two_level", "functions"))
+c_production = case_settings("us_east");
+c_two_level = case_settings("us_east_near0_zero150");
 figure_dir = fullfile(project_root, "studies", "two_level", "figures", "us_east");
 % Observations from the uncut case: same grid, and its rows carry range and
 % elevation (the production case file predates them)

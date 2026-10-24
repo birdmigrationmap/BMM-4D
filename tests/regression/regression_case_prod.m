@@ -2,7 +2,7 @@ function out = regression_case_prod(raw_files, times, kernel_dir, work_dir, c)
 %REGRESSION_CASE_PROD Production path (P2-P4) on a small Key West case.
 %   Cleans RAW_FILES with clean_volume (MistNet), builds the radar's rows
 %   on the case grid, then the Gaussian prior, the advection steps and the
-%   lean solver, with the case settings C (prod_case("keywest") stored in
+%   lean solver, with the case settings C (case_settings("keywest") stored in
 %   the reference file). Cleaned volumes are written to WORK_DIR. Static
 %   clutter needs a whole night, so it is not applied. OUT holds the
 %   compared outputs.
@@ -34,7 +34,7 @@ g = bmm4d.grid.create_grid({struct("x", kernel_ref.x, "y", kernel_ref.y, "z", ke
 [lon_grid, lat_grid] = ndgrid(g.lon, g.lat);
 g.mask_water(inpolygon(lon_grid, lat_grid, c.water_override(1, :), c.water_override(2, :))) = true;
 g = bmm4d.grid.coarsen_grid(g, c.solve_aggregate);
-rows = build_radar_rows(reshape(volume_files, 1, []), n_time, g, kernel_dir, c.min_row_mass, c.solve_aggregate, ...
+rows = bmm4d.forward.build_radar_rows(reshape(volume_files, 1, []), n_time, g, kernel_dir, c.min_row_mass, c.solve_aggregate, ...
     [], c.static_clutter.max_elev, c.near_range_m, c.no_echo_max_range_m);
 radar_scans = cell(1, n_time);
 for i_t = 1:n_time

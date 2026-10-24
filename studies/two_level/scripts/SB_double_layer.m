@@ -10,11 +10,11 @@
 
 %% Load packages and paths
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "sandbox"), fullfile(project_root, "studies", "two_level", "functions"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "sandbox"), fullfile(project_root, "studies", "two_level", "functions"))
 out_dir = fullfile(project_root, "studies", "two_level", "figures", "sandbox");
 
 %% Read the us_east case and fit the radar profiles
-c = prod_case("us_east");
+c = case_settings("us_east");
 load(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected")
 % active_id = 1: only the per-radar profiles are needed, not the gridded prior
 [~, prior_info] = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, "lambda_profile", 1, ...

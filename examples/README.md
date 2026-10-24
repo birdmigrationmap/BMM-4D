@@ -1,46 +1,49 @@
-# Production test (dev, exploratory)
+# Running a reconstruction
 
-Purpose: find out what it takes to turn the method into an operational product, meaning animated 3D bird-density maps for a radar network that are robust to rain and anomalies, with realistic regularization, and fast and light enough to run routinely. It uses the package in `toolbox/` and keeps its case settings, caches and logging in `pipeline/functions/`. The paper workflows (`01_`–`11_`) stay in the paper repository `BMM-within` with their own frozen copy of the code (tag `paper-v1` here).
+From radar volumes to animated 3D bird-density maps for a radar network: robust to rain and anomalies, with realistic regularization, fast and light enough to run routinely. The paper workflows stay in the paper repository `BMM-within` with their own frozen copy of the code (tag `paper-v1` here).
 
-## Layout
+## Stages
 
-| Path | Content |
+| Function | Stage (old script) | Product in `c.data_dir` |
+| --- | --- | --- |
+| `c = bmm4d.config(name, ...)` | All settings: radars, times, grid, cleaning, inversion, with defaults; night frames and folders derived (`prod_case`) | – |
+| `bmm4d.get_volumes(c)` | Find the raw volumes, or download them in parallel over HTTPS into the local raw cache (P1) | `manifest.mat` |
+| `bmm4d.clean_volumes(c)` | Clean every volume once (MistNet by default) into a cache shared by cases with the same cleaning, in parallel (P2) | `manifest.mat` (`volume_files`) |
+| `bmm4d.static_clutter(c)` | Static clutter mask per radar from the night's volumes (P2b) | `static_clutter.mat` |
+| `bmm4d.build_observations(c)` | Grid, then forward-operator rows per radar (in parallel), stacked (P3) | `case.mat` |
+| `bmm4d.invert(c)` | Density prior, advection mappings, joint inversion; `invert(c, "paper")` for the full-grid double-precision path (P4) | `inversion.mat` |
+| `bmm4d.export_maps(c)` | Nine-time column-density map and MP4 (P5) | `column_density.png`, `.mp4` in `c.figure_dir` |
+
+Every stage appends its time and client memory to `stage_log.csv`, and reads what the earlier stages saved, so one stage can be rerun alone.
+
+| File | Content |
 | --- | --- |
-| `functions/prod_case.m` | All case settings (radars, times, grid, cleaning, inversion). Edit here to try settings. |
-| `scripts/P1_get_volumes.m` | Find the raw volumes, or download them in parallel over HTTPS into the local raw cache. |
-| `scripts/P2_clean_volumes.m` | Clean every volume once (MistNet by default) into a compact volume cache, in parallel. |
-| `scripts/P3_build_case.m` | Grid, then forward-operator rows per radar (in parallel), stacked into `case.mat`. |
-| `scripts/P4_invert.m` | Density prior, advection mappings, joint inversion (paper full-grid solver for now). |
-| `scripts/P5_plot.m` | Nine-time column-density map and MP4. |
-| `sandbox/` | Small Midwest case (28 radars, 6 frames) for trying solver options in seconds to minutes; `sandbox_run` scores each option. |
-| `experiments/two_level/` | The two-level separable model (23–24 October 2026), set aside: code, scripts, figures and results. |
-| `gate_density/` | Bird density from the distribution of gate values under local homogeneity (instead of outlier removal and median smoothing); tests and the near-range deficit by method. |
-| `cleaning_study/` | Screening of ρHV vs MistNet on 300 random volumes and the 24-case review gallery. |
-| `legacy_us_night/` | First full-US scripts (superseded by P1–P5; kept for reference). |
-
-Each script reads a `case_name`: `keywest` (fast test), `midwest` (17-radar network), `us_east` (107 radars, one night). Add `_rho` or `_none` to change the rain removal, e.g. `keywest_rho`. A `case_name` already set in the workspace is kept, so a batch can loop over cases.
+| `run_case.m` | The stages in order for one case. |
+| `case_settings.m` | The test cases: `keywest` (fast test), `midwest` (17 radars), `us_east` (one night, ~110 radars), `sandbox` (28 radars, 6 frames). Suffixes `_rho`, `_dr`, `_none` (rain removal), `_coarse`, `_nearNN`, `_zeroNN`. |
 
 ```matlab
 project_root = setup_paths();
 case_name = "keywest";
-for f = ["P1_get_volumes" "P2_clean_volumes" "P3_build_case" "P4_invert" "P5_plot"]
-    run(fullfile(project_root, "prod", "scripts", f + ".m"))
-end
+run(fullfile(project_root, "examples", "run_case.m"))
 ```
+
+A new case is one call, e.g. `c = bmm4d.config("kdox", radars="KDOX", grid_bounds=[-77 -74 37 40], times=...)`; struct settings (`inversion`, `filter`, ...) only replace the fields given.
 
 ## Data
 
-- Raw volumes: `nexrad_raw_dir()` (local cache outside OneDrive), plus the old project folder `data/raw_scans/nexrad`.
+- Raw volumes: `bmm4d.radar.nexrad_raw_dir()` (local cache outside OneDrive), plus `raw_scans/nexrad` in the data folder.
 - Cleaned volumes: `local_data_dir()/prod/volumes/<hash>/`. The hash comes from the cleaning settings (`settings.json` in each folder), so the volumes are shared by all cases with the same cleaning.
-- Case products: `local_data_dir()/prod/<case>/` holds `manifest.mat`, `case.mat`, `inversion.mat` and `stage_log.csv` (time, duration and client memory of each stage).
-- Figures: `prod/figures/<case>/`.
+- Case products: `local_data_dir()/prod/<case>/` holds `manifest.mat`, `static_clutter.mat`, `case.mat`, `inversion.mat` and `stage_log.csv`.
+- Figures: `figures/<case>/` (setting `figure_dir`).
 - Worker memory was sampled every 2 s by an external `ps` loop into `local_data_dir()/prod/memory_samples.csv`, because a client snapshot misses parfor peaks.
+
+The sections below are the development notes of the pipeline; P1–P5, P2b, P4a and P4b are the stages of the table above and the review scripts now in `studies/pipeline_review/`.
 
 ## Approach
 
 The goal is a coherent, plausible density field, produced quickly. There is no ground truth, so matching the paper results exactly is not a goal. Removing aberrant echoes matters most; the reconstruction can be approximate.
 
-Current defaults (`prod_case.m`):
+Current defaults (`bmm4d.config`):
 - **Cleaning:** MistNet within 150 km (its Cartesian grid ends there), with the rain mask grown by 2 km. Gates without echo are kept as zero-density observations (`noEchoRange`), not as missing data; blocked and rain gates stay missing. `read_rd` runs at full gate resolution, then `clean_volume` removes densities above 3000 birds km⁻³ (about 40 dBZ) and connected echo patches smaller than 25 km² (point targets, rain fragments, speckle), and thins the gates to 1 km (2 km for `us_east`).
 - **Active domain:** columns within 250 km of a radar (more than half the radar spacing, so there are no gaps between radars), cells from the ground to 3 km above it.
 - **Solver (`P4`, `solver_path = "lean"`):** `solve_advection_lean`. It uses the paper's objective and term weights (data, prior, 3D smoothness with the land–water cut, advection), on active cells, in single precision, with all times batched, and an approximate tolerance of 1e-4. Each advection link is weakened where the density prior changes along it (`advection_relax_exponent` 2), so takeoff and landing are not forced to conserve birds. `solver_path = "paper"` keeps the full-grid double-precision path.

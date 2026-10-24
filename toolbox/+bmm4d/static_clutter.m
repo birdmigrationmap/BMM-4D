@@ -1,18 +1,15 @@
-%% Production test 2b: static clutter masks
-% One mask per radar of the gates that stand out from their surroundings
-% at the same place in most volumes of the night (wind farms, towers,
-% persistent ground clutter). P3 removes them from the low sweeps.
+function clutter_masks = static_clutter(c)
+%STATIC_CLUTTER Static clutter mask of each radar of a case.
+%   CLUTTER_MASKS = BMM4D.STATIC_CLUTTER(C) returns, per radar, the gates
+%   that stand out from their surroundings at the same place in most
+%   volumes of the night (wind farms, towers, persistent ground clutter;
+%   bmm4d.radar.static_clutter_mask with C.static_clutter). Saves
+%   static_clutter.mat in C.data_dir; build_observations removes these
+%   gates from the low sweeps when the file exists.
 
-%% Load packages and paths ------------------------------------------------
-project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"))
-if ~exist("case_name", "var")
-    case_name = "keywest";
-end
-c = prod_case(case_name);
 load(fullfile(c.data_dir, "manifest.mat"), "raw_files")
 
-%% Masks per radar, in parallel -------------------------------------------
+%% Masks per radar, in parallel
 stage_tic = tic;
 pool = gcp("nocreate");
 if isempty(pool) || pool.NumWorkers ~= 6
@@ -31,6 +28,6 @@ clutter_radars = c.radars;
 save(fullfile(c.data_dir, "static_clutter.mat"), "clutter_masks", "clutter_radars", "settings")
 has_mask = ~cellfun(@isempty, clutter_masks);
 flagged = cellfun(@(m) mean(m.flag(:)), clutter_masks(has_mask));
-stage_log(c, "P2b_static_clutter", stage_tic, sprintf("median %.2f%%, max %.2f%% of low-sweep gates flagged", ...
+bmm4d.util.stage_log(c, "static_clutter", stage_tic, sprintf("median %.2f%%, max %.2f%% of low-sweep gates flagged", ...
     100 * median(flagged), 100 * max(flagged)))
-
+end

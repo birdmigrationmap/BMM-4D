@@ -18,9 +18,9 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "gate_density", "functions"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "gate_density", "functions"))
 figure_dir = fullfile(project_root, "studies", "gate_density", "figures");
-c = prod_case("sandbox");
+c = case_settings("sandbox");
 load(fullfile(c.data_dir, "case.mat"), "radar_selected")
 manifest = load(fullfile(c.data_dir, "manifest.mat"));
 n_radar = height(radar_selected);

@@ -6,11 +6,11 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"))
+addpath(fullfile(project_root, "examples"))
 if ~exist("case_name", "var")
     case_name = "keywest";
 end
-c = prod_case(case_name);
+c = case_settings(case_name);
 inv = c.inversion;
 load(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected")
 n_time = size(radar_scans, 2);
@@ -35,7 +35,7 @@ for k = 1:2
     stage_tic = tic;
     prior_active = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, common{:}, ...
         interpolation=variants(k), length_scale_m=inv.prior_length_scale_m, include_water=variants(k) == "gaussian");
-    stage_log(c, "P4a_prior_" + variants(k), stage_tic)
+    bmm4d.util.stage_log(c, "P4a_prior_" + variants(k), stage_tic)
     column = nan([g.sz(1:2) n_time], "single");
     section = nan([g.sz(1) g.sz(3) n_time], "single");
     for i_t = 1:n_time

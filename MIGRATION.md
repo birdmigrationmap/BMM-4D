@@ -2,6 +2,46 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Step 7: settings and stage functions
+
+The pipeline scripts became package functions. `pipeline/` is gone.
+
+| Old | New |
+| --- | --- |
+| `pipeline/functions/prod_case.m` (defaults and case table) | `bmm4d.config(name, ...)` (defaults, overrides, night frames, folders) and `examples/case_settings.m` (the test cases and their suffixes) |
+| `P1_get_volumes.m` | `bmm4d.get_volumes(c)` |
+| `P2_clean_volumes.m` | `bmm4d.clean_volumes(c)` |
+| `P2b_static_clutter.m` | `bmm4d.static_clutter(c)` |
+| `P3_build_case.m` | `bmm4d.build_observations(c)` |
+| `P4_invert.m` (`solver_path` variable) | `bmm4d.invert(c, solver_path)` |
+| `P5_plot.m` | `bmm4d.export_maps(c)` |
+| `P4a_plot_prior.m`, `P4b_weight_tests.m` | `studies/pipeline_review/plot_prior.m`, `weight_tests.m` |
+| `pipeline/scripts/generate_F_elev.m` | `studies/kernels/generate_F_elev.m` |
+| `pipeline/functions/stage_log.m`, `volume_cache_dir.m`, `build_radar_rows.m` | `bmm4d.util.stage_log`, `bmm4d.radar.volume_cache_dir`, `bmm4d.forward.build_radar_rows` |
+| `pipeline/functions/build_radar_cache.m` | `studies/legacy_us_night/functions/` (used only there) |
+| `pipeline/README.md` | `examples/README.md` |
+
+**`bmm4d.config`:**
+- It takes any setting as a name-value pair. A struct setting (e.g. `inversion`) replaces only the fields it contains; a `read_options` cell replaces only the options it names.
+- `radars`, `times` and `grid_bounds` are required.
+- `examples/run_case.m` runs the stages for one case. A new case is one `bmm4d.config` call.
+- New `tests/configTest.m`.
+
+**Unchanged:**
+- File products and locations: `local_data_dir()/prod/<case>/`, and the volume cache keyed by the cleaning settings.
+- Stage log lines now say `[bmm4d/<case>]` with the new stage names.
+- Figures moved from `pipeline/figures/<case>` to `figures/<case>`: setting `figure_dir`, which replaces `pipeline_figure_dir`.
+
+**Checks:**
+- `case_settings` returns the same settings as `prod_case` for nine cases (keywest, keywest_rho, midwest, midwest_coarse, midwest_none, us_east, us_east_near15_zero75, sandbox, sandbox_dr). The only difference is `figure_dir`.
+- On Key West, the old scripts P1–P5 and the new stages gave the same outputs:
+  - manifest and static clutter masks identical;
+  - a volume cleaned again by `clean_volumes`, identical;
+  - `case.mat` identical (the grid differs only in its function handles, which give the same values);
+  - same active cells; the solve took 300 iterations to the same residual in both runs.
+- The solved field differs by 0.07%, within the run-to-run variation of the non-negative FISTA step (0.1–0.5%, see step 1).
+- All 64 tests pass.
+
 ## MatConvNet pooling fallback removed
 
 `toolbox/matconvnet_fix/vl_nnpool.m` (a MATLAB max/average pooling that replaced MatConvNet's on Apple Silicon) is removed, with its test.

@@ -4,7 +4,7 @@ function S = sandbox_load(case_name)
 %   a no-echo flag), grid, active mask, advection steps, radar table and an
 %   in-memory cache of density priors keyed by their settings.
 
-c = prod_case(case_name);
+c = case_settings(case_name);
 load(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected")
 column_mask = [];
 if ~isempty(c.domain)

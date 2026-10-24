@@ -1,16 +1,12 @@
-%% Production test 5: maps and animation
-% Vertically integrated density: a nine-time overview PNG and an MP4 of
-% every time step, on a light land/water background.
+function export_maps(c)
+%EXPORT_MAPS Maps and animation of the vertically integrated density.
+%   BMM4D.EXPORT_MAPS(C) writes, in C.figure_dir, a nine-time overview
+%   (column_density.png) and an MP4 of every time step
+%   (column_density.mp4) of the inversion of the case, on a light
+%   land/water background. The map fades to 40% opacity between the end of
+%   the radar data (r_lim) and the edge of the solved domain, and hides
+%   cells where the sun is up.
 
-%% Load packages and paths ------------------------------------------------
-project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"))
-% Case: "keywest", "midwest" or "us_east"; suffix _rho or _none for other rain
-% removal. A case_name already set in the workspace (batch runs) is kept.
-if ~exist("case_name", "var")
-    case_name = "keywest";
-end
-c = prod_case(case_name);
 if ~isfolder(c.figure_dir)
     mkdir(c.figure_dir)
 end
@@ -18,7 +14,7 @@ load(fullfile(c.data_dir, "case.mat"), "g", "radar_selected")
 load(fullfile(c.data_dir, "inversion.mat"), "active_field", "active_id")
 n_time = size(active_field, 2);
 
-%% Vertically integrated density ------------------------------------------
+%% Vertically integrated density
 % Density is in birds km^-3 and g.dz in m, so the column is birds km^-2.
 % Columns without any active cell are NaN (background shows through).
 column_density = zeros([g.sz(1:2) n_time], "single");
@@ -50,7 +46,7 @@ if ~isempty(c.domain)
     alpha = ones(g.sz(1:2));
 end
 
-% Hide cells where the sun is up (night window of prod_case), fading over
+% Hide cells where the sun is up (night window of the case), fading over
 % +-1 deg of sun elevation around the limit.
 night_alpha = zeros([g.sz(1:2) n_time], "single");
 for i_t = 1:n_time
@@ -59,7 +55,7 @@ for i_t = 1:n_time
 end
 frame_labels = string(c.times, "dd MMM HH:mm") + " UTC";
 
-%% Map background ---------------------------------------------------------
+%% Map background
 % Pale water and light land keep the density colors dominant.
 land_color = [0.96 0.96 0.94];
 water_color = [0.85 0.92 0.97];
@@ -68,7 +64,7 @@ background = permute(background, [2 1 3]);  % image() expects [y x]
 states = shaperead(which("usastatehi.shp"), UseGeoCoords=true);
 map_bounds = c.figure_bounds;
 
-%% Nine-time overview -----------------------------------------------------
+%% Nine-time overview
 frame_ids = unique(round(linspace(1, n_time, 9)));
 fig = bmm4d.plot.create_export_figure(3600, 2600, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 3, 3, TileSpacing="tight", Padding="tight");
@@ -85,7 +81,7 @@ set(cb, FontName="Helvetica", FontSize=13, Color="k")
 bmm4d.plot.export_fixed_figure(fig, fullfile(c.figure_dir, "column_density.png"), Resolution=300)
 close(fig)
 
-%% Animation of all times -------------------------------------------------
+%% Animation of all times
 video = VideoWriter(fullfile(c.figure_dir, "column_density.mp4"), "MPEG-4");
 video.FrameRate = 4;
 open(video)
@@ -102,4 +98,5 @@ for i_t = 1:n_time
 end
 close(video)
 close(fig)
-fprintf("[prod/%s] figures in %s\n", c.name, c.figure_dir)
+fprintf("[bmm4d/%s] figures in %s\n", c.name, c.figure_dir)
+end

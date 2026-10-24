@@ -12,7 +12,7 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "gate_density", "functions"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "gate_density", "functions"))
 figure_dir = fullfile(project_root, "studies", "gate_density", "figures");
 
 %% Settings ---------------------------------------------------------------

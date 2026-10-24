@@ -10,11 +10,11 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "two_level", "functions"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "two_level", "functions"))
 if ~exist("case_name", "var")
     case_name = "us_east_near0_zero150";
 end
-c = prod_case(case_name);
+c = case_settings(case_name);
 inv = c.inversion;
 
 %% Load the case ------------------------------------------------------------
@@ -26,7 +26,7 @@ if ~isempty(c.domain)
 end
 active_mask_3d = bmm4d.grid.build_active_mask(g, radar_scans, c.active_range_m, c.flight_layer_agl_m, column_mask);
 active_id = find(active_mask_3d(:));
-stage_log(c, "P4c_load_case", stage_tic, sprintf("%.3g active cells, %.3g rows", numel(active_id), size(observations.F, 1)))
+bmm4d.util.stage_log(c, "P4c_load_case", stage_tic, sprintf("%.3g active cells, %.3g rows", numel(active_id), size(observations.F, 1)))
 
 %% Radar prior and regional shape -------------------------------------------------
 % The radar-profile prior only sets the advection relaxation (takeoff and
@@ -40,11 +40,11 @@ prior_args = {"lambda_profile", inv.lambda_profile, "lambda_time_profile", inv.l
 prior_active = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, prior_args{:}, active_id=active_id);
 [~, profile_info] = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, "lambda_profile", 1, ...
     "lambda_time_profile", inv.lambda_time_profile, "maxit", inv.maxit, "active_id", 1, "include_water", true);
-patterns = load(fullfile(prod_case("us_east").data_dir, "shape_patterns.mat"));
+patterns = load(fullfile(case_settings("us_east").data_dir, "shape_patterns.mat"));
 n_pattern = 3;
 shape_initial = regional_shape(g, radar_scans, profile_info.radar_profiles, patterns.shape_patterns, patterns.z_agl, ...
     n_pattern, 150000, 30000);
-stage_log(c, "P4c_prior_and_shape", stage_tic)
+bmm4d.util.stage_log(c, "P4c_prior_and_shape", stage_tic)
 
 %% Advection mappings ----------------------------------------------------------
 stage_tic = tic;
@@ -55,7 +55,7 @@ steps = bmm4d.advect.build_radar_advection_steps( ...
     boundary_mode="open", ...
     shoreline_crossing_coeff=inv.shoreline_crossing_coeff, ...
     active_mask_3d=active_mask_3d);
-stage_log(c, "P4c_advection_steps", stage_tic)
+bmm4d.util.stage_log(c, "P4c_advection_steps", stage_tic)
 
 %% Solve ------------------------------------------------------------------------------
 % Sandbox settings: fine deviation 0.2 over 30 km, level 0.03 over 600 km,
@@ -68,7 +68,7 @@ stage_tic = tic;
     fine_prior=0.2, shape_prior=0.03, shape_length_m=150000, level_smoothness=0.03, ...
     advection=inv.advection, advection_relax_exponent=inv.advection_relax_exponent, ...
     tol=inv.tol, maxit=inv.maxit, projected_maxit=inv.projected_maxit);
-stage_log(c, "P4c_solve", stage_tic, sprintf("%d PCG iterations over %d rounds, %.3g unknowns", ...
+bmm4d.util.stage_log(c, "P4c_solve", stage_tic, sprintf("%d PCG iterations over %d rounds, %.3g unknowns", ...
     inversion_info.solver.iterations, height(inversion_info.solver.history), ...
     numel(inversion_info.level_nodes) + numel(inversion_info.column_amount)))
 disp(inversion_info.solver.history)
@@ -78,4 +78,4 @@ disp(inversion_info.near_curve)
 stage_tic = tic;
 clear observations prior_active steps
 save(fullfile(c.data_dir, "inversion_two_level.mat"), "active_field", "active_id", "inversion_info", "-v7.3")
-stage_log(c, "P4c_save", stage_tic)
+bmm4d.util.stage_log(c, "P4c_save", stage_tic)

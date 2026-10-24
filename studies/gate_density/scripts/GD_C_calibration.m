@@ -16,7 +16,7 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "gate_density", "functions"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "gate_density", "functions"))
 figure_dir = fullfile(project_root, "studies", "gate_density", "figures");
 
 %% Grid of model settings ------------------------------------------------------
@@ -65,7 +65,7 @@ for i_truth = 1:size(truths, 1)
 end
 
 %% 2. Real sweeps of the sandbox --------------------------------------------------
-c = prod_case("sandbox");
+c = case_settings("sandbox");
 manifest = load(fullfile(c.data_dir, "manifest.mat"));
 radar_ids = 1:3:28;
 real_sweeps = {};

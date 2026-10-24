@@ -2,7 +2,7 @@ function stage_log(c, stage, stage_tic, note)
 %STAGE_LOG Append one stage timing line to the case log and print it.
 %   Writes time stamp, stage, duration and the MATLAB client resident memory
 %   to <data_dir>/stage_log.csv. Worker memory is sampled separately (see
-%   pipeline/README.md) because a client snapshot misses parfor peaks.
+%   examples/README.md) because a client snapshot misses parfor peaks.
 
 if nargin < 4
     note = "";
@@ -16,5 +16,5 @@ if ~isfile(log_file)
 end
 writelines(sprintf("%s,%s,%s,%.1f,%.2f,%s", string(datetime("now"), "yyyy-MM-dd HH:mm:ss"), ...
     c.name, stage, duration_s, rss_gb, note), log_file, WriteMode="append")
-fprintf("[prod/%s] %s | %.1f s | client %.2f GB | %s\n", c.name, stage, duration_s, rss_gb, note)
+fprintf("[bmm4d/%s] %s | %.1f s | client %.2f GB | %s\n", c.name, stage, duration_s, rss_gb, note)
 end

@@ -79,7 +79,7 @@ if ~isempty(option.row_weight)
 end
 
 if option.solver == "separable" || option.solver == "two_level"
-    patterns = load(fullfile(prod_case("us_east").data_dir, "shape_patterns.mat"));
+    patterns = load(fullfile(case_settings("us_east").data_dir, "shape_patterns.mat"));
     % Regional mean shape from the radar profiles (patterns 2..J+1), or the night's mean shape
     shape_coefficients = [];
     if option.regional_patterns > 0

@@ -4,7 +4,7 @@ A small case (`prod_case("sandbox")`: Midwest part of the 21–22 October 2026 n
 
 ```matlab
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "sandbox"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "sandbox"))
 S = sandbox_load("sandbox");                       % once, ~6 s
 r = sandbox_run(S, struct("name", "my test", "prior", 0.5));
 summary = sandbox_summary({r}, "my_test");          % table + comparison figure (list several runs)

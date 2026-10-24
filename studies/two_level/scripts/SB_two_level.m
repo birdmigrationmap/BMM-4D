@@ -9,7 +9,7 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "sandbox"), fullfile(project_root, "studies", "two_level", "functions"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "sandbox"), fullfile(project_root, "studies", "two_level", "functions"))
 figure_dir = fullfile(project_root, "studies", "two_level", "figures", "sandbox");
 if ~exist("S", "var")
     S = sandbox_load("sandbox");
@@ -108,7 +108,7 @@ for i_p = 1:size(panels, 1)
 end
 % Mean vertical shape with the domain-mean coefficients, against phi_1
 ax = nexttile(t); hold(ax, "on"); box(ax, "on")
-patterns = load(fullfile(prod_case("us_east").data_dir, "shape_patterns.mat"));
+patterns = load(fullfile(case_settings("us_east").data_dir, "shape_patterns.mat"));
 mean_c = mean(double(r.info.shape_nodes(:, :, t_mid)), 1);
 plot(ax, patterns.shape_patterns(:, 1), patterns.z_agl / 1000, "k--", LineWidth=2, DisplayName="night mean \phi_1")
 plot(ax, patterns.shape_patterns(:, 1:3) * [1 mean_c]', patterns.z_agl / 1000, LineWidth=2.5, DisplayName="sandbox mean shape")

@@ -17,7 +17,7 @@ classdef (TestTags = {'Regression'}) paperRegressionTest < matlab.unittest.TestC
         function loadReference(testCase)
             testCase.applyFixture(matlab.unittest.fixtures.PathFixture(fileparts(fileparts(mfilename("fullpath")))));
             testCase.ProjectRoot = setup_paths();
-            addpath(fullfile(testCase.ProjectRoot, "pipeline", "functions"), ...
+            addpath(fullfile(testCase.ProjectRoot, "examples"), ...
                 fullfile(testCase.ProjectRoot, "tests", "regression"))
             reference_file = bmm4d.util.data_path("regression", "paper_v1_reference.mat");
             testCase.assumeTrue(isfile(reference_file), "No regression reference; run make_regression_reference.")

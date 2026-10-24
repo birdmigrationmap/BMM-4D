@@ -25,3 +25,6 @@ external/
 
 # Machine-specific paths (raw NEXRAD cache and generated products)
 local_settings.json
+
+# Case figures (bmm4d.config figure_dir default)
+/figures/

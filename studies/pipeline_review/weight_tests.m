@@ -6,11 +6,11 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"))
+addpath(fullfile(project_root, "examples"))
 if ~exist("case_name", "var")
     case_name = "us_east";
 end
-c = prod_case(case_name);
+c = case_settings(case_name);
 inv = c.inversion;
 load(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected")
 column_mask = [];
@@ -86,7 +86,7 @@ for i_c = 1:height(configs)
     metrics(i_c, :) = {configs.name(i_c), toc(stage_tic), info.solver.iterations, mean(field(:) < 0), ...
         -sum(field(field < 0)) / sum(field(field > 0)), misfit, mean(bias_index, "omitnan")};
     results{i_c} = field;
-    stage_log(c, "P4b_" + strrep(configs.name(i_c), " ", "_"), stage_tic, sprintf("%d it, negative %.1f%%, misfit %.3f", ...
+    bmm4d.util.stage_log(c, "P4b_" + strrep(configs.name(i_c), " ", "_"), stage_tic, sprintf("%d it, negative %.1f%%, misfit %.3f", ...
         info.solver.iterations, 100 * mean(field(:) < 0), misfit))
 end
 clear predicted observed F_active

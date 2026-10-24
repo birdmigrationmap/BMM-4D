@@ -10,12 +10,12 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "sandbox"), fullfile(project_root, "studies", "two_level", "functions"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "sandbox"), fullfile(project_root, "studies", "two_level", "functions"))
 figure_dir = fullfile(project_root, "studies", "two_level", "figures", "sandbox");
 if ~exist("S", "var")
     S = sandbox_load("sandbox");
 end
-patterns = load(fullfile(prod_case("us_east").data_dir, "shape_patterns.mat"));
+patterns = load(fullfile(case_settings("us_east").data_dir, "shape_patterns.mat"));
 
 %% Options ----------------------------------------------------------------
 logistic28 = @(r, e, z) (1 ./ (1 + exp(-(r - 28000) / 3000))) .* (~z + z ./ (1 + exp((r - 75000) / 10000)));

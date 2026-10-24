@@ -8,7 +8,7 @@
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
-addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "studies", "sandbox"))
+addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "sandbox"))
 if ~exist("S", "var")
     S = sandbox_load("sandbox");
 end
