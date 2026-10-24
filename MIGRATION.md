@@ -9,7 +9,7 @@ What moved, changed or was removed since tag `paper-v1`, step by step (see `REST
 **The cause** was in wsrlib's build, not in MatConvNet.
 - wsrlib's maca64 build compiled MatConvNet with `-ffast-math`, which implies `-ffinite-math-only`.
 - Clang then drops the -Inf starting value of max pooling, so windows with only negative values returned 0.
-- The fix is to build with `-ffast-math -fno-finite-math-only`: commit "Keep infinities in maca64 MatConvNet builds" on branch `fix/maca64-finite-math` of Rafnuss/wsrlib.
+- The fix is to build with `-ffast-math -fno-finite-math-only`: commit "Keep infinities in maca64 MatConvNet builds" (482e6a8) on `master` of Rafnuss/wsrlib, part of darkecology/wsrlib#3.
 
 **Check of the rebuilt `vl_nnpool`:**
 - It matches a reference max pooling exactly.

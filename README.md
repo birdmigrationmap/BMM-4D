@@ -26,7 +26,7 @@ project_root = setup_paths();
 
 | Setting | Code | Needed for |
 | --- | --- | --- |
-| `wsrlib_dir` | [wsrlib](https://github.com/darkecology/wsrlib): NEXRAD reading (rsl2mat), VVP, MatConvNet for MistNet. On Apple Silicon, MatConvNet must be built without finite-math assumptions (branch `fix/maca64-finite-math` of [Rafnuss/wsrlib](https://github.com/Rafnuss/wsrlib)); `mistnet_polar_radar` stops otherwise. | Required; `setup_paths` stops with an error without it |
+| `wsrlib_dir` | [wsrlib](https://github.com/darkecology/wsrlib): NEXRAD reading (rsl2mat), VVP, MatConvNet for MistNet. On Apple Silicon, MatConvNet must be built without finite-math assumptions (`master` of [Rafnuss/wsrlib](https://github.com/Rafnuss/wsrlib) from commit 482e6a8, part of darkecology/wsrlib#3); `mistnet_polar_radar` stops otherwise. | Required; `setup_paths` stops with an error without it |
 | `regtools_dir` | Hansen's Regularization Tools (`cgsvd`, `tikhonov`, L-curve corner) | `compute_vp` and `compute_scan` |
 | `fast_gaussian_simulation_dir` | FastGaussianSimulation | Synthetic Gaussian truth fields (`synthetic/`) |
 
