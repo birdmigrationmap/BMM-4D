@@ -93,6 +93,26 @@ g.lon=g.f_lon(g.x);
 % and the second dimension matches y.
 water_mask_data = load("data/reference/onwater/Fonwater.mat", "Fonwater");
 g.mask_water = logical(water_mask_data.Fonwater({g.f_lat(g.y),g.f_lon(g.x)}))';
+% The raster ends at 47.02 N; beyond its extent the nearest lookup repeats
+% the edge row. Classify those cells from the Mapping Toolbox land and lake
+% polygons instead (water = not land, or inside a lake).
+raster_lat = water_mask_data.Fonwater.GridVectors{1};
+raster_lon = water_mask_data.Fonwater.GridVectors{2};
+[lon_cells, lat_cells] = ndgrid(g.f_lon(g.x), g.f_lat(g.y));
+outside = lat_cells < min(raster_lat) | lat_cells > max(raster_lat) | lon_cells < min(raster_lon) | lon_cells > max(raster_lon);
+if any(outside(:))
+    lon_out = lon_cells(outside);
+    lat_out = lat_cells(outside);
+    land = false(size(lon_out));
+    for polygon = shaperead("landareas.shp", UseGeoCoords=true)'
+        land = land | inpolygon(lon_out, lat_out, polygon.Lon, polygon.Lat);
+    end
+    lake = false(size(lon_out));
+    for polygon = shaperead("worldlakes.shp", UseGeoCoords=true)'
+        lake = lake | inpolygon(lon_out, lat_out, polygon.Lon, polygon.Lat);
+    end
+    g.mask_water(outside) = ~land | lake;
+end
 % figure; hold on; imagesc(g.f_lon(g.x),g.f_lat(g.y),g.mask_water'); tmp=axis;borders('states','w'); plot(radar_lon, radar_lat,".r"); axis equal tight; axis(tmp);
 
 % Load DEM on the same x-by-y orientation as the reconstruction g.

@@ -1,9 +1,20 @@
-function [F, obs_matrix, info] = construct_F(radar_scans, elevation_kernels, g)
+function [F, obs_matrix, info] = construct_F(radar_scans, elevation_kernels, g, varargin)
 %CONSTRUCT_F Build the sparse forward operator and sparse observation matrix.
 %   [F, OBS_MATRIX, INFO] = CONSTRUCT_F(RADAR_SCANS, ELEVATION_KERNELS, GRID)
 %   combines the precomputed elevation kernels with the processed radar
 %   scans on GRID. The result is a sparse forward operator F and a sparse
 %   observation matrix OBS_MATRIX with one column per time step.
+%
+%   CONSTRUCT_F(..., aggregate=[fx fy fz]) sums the kernel weights of each
+%   block of fx x fy x fz grid cells into one column, so F is built directly
+%   on the coarse grid of size ceil(g.sz ./ aggregate) (block (i,j,k) holds
+%   fine cells (i-1)*fx+1:i*fx, ...). Default [1 1 1].
+
+p = inputParser;
+addParameter(p, "aggregate", [1 1 1]);
+parse(p, varargin{:});
+aggregate = p.Results.aggregate(:)';
+coarse_size = ceil(g.sz ./ aggregate);
 
 %% Extract radar scan 
 % A radar scan contains all different scan (elevation) possible for all
@@ -124,14 +135,16 @@ for i_r = 1:numel(radar_sites) % through the radars
 
         F_rows{i_r,i_f} = obs_block_offset(i_r,i_f) + kernel_obs_raz_idx{i_f}(id_pres_data);
         F_rows{i_r,i_f} = F_rows{i_r,i_f}(id_F_keep);
-        F_cols{i_r,i_f} = sub2ind(g.sz, grid_x_id(id_F_keep), grid_y_id(id_F_keep), grid_z_id(id_F_keep));
+        F_cols{i_r,i_f} = sub2ind(coarse_size, ceil(grid_x_id(id_F_keep) / aggregate(1)), ...
+            ceil(grid_y_id(id_F_keep) / aggregate(2)), ceil(grid_z_id(id_F_keep) / aggregate(3)));
         kernel_vals = elevation_kernels{i_f}.Fval(id_pres_data);
         F_vals{i_r,i_f} = double(kernel_vals(id_F_keep));
     end
 end
 
 %% 
-F = sparse(vertcat(F_rows{:}), vertcat(F_cols{:}), vertcat(F_vals{:}), prod(obs_grid_size), prod(g.sz));
+% sparse() sums the kernel weights that fall in the same (coarse) cell
+F = sparse(vertcat(F_rows{:}), vertcat(F_cols{:}), vertcat(F_vals{:}), prod(obs_grid_size), prod(coarse_size));
 
 %% 
 info.obs_grid_size = obs_grid_size;

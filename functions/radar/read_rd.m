@@ -8,8 +8,18 @@ function [radar_scans, shape_fit] = read_rd(scans_filepath, varargin)
 %   enabled).
 %
 %   Optional name-value pair arguments:
-%     'removeRain'    - Method to remove rain ('rho', 'mistnet', 'none'). Default: 'rho'.
-%     'rainRhoThreshold' - rhoHV threshold for rain removal when removeRain='rho'. Default: 0.95.
+%     'removeRain'    - Method to remove rain ('rho', 'dr', 'mistnet', 'mistnet_rho', 'none').
+%                       'dr' removes gates whose depolarization ratio, estimated
+%                       from ZDR and rhoHV (Kilambi et al. 2018), is below
+%                       rainDrThreshold (rain is round and uniform: low DR).
+%                       'mistnet_rho' removes MistNet rain and gates whose
+%                       median-smoothed rhoHV exceeds rainRhoThreshold. Default: 'rho'.
+%     'rainRhoThreshold' - rhoHV threshold for rain removal ('rho', 'mistnet_rho'). Default: 0.95.
+%     'rainDrThreshold' - Depolarization ratio (dB) below which a gate is rain ('dr'). Default: -12.
+%     'rainDilation'  - Grow the rain mask by this distance (meters) to remove
+%                       rain edges. Default: 0.
+%     'mistnetScreen' - Run MistNet only on volumes with rain-like echo (see
+%                       rain_like_area); others get no rain mask. Default: false.
 %     'removeOutliers' - MAD value for outlier removal in reflectivity units. Default: 3.
 %     'thr_dens'      - Max bird density (bird/km^3) accepted. Default: 1e9.
 %     'shape'         - Apply shape correction (true/false). Default: true.
@@ -18,6 +28,8 @@ function [radar_scans, shape_fit] = read_rd(scans_filepath, varargin)
 %     'minRange'      - Minimum range from radar (meters). Default: 5000.
 %     'maxRange'      - Maximum range from radar (meters). Default: Inf.
 %     'maxAlt'        - Maximum altitude to consider (meters). Default: 3000.
+%     'noEchoRange'   - Gates without echo within this range (meters) are kept
+%                       as zero density instead of missing. Default: 0 (off).
 %     'data_res'      - Data resolution [range, azimuth*range] in meters. Default: [2000 2000].
 %     'waitbar'       - Show waitbar (true/false). Default: true.
 %     'plot'          - Plot options (cell array of strings). Default: "".
@@ -31,6 +43,9 @@ function [radar_scans, shape_fit] = read_rd(scans_filepath, varargin)
 p = inputParser;
 addParameter(p,'removeRain','rho'); % Method to remove rain ('rho', 'mistnet', 'none')
 addParameter(p,'rainRhoThreshold', 0.95); % rhoHV threshold for rain removal
+addParameter(p,'rainDrThreshold', -12); % Depolarization ratio (dB) threshold for rain removal
+addParameter(p,'rainDilation', 0); % Grow the rain mask by this distance (m)
+addParameter(p,'mistnetScreen', false); % Run MistNet only on volumes with rain-like echo
 addParameter(p,'removeOutliers', 3); % MAD value for outlier removal in reflectivity units
 addParameter(p,'thr_dens', 1e9); % Max density (bird/km^3) accepted
 addParameter(p,'shape', true); % Apply shape correction
@@ -39,6 +54,7 @@ addParameter(p,'limitElev', 5); % Max elevation scan to consider (degrees)
 addParameter(p,'minRange', 5000); % Minimum range from radar (meters)
 addParameter(p,'maxRange', Inf); % Maximum range from radar (meters)
 addParameter(p,'maxAlt', 3000); % Maximum altitude to consider (meters)
+addParameter(p,'noEchoRange', 0); % Range (m) within which no-echo gates are zero density
 addParameter(p,'data_res', [2000 2000]); % Data resolution [range, azimuth*range] in meters
 addParameter(p,'waitbar', false); % Show waitbar
 addParameter(p,'plot', ""); % Plot options
@@ -147,10 +163,55 @@ if parms.removeRain=="rho"
         min_nbins = min(size(rh_data, 1), size(dz_data, 1));
         rain_masks{i_elev}(1:min_nbins,:) = rh_data(1:min_nbins,:) > parms.rainRhoThreshold;
     end
-elseif parms.removeRain=="mistnet"
+elseif parms.removeRain=="dr"
+    % Depolarization ratio from ZDR (dB) and rhoHV for simultaneous H/V
+    % transmission (Kilambi et al. 2018):
+    % DR = 10 log10((1 + Zdr - 2 rho sqrt(Zdr)) / (1 + Zdr + 2 rho sqrt(Zdr))),
+    % Zdr linear. Rain (rhoHV ~ 1, ZDR ~ 0) gives very low DR.
+    zdr_sweeps = unique_elev_sweeps(radar_scan, 'dr');
+    for i_elev=1:numel(radar_scan.dz.sweeps)
+        dz_data = sweep2mat(radar_scan.dz.sweeps(i_elev));
+        rain_masks{i_elev} = false(size(dz_data));
+        [~, i_elev_rh] = min(abs(radar_scan.dz.sweeps(i_elev).elev - [radar_scan.rh.sweeps.elev]));
+        [~, i_elev_zdr] = min(abs(radar_scan.dz.sweeps(i_elev).elev - [zdr_sweeps.elev]));
+        rh_data = sweep2mat(radar_scan.rh.sweeps(i_elev_rh));
+        zdr_data = sweep2mat(zdr_sweeps(i_elev_zdr));
+        if size(rh_data, 2) ~= size(dz_data, 2) || size(zdr_data, 2) ~= size(dz_data, 2)
+            continue
+        end
+        n_bins = min([size(dz_data, 1) size(rh_data, 1) size(zdr_data, 1)]);
+        zdr_linear = 10 .^ (zdr_data(1:n_bins,:) / 10);
+        cross_term = 2 * rh_data(1:n_bins,:) .* sqrt(zdr_linear);
+        depolarization = 10 * log10(max(1 + zdr_linear - cross_term, eps) ./ (1 + zdr_linear + cross_term));
+        rain_masks{i_elev}(1:n_bins,:) = depolarization < parms.rainDrThreshold;
+    end
+elseif (parms.removeRain=="mistnet" || parms.removeRain=="mistnet_rho") && parms.mistnetScreen ...
+        && ~has_rain_like_echo(radar_scan)
+    % Screened as rain-free: MistNet would remove almost nothing
+    radar_scan.mistnet_used = false;
+    for i_elev=1:numel(radar_scan.dz.sweeps)
+        rain_masks{i_elev} = false(size(sweep2mat(radar_scan.dz.sweeps(i_elev))));
+    end
+elseif parms.removeRain=="mistnet" || parms.removeRain=="mistnet_rho"
+    radar_scan.mistnet_used = true;
     [preds, classes] = mistnet_polar_radar(radar_scan);
     for i_elev=1:numel(radar_scan.dz.sweeps)
         rain_masks{i_elev} = preds{i_elev}==classes.rain;
+    end
+    if parms.removeRain=="mistnet_rho"
+        % Add rain-like rhoHV that MistNet misses (rain edges, drizzle,
+        % unclassified cells). The median over ~1 km x 3 radials keeps
+        % isolated high rhoHV gates of biology.
+        for i_elev=1:numel(radar_scan.dz.sweeps)
+            [~, i_elev_rh] = min(abs(radar_scan.dz.sweeps(i_elev).elev - [radar_scan.rh.sweeps.elev]));
+            rh_data = sweep2mat(radar_scan.rh.sweeps(i_elev_rh));
+            if size(rh_data, 2) ~= size(rain_masks{i_elev}, 2)
+                continue
+            end
+            rh_data = smoothdata(smoothdata(rh_data, 1, "movmedian", 5, "omitnan"), 2, "movmedian", 3, "omitnan");
+            min_nbins = min(size(rh_data, 1), size(rain_masks{i_elev}, 1));
+            rain_masks{i_elev}(1:min_nbins,:) = rain_masks{i_elev}(1:min_nbins,:) | rh_data(1:min_nbins,:) > parms.rainRhoThreshold;
+        end
     end
 elseif parms.removeRain=="none"
     for i_elev=1:numel(radar_scan.dz.sweeps)
@@ -158,6 +219,21 @@ elseif parms.removeRain=="none"
     end
 else
     warning("Unknown rain removal method: %s", parms.removeRain)
+end
+
+% Grow the rain mask to remove the weak rain edges that look like biology
+if parms.rainDilation > 0
+    for i_elev=1:numel(radar_scan.dz.sweeps)
+        [~, sweep_range, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+        n_range = ceil(parms.rainDilation / median(diff(sweep_range)));
+        % Azimuth half-width at 50 km, where most bird echo lies
+        n_az = ceil(parms.rainDilation / (deg2rad(median(diff(sweep_az))) * 50000));
+        n_rows = min(size(rain_masks{i_elev}, 1), numel(sweep_range));
+        % Pad in azimuth so the dilation wraps around north
+        padded = rain_masks{i_elev}(1:n_rows, [end-n_az+1:end 1:end 1:n_az]);
+        padded = imdilate(padded, true(2*n_range+1, 2*n_az+1));
+        rain_masks{i_elev}(1:n_rows, :) = padded(:, n_az+1:end-n_az);
+    end
 end
 
 if ismember("rain", plot_opts)
@@ -203,7 +279,10 @@ for i_elev=1:numel(radar_scan.dz.sweeps)
 
     % Extract reflectivity in dBZ for one sweep on a regular polar g.
     [sweep_dbz, sweep_range, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+    % Gates below the detection threshold (no echo) before any removal
+    no_echo = isnan(sweep_dbz) & sweep_range <= parms.noEchoRange;
     sweep_dbz(rain_masks{i_elev}) = nan;
+    no_echo(rain_masks{i_elev}) = false;
 
     % Discard values that overlap with the precomputed beam blockage
     % map. Overlap is considered if the ground is within the half-beam
@@ -282,11 +361,17 @@ for i_elev=1:numel(radar_scan.dz.sweeps)
                 u=u+1;
             end
         end
-        data_median = median(dd,3,'omitnan');
+        % Medians only where the 5x5 neighbourhood has data (elsewhere they
+        % are NaN anyway); same result, much faster on mostly empty sweeps
+        dd = reshape(dd, [], 5*5);
+        has_data = any(~isnan(dd), 2);
+        data_median = nan(size(sweep_dbz));
+        data_median(has_data) = median(dd(has_data,:), 2, 'omitnan');
         data_median(end-1:end,:)=nan;
 
-        MAD = -1/(sqrt(2)*erfcinv(3/2))*median(abs(dd-data_median),3,'omitnan');
-        MAD = mean(MAD(:), "omitnan");
+        MAD = nan(size(sweep_dbz));
+        MAD(has_data) = median(abs(dd(has_data,:) - data_median(has_data)), 2, 'omitnan');
+        MAD = -1/(sqrt(2)*erfcinv(3/2)) * mean(MAD(:), "omitnan");
         thr = data_median + permute([-1 1],[3 1 2]).* 3.*MAD;
         id = sweep_dbz < thr(:,:,1) | sweep_dbz > thr(:,:,2);
         if ismember("outliers_continuity", plot_opts)  && i_elev==1
@@ -327,8 +412,11 @@ for i_elev=1:numel(radar_scan.dz.sweeps)
 
     end
 
-    % Set nodata pulse volumes to 0 reflectivity (-inf on decibel scale)
-    % sweep_dbz(isnan(sweep_dbz)) = -inf;
+    % Keep no-echo gates as zero reflectivity (-inf on decibel scale): an
+    % empty unblocked beam is evidence of no birds, not missing data.
+    % Blocked gates stay missing.
+    no_echo(bbr_f({sweep_range, sweep_az}) > (radar_scan.dz.sweeps(i_elev).elev-radar_scan.dz.sweeps(i_elev).vert_half_bw)) = false;
+    sweep_dbz(no_echo) = -inf;
 
     % Convert the cleaned dBZ sweep into linear reflectivity and density.
     sweep_reflectivity = idb(sweep_dbz);    % inverse decibel transform --> reflectivity factor
@@ -388,6 +476,13 @@ if parms.shape
     end
     dmse = cell2mat(dmse);
     rhmse = cell2mat(rhmse);
+end
+
+% The shape model needs echo in enough azimuths; otherwise keep the
+% densities uncorrected (e.g. a volume almost entirely removed as rain).
+if parms.shape && (nnz(rhmse(:,4) > 0) < 10 || nnz(dmse(:,3) > 0) < 10)
+    warning("read_rd:ShapeSkipped", "%s: too little echo for the shape correction.", filename)
+elseif parms.shape
 
     % figure; nexttile; box on; scatter(dmse(:,2), dmse(:,3), 10, dmse(:,1), 'filled')
     % nexttile; box on; scatter(rhmse(:,2), rhmse(:,3), 10, rhmse(:,1), 'filled')
@@ -664,4 +759,36 @@ for i_elev=1:numel(radar_scan.dz.sweeps)
     radar_scan.dens.sweeps(i_elev).prf = radar_scan.dz.sweeps(i_elev).prf;
 end
 radar_scan = rmfield(radar_scan,{'dz'});
+end
+
+
+function rainy = has_rain_like_echo(radar_scan)
+%HAS_RAIN_LIKE_ECHO Cheap screen for precipitation before running MistNet.
+%   Mean area (km2) per sweep below 2 deg, within 3-150 km, of gates with
+%   dBZ >= 10 and rhoHV >= 0.97 (widespread weak rain) or dBZ >= 20 and
+%   rhoHV >= 0.95 (rain cells). Thresholds from 287 random migration
+%   volumes (prod/cleaning_study): volumes below both limits (42%) lose at
+%   most 2.6 birds km^-2 of rain that MistNet would have removed.
+area_weak = 0;
+area_cell = 0;
+low_sweeps = find([radar_scan.dz.sweeps.elev] < 2);
+for i_elev = low_sweeps
+    [dz, sweep_range, sweep_az] = sweep2mat(radar_scan.dz.sweeps(i_elev));
+    [~, i_elev_rh] = min(abs(radar_scan.dz.sweeps(i_elev).elev - [radar_scan.rh.sweeps.elev]));
+    rh = sweep2mat(radar_scan.rh.sweeps(i_elev_rh));
+    if size(rh, 2) ~= size(dz, 2)
+        rainy = true;   % cannot screen: run MistNet
+        return
+    end
+    n = min(size(dz, 1), size(rh, 1));
+    dz = dz(1:n, :);
+    rh = rh(1:n, :);
+    sweep_range = sweep_range(1:n);
+    gate_area = sweep_range * deg2rad(median(diff(sweep_az))) * median(diff(sweep_range)) / 1e6;
+    near = sweep_range >= 3000 & sweep_range <= 150000;
+    area_weak = area_weak + sum(gate_area .* near .* sum(dz >= 10 & rh >= 0.97, 2));
+    area_cell = area_cell + sum(gate_area .* near .* sum(dz >= 20 & rh >= 0.95, 2));
+end
+n_sweep = max(numel(low_sweeps), 1);
+rainy = area_weak / n_sweep >= 200 || area_cell / n_sweep >= 30;
 end

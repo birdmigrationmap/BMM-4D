@@ -129,6 +129,21 @@ classdef forwardOperatorTest < matlab.unittest.TestCase
             testCase.verifyEqual(z_id, 1, ...
                 "Radar at 3 m was placed in the wrong vertical layer.")
         end
+
+        function testAggregateSumsFineCellsIntoBlocks(testCase)
+            % F on a coarse grid of [2 2 2] blocks must equal the fine F
+            % times the block membership matrix (row sums preserved).
+            [g, elevation_kernels, radar_scans] = forwardOperatorTest.constructInputs([0 0]);
+            aggregate = [2 2 2];
+            F_fine = construct_F(radar_scans, elevation_kernels, g);
+            F_coarse = construct_F(radar_scans, elevation_kernels, g, aggregate=aggregate);
+
+            coarse_size = ceil(g.sz ./ aggregate);
+            [ix, iy, iz] = ind2sub(g.sz, (1:prod(g.sz))');
+            block_id = sub2ind(coarse_size, ceil(ix / 2), ceil(iy / 2), ceil(iz / 2));
+            membership = sparse((1:prod(g.sz))', block_id, 1, prod(g.sz), prod(coarse_size));
+            testCase.verifyEqual(full(F_coarse), full(F_fine * membership), AbsTol=1e-12)
+        end
     end
 
     methods (Static, Access=private)
