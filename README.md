@@ -1,5 +1,9 @@
 # BMM-4D: bird-migration reconstruction in space and time from weather radars
 
+[![CI](https://github.com/birdmigrationmap/BMM-4D/actions/workflows/ci.yml/badge.svg)](https://github.com/birdmigrationmap/BMM-4D/actions/workflows/ci.yml)
+
+Beta (0.x): names, settings and outputs may still change; see `MIGRATION.md`. To cite, use `CITATION.cff` ("Cite this repository" on GitHub).
+
 Code for reconstructing animated 3D bird-density fields from a network of NEXRAD radars: radar processing, forward model, density prior, advection-regularized inversion, and the operational pipeline built on them.
 
 This repository was split from the paper repository `BMM-within` on 24 October 2026. The paper keeps its own frozen copy of the code; tag `paper-v1` marks the code state behind the submitted manuscript figures (paper commit `e52a81b`). Changes made here reach the paper only when they are ported on purpose and the affected workflows rerun.
