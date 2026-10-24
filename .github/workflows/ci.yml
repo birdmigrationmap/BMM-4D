@@ -1,5 +1,7 @@
 # Code Analyzer and unit tests (buildtool check test) on the oldest supported
-# MATLAB release (R2024b, MATLAB packages) and the latest one. wsrlib comes
+# MATLAB release (R2024b, MATLAB packages) and the latest one. R2025b also
+# passes; R2025a Update 1 fails inside mpminstall on the hosted runner
+# ("Support for workers is required"). wsrlib comes
 # from its fork with the Apple Silicon build fixes; it is not compiled here,
 # so tests needing compiled MatConvNet, local data or Regularization Tools
 # skip themselves.
@@ -17,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: [R2024b, R2025a, R2025b, latest]
+        release: [R2024b, latest]
     steps:
       - uses: actions/checkout@v7
       - name: Check out wsrlib
@@ -37,14 +39,6 @@ jobs:
             Optimization_Toolbox
             Parallel_Computing_Toolbox
           cache: true
-      - name: Diagnose package install
-        uses: matlab-actions/run-command@v3
-        with:
-          command: >
-            disp(version);
-            try, mpminstall(fullfile(pwd, "toolbox"), InPlace=true, Temporary=true, Prompt=false);
-            disp("install ok");
-            catch e, disp(getReport(e, "extended")); for c = e.cause', disp(getReport(c{1}, "extended")); end, end
       - uses: matlab-actions/run-build@v3
         with:
           tasks: check test
