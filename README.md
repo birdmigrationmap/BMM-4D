@@ -16,22 +16,33 @@ This repository was split from the paper repository `BMM-within` on 24 October 2
 
 ## Setup
 
+Copy `local_settings.example.json` to `local_settings.json` (not tracked) and set the folders of this machine, then:
+
 ```matlab
 project_root = setup_paths();
 ```
 
-`setup_paths` adds `toolbox/` and two external libraries from fixed local paths: [wsrlib](https://github.com/darkecology/wsrlib) (required) and FastGaussianSimulation (optional, synthetic cases). `toolbox/util/regtools/regu/` and `l_corner.m` (Hansen's Regularization Tools, needed for `get_l`) is not tracked; copy it locally.
+`setup_paths` adds `toolbox/` and the external code, whose folders come from `local_settings.json` (absolute, or relative to the repository root; defaults under `external/`, which is not tracked):
+
+| Setting | Code | Needed for |
+| --- | --- | --- |
+| `wsrlib_dir` | [wsrlib](https://github.com/darkecology/wsrlib): NEXRAD reading (rsl2mat), VVP, MatConvNet for MistNet | Required; `setup_paths` stops with an error without it |
+| `regtools_dir` | Hansen's Regularization Tools (`cgsvd`, `tikhonov`, L-curve corner) | `compute_vp` and `compute_scan` |
+| `fast_gaussian_simulation_dir` | FastGaussianSimulation | Synthetic Gaussian truth fields (`synthetic/`) |
+
+MathWorks toolboxes used: Optimization, Mapping, Image Processing, Statistics and Machine Learning, Curve Fitting, Parallel Computing.
 
 ## Data
 
-Nothing under `data/` is tracked. The code reads it by relative path from the project root:
+Code reads data through `data_path(...)`, from the data folder: `data_dir` in `local_settings.json`, or `data/` in the repository root. Nothing in it is tracked.
 
-| Path | Content | Source |
+| Path in the data folder | Content | Source |
 | --- | --- | --- |
-| `data/reference/radar.csv` | Radar sites | Copied from the paper repository |
-| `data/reference/DEM/`, `onwater/`, `scan_pattern_new.mat` | Terrain, land–water mask, scan patterns | Copied from the paper repository |
-| `data/reference/beam_blockage/` | Terrain-horizon maps | `studies/beam_blockage/beam_blockage_script.m` |
-| `data/derived/F_elev/150km/` | Beam elevation kernels | Copied; `toolbox/forward/generate_F_elev.m` rebuilds them |
-| `data/raw_scans/nexrad/` | Older raw volumes | Symbolic link to the paper repository's folder (read only) |
+| `reference/radar.csv` | Radar sites | Copied from the paper repository |
+| `reference/DEM/`, `onwater/`, `scan_pattern_new.mat` | Terrain, land–water mask, scan patterns | Copied from the paper repository |
+| `reference/beam_blockage/` | Terrain-horizon maps | `studies/beam_blockage/beam_blockage_script.m` |
+| `derived/F_elev/150km/` | Beam elevation kernels | Copied; `toolbox/forward/generate_F_elev.m` rebuilds them |
+| `raw_scans/nexrad/` | Older raw volumes | Symbolic link to the paper repository's folder (read only) |
+| `regression/` | Reference of the paper-v1 regression test | `tests/regression/make_regression_reference.m` |
 
-`local_settings.json` (not tracked) sets machine-specific folders: `nexrad_raw_dir` for the raw NEXRAD cache and `local_data_dir` for large generated products (radar caches, cases, inversions).
+Two more folders are set in `local_settings.json`: `nexrad_raw_dir`, the cache of downloaded raw volumes (`nexrad_raw_dir()`), and `local_data_dir`, the large generated products such as radar caches, cases and inversions (`local_data_dir()`).

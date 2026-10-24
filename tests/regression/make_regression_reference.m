@@ -12,11 +12,11 @@
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
 addpath(fullfile(project_root, "pipeline", "functions"), fullfile(project_root, "tests", "regression"))
-reference_dir = fullfile(project_root, "data", "regression");
+reference_dir = data_path("regression");
 if ~isfolder(reference_dir)
     mkdir(reference_dir)
 end
-kernel_dir = fullfile(project_root, "data", "derived", "F_elev", "150km");
+kernel_dir = data_path("derived", "F_elev", "150km");
 
 %% Case and settings ----------------------------------------------------------
 times = datetime("2018-04-23 03:00") + minutes([0 15 30]);
@@ -48,8 +48,9 @@ prod_settings.inversion.nonnegative = false;
 
 %% Paper path on the paper-v1 code ------------------------------------------------
 % A detached worktree of paper-v1 (code in functions/) replaces toolbox/ on
-% the path; the untracked regtools (get_l) and the data folder come from
-% this checkout.
+% the path. Regularization Tools (get_l) stay on the path from setup_paths;
+% the paper code reads data/ relative to the current folder, which
+% setup_paths sets to this checkout (with data_dir unset).
 worktree_dir = fullfile(tempdir, "bmm4d_paper_v1");
 if isfolder(worktree_dir)
     system(sprintf('git -C "%s" worktree remove --force "%s"', project_root, worktree_dir));
@@ -57,7 +58,7 @@ end
 assert(system(sprintf('git -C "%s" worktree add --detach "%s" paper-v1', project_root, worktree_dir)) == 0)
 current_path = path;
 rmpath(genpath(fullfile(project_root, "toolbox")), fullfile(project_root, "pipeline", "functions"))
-addpath(genpath(fullfile(worktree_dir, "functions")), genpath(fullfile(project_root, "toolbox", "util", "regtools")))
+addpath(genpath(fullfile(worktree_dir, "functions")))
 try
     assert(startsWith(which("read_rd"), worktree_dir))
     paper_v1 = regression_case_paper_v1(raw_files, kernel_dir, paper_settings);

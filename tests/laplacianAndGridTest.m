@@ -12,6 +12,10 @@ classdef laplacianAndGridTest < matlab.unittest.TestCase
             testCase.ProjectRoot = fileparts(fileparts(mfilename("fullpath")));
             testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
                 fullfile(testCase.ProjectRoot, "toolbox"), IncludingSubfolders=true));
+            % compute_vp needs Regularization Tools (external, local_settings.json)
+            regtools_dir = local_folder("regtools_dir", fullfile("external", "regtools"));
+            testCase.assumeTrue(isfolder(regtools_dir), "Regularization Tools not found.")
+            testCase.applyFixture(matlab.unittest.fixtures.PathFixture(regtools_dir, IncludingSubfolders=true));
         end
     end
 

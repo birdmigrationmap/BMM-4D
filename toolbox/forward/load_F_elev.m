@@ -42,8 +42,8 @@ for i_s=1:numel(radar_scans)
 end
 
 if u>0
-    save('data/reference/scan_pattern_new','dfnew')
-    warning("New scan patterns need to be computed. Saved in 'data/reference/scan_pattern_new'.")
+    save(data_path("reference", "scan_pattern_new.mat"), "dfnew")
+    warning("New scan patterns need to be computed. Saved in %s.", data_path("reference", "scan_pattern_new.mat"))
     return
 end
 

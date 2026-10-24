@@ -1,0 +1,9 @@
+{
+    "data_dir": "data",
+    "nexrad_raw_dir": "/path/to/nexrad_raw",
+    "local_data_dir": "/path/to/generated_products",
+    "pipeline_figure_dir": "pipeline/figures",
+    "wsrlib_dir": "external/wsrlib",
+    "regtools_dir": "external/regtools",
+    "fast_gaussian_simulation_dir": "external/FastGaussianSimulation"
+}

@@ -41,7 +41,7 @@ b_system = obs_values;
 % Smoothness penalty matrix L.
 % The solution minimizes:
 %   ||A * vp - b||^2 + lambda^2 * ||L * (vp - vp_0)||^2
-L = get_l(g.sz(3), p.Results.order_derivative_smoothness);
+L = difference_operator(g.sz(3), p.Results.order_derivative_smoothness);
 
 % Generalized SVD used by RegTools Tikhonov routines.
 [U, sm, X, ~, ~] = cgsvd(A_system, L);

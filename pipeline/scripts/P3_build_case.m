@@ -22,7 +22,7 @@ n_time = numel(c.times);
 stage_tic = tic;
 kernel_files = dir(fullfile(c.kernel_dir, "F_*.mat"));
 kernel_ref = load(fullfile(kernel_files(1).folder, kernel_files(1).name), "x", "y", "z");
-radar = readtable(fullfile(project_root, "data", "reference", "radar.csv"), TextType="string");
+radar = readtable(data_path("reference", "radar.csv"), TextType="string");
 [~, radar_id] = ismember(c.radars, radar.name);
 radar_meta = cell(n_radar, n_time);
 for i_r = 1:n_radar

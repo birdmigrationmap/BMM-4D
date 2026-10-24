@@ -2,6 +2,44 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Step 4: data paths and external code
+
+**Data folder:**
+- New `data_path(...)` (`toolbox/util`) gives a path inside the data folder: `data_dir` in `local_settings.json`, or `data/` in the repository root.
+- Every read of `data/...` relative to the current folder now goes through it, so the code works from any current folder. The changed files:
+  - `create_grid`, `get_water_mask`, `read_rd`, `load_rd`, `load_F_elev`, `generate_F_elev`;
+  - `prod_case`, P3;
+  - the beam-blockage script, cleaning study scripts A and D, the legacy US-night scripts;
+  - the regression test and its reference script.
+- The generated files are unchanged.
+
+**Settings:**
+- New `local_folder(name, default)` reads one folder from `local_settings.json` in the repository root, whatever the current folder; relative values are taken from the repository root.
+- `nexrad_raw_dir()` now uses it. Before, it read `local_settings.json` from the current folder.
+- `local_data_dir()` now uses it and takes no argument. Before, it was `local_data_dir(project_root)`; callers are updated.
+- `prod_case` puts figures in `pipeline_figure_dir` (default `pipeline/figures` in the repository root). Before, it used the current folder.
+- `local_settings.example.json` lists every setting.
+
+**External code**, now from `local_settings.json` instead of fixed paths in `setup_paths`:
+- `wsrlib_dir` (required; clear error when missing);
+- `regtools_dir` (Hansen's Regularization Tools);
+- `fast_gaussian_simulation_dir`.
+
+All three default to folders under `external/`, which is not tracked.
+- The untracked Regularization Tools files (`regu/`, `l_corner.m`) moved from `toolbox/util/regtools/` to `external/regtools/`.
+- Our wrapper `l_curve_wo_fig.m` moved to `toolbox/prior/`.
+- `setup_paths` adds the package last, so the MatConvNet pooling fix still overrides wsrlib's copy.
+
+**`get_l` replaced:**
+- `difference_operator(n, order)` (`toolbox/util`) replaces Regularization Tools' `get_l` in `build_density_prior_fast` and `compute_vp`.
+- Identical matrices, checked for n = 1 to 30 and orders 0 to 3.
+- Regularization Tools is still needed by `compute_vp` (`cgsvd`, `tikhonov`, L-curve corner), so it stays an external dependency.
+
+**Tests:**
+- `load_rd` gained a `search_dirs` option. `radarFileSelectionTest` uses it to search its temporary folder instead of relying on the current folder.
+- `laplacianAndGridTest` adds the Regularization Tools folder for `compute_vp` and skips when it is missing.
+- `paperRegressionTest` adds the repository root itself.
+
 ## Step 3: duplicate implementations removed
 
 Each removed function had a kept counterpart that computes the same method. Equality was checked on the Key West regression case (three KBYX volumes, paper settings) before removal; the regression test then passes with the paper path at 1e-11 of `paper-v1`.

@@ -31,9 +31,9 @@ T3 = LaplacianMatrix1D(g.sz(3));
 T3 = T3 - diag(sum(T3,2));
 
 % d = p.Results.order_derivative_smoothness;
-% T1 = [get_l(g.sz(1), d); zeros(d,g.sz(1))];
-% T2 = [get_l(g.sz(2), d); zeros(d,g.sz(2))];
-% T3 = [get_l(g.sz(3), d); zeros(d,g.sz(3))];
+% T1 = [difference_operator(g.sz(1), d); zeros(d,g.sz(1))];
+% T2 = [difference_operator(g.sz(2), d); zeros(d,g.sz(2))];
+% T3 = [difference_operator(g.sz(3), d); zeros(d,g.sz(3))];
 
 
 L2D = kron(T2, speye(g.sz(1))) + kron(speye(g.sz(2)), T1);

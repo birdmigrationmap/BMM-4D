@@ -12,7 +12,7 @@ script_tic = tic;
 
 night_date = datetime("2026-10-21");
 night_tag = string(night_date, "yyyyMMdd");
-night_dir = fullfile(local_data_dir(project_root), "us_night", "data", night_tag);
+night_dir = fullfile(local_data_dir(), "us_night", "data", night_tag);
 radar_cache_dir = fullfile(night_dir, "radar_cache");
 if ~exist(radar_cache_dir, "dir")
     mkdir(radar_cache_dir)
@@ -42,7 +42,7 @@ read_options = { ...
     "smoothing", 2000, ...
     "data_res", [2000 2000], ...
     "waitbar", false};
-kernel_dir = fullfile(project_root, "data", "derived", "F_elev", num2str(r_lim / 1000) + "km");
+kernel_dir = data_path("derived", "F_elev", num2str(r_lim / 1000) + "km");
 
 n_radar = height(radar_selected);
 n_time = numel(scan_time_requested);

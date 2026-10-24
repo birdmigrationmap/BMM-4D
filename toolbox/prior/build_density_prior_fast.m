@@ -76,7 +76,7 @@ else
     [~, ~, obs_radar_id, ~] = ind2sub(observations.obs_grid_size, double(observations.row_ids));
 end
 
-profile_smoothness_base = get_l(nz, 1);
+profile_smoothness_base = difference_operator(nz, 1);
 profile_smoothness_base = profile_smoothness_base ./ sqrt(size(profile_smoothness_base, 1));
 if p.Results.split_land_water
     profile_smoothness_base = blkdiag(profile_smoothness_base, profile_smoothness_base);

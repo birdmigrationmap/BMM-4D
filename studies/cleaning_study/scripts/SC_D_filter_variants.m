@@ -8,7 +8,7 @@
 project_root = setup_paths();
 addpath(fullfile(project_root, "pipeline", "functions"))
 addpath(fullfile(project_root, "studies", "cleaning_study", "functions"))
-data_dir = fullfile(local_data_dir(project_root), "prod", "cleaning_variants");
+data_dir = fullfile(local_data_dir(), "prod", "cleaning_variants");
 figure_dir = fullfile(project_root, "studies", "cleaning_study", "figures", "variants");
 if ~isfolder(figure_dir)
     mkdir(figure_dir)
@@ -16,7 +16,7 @@ end
 
 %% Volumes ----------------------------------------------------------------
 load(fullfile(project_root, "studies", "cleaning_study", "data", "cases.mat"), "cases")
-raw_dir = fullfile(project_root, "data", "raw_scans", "nexrad");
+raw_dir = data_path("raw_scans", "nexrad");
 problem = table( ...
     ["P01"; "P02"; "P03"; "P04"; "P05"; "P06"], ...
     ["kilx_rings"; "kfsd_streaks"; "kfsd_dawn"; "kbyx_cells"; "kbyx_cells"; "kdmx_night"], ...

@@ -8,7 +8,7 @@ addpath(fullfile(project_root, "us_night", "functions"))
 
 night_date = datetime("2026-10-21");
 night_tag = string(night_date, "yyyyMMdd");
-night_dir = fullfile(local_data_dir(project_root), "us_night", "data", night_tag);
+night_dir = fullfile(local_data_dir(), "us_night", "data", night_tag);
 figure_dir = fullfile(project_root, "us_night", "figures", night_tag);
 if ~exist(figure_dir, "dir")
     mkdir(figure_dir)

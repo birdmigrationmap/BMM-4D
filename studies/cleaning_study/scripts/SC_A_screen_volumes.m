@@ -42,7 +42,7 @@ read_options = { ...
 z_edges = 0:100:3000;
 
 %% Draw the sample --------------------------------------------------------
-radar = select_radars_in_bbox(fullfile(project_root, "data", "reference", "radar.csv"), radar_bounds);
+radar = select_radars_in_bbox(data_path("reference", "radar.csv"), radar_bounds);
 radar_id = randi(height(radar), n_volume, 1);
 season_id = randi(size(season_windows, 1), n_volume, 1);
 year_id = years(randi(numel(years), n_volume, 1))';

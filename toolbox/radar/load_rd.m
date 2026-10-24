@@ -4,24 +4,29 @@ function scans_filepath = load_rd(scan_radar, scan_time, varargin)
 %   array with one filepath per requested radar-time combination, or ""
 %   when no file lies within the accepted offset.
 %
-%   Files are searched in the local cache (nexrad_raw_dir) and in the
-%   project folder data/raw_scans/nexrad used by earlier workflows.
-%   Downloads always go to the local cache.
+%   Files are searched in the local cache (nexrad_raw_dir) and in
+%   raw_scans/nexrad of the data folder (data_path) used by earlier
+%   workflows. Downloads always go to the local cache.
 %
 %   Options:
 %   - 'closest_accepted': maximum time offset in minutes.
 %   - 'download': download missing files from the Unidata S3 bucket when true.
+%   - 'search_dirs': folders to search instead of the two above.
 
 p = inputParser;
 addParameter(p,'closest_accepted',10);
 addParameter(p,'download',false);
+addParameter(p,'search_dirs',strings(0));
 parse(p,varargin{:});
 
 % A char radar name such as 'KMPX' would otherwise loop over its letters.
 scan_radar = string(scan_radar);
 bucket_url = "https://unidata-nexrad-level2.s3.amazonaws.com";
 cache_dir = nexrad_raw_dir();
-search_dirs = unique([string(cache_dir) string(fullfile("data", "raw_scans", "nexrad"))], "stable");
+search_dirs = unique([string(cache_dir) string(data_path("raw_scans", "nexrad"))], "stable");
+if ~isempty(p.Results.search_dirs)
+    search_dirs = string(p.Results.search_dirs);
+end
 
 % List of unique date
 [scan_day,~,scan_day_id] = unique(dateshift(scan_time,"start","day"));

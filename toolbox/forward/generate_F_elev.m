@@ -26,7 +26,7 @@ x = reshape(-xy_max:dx:xy_max, 1, []);
 y = reshape(-xy_max:dy:xy_max, [], 1);
 
 %% Compute the missing kernels
-load("data/reference/scan_pattern_new.mat", "dfnew")
+load(data_path("reference", "scan_pattern_new.mat"), "dfnew")
 
 % On the server, elev_iter selects one kernel per job; otherwise compute all.
 if exist("elev_iter", "var")

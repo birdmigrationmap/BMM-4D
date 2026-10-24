@@ -91,7 +91,7 @@ g.lon=g.f_lon(g.x);
 
 % Load shared water mask and transpose it so the first dimension matches x
 % and the second dimension matches y.
-water_mask_data = load("data/reference/onwater/Fonwater.mat", "Fonwater");
+water_mask_data = load(data_path("reference", "onwater", "Fonwater.mat"), "Fonwater");
 g.mask_water = logical(water_mask_data.Fonwater({g.f_lat(g.y),g.f_lon(g.x)}))';
 % The raster ends at 47.02 N; beyond its extent the nearest lookup repeats
 % the edge row. Classify those cells from the Mapping Toolbox land and lake
@@ -116,7 +116,7 @@ end
 % figure; hold on; imagesc(g.f_lon(g.x),g.f_lat(g.y),g.mask_water'); tmp=axis;borders('states','w'); plot(radar_lon, radar_lat,".r"); axis equal tight; axis(tmp);
 
 % Load DEM on the same x-by-y orientation as the reconstruction g.
-dem_data = load('data/reference/DEM/dem', 'dem', 'dem_lat', 'dem_lon');
+dem_data = load(data_path("reference", "DEM", "dem.mat"), "dem", "dem_lat", "dem_lon");
 dem = double(dem_data.dem); dem(dem==-9999)=-2;
 % demsm = imgaussfilt(dem,[100 100]);
 demsmf = griddedInterpolant({dem_data.dem_lat,dem_data.dem_lon},dem,'nearest');

@@ -119,10 +119,10 @@ function [radar_scan, scan_shape_fit] = clean_scan(scan_file, parms, plot_opts, 
 % Reference maps are loaded once per MATLAB process (client or worker).
 persistent bb radar_sites
 if isempty(bb)
-    bb = load("data/reference/beam_blockage/beam_blockage");
+    bb = load(data_path("reference", "beam_blockage", "beam_blockage.mat"));
 end
 if isempty(radar_sites)
-    radar_sites = readtable("data/reference/radar.csv", TextType="string");
+    radar_sites = readtable(data_path("reference", "radar.csv"), TextType="string");
 end
 scan_shape_fit = [];
 
