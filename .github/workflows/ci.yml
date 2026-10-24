@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: [R2024b, latest]
+        release: [R2024b, R2025a, R2025b, latest]
     steps:
       - uses: actions/checkout@v7
       - name: Check out wsrlib
