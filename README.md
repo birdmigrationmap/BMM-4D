@@ -1,4 +1,4 @@
-# bmm: 3D bird-migration reconstruction from weather radars
+# BMM-4D: bird-migration reconstruction in space and time from weather radars
 
 Code for reconstructing animated 3D bird-density fields from a network of NEXRAD radars: radar processing, forward model, density prior, advection-regularized inversion, and the operational pipeline built on them.
 
