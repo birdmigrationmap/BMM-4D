@@ -28,3 +28,7 @@ local_settings.json
 
 # Case figures (bmm4d.config figure_dir default)
 /figures/
+
+# Build outputs (buildtool package)
+/release/
+.buildtool/

@@ -2,6 +2,32 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Step 8: package and build files
+
+**Package:**
+- `toolbox/resources/mpackage.json` makes `toolbox/` the MATLAB package `bmm4d` (version 0.1.0, R2024b or later).
+- `setup_paths` now installs the package in place for the session (`mpminstall(..., InPlace=true, Temporary=true)`) instead of adding `toolbox/` to the path. With the manifest present, MATLAB warns when a package folder is on the path without being installed.
+- The unit tests install it the same way in their class setup.
+- The paper-v1 regression script no longer removes the package from the path: today's code is all in the namespace, so the paper-v1 functions can sit beside it.
+
+**Build:** `buildfile.m` with four `buildtool` tasks:
+- `check`: Code Analyzer on toolbox, examples, tests and studies; fails on errors.
+- `test`: unit tests, without the Regression tag.
+- `regression`: the paper-v1 test.
+- `package`: `release/BMM-4D_<version>.mltbx` (not tracked).
+- `buildtool` alone runs `check` and `test`.
+
+**Checks:**
+- `check`: 0 errors.
+- `test`: 62 tests pass.
+- `regression`: both paths pass.
+- `package`: the toolbox file holds the 92 package files and the manifest.
+- A temporary in-place install from an empty path makes `bmm4d.config` available, and uninstalling removes it.
+
+**Docs:**
+- README: setup, package and build.
+- AGENTS.md: a repository-layout section (package, namespaces, filters, MIGRATION.md and regression rules, `buildtool`); paths and wording no longer refer to the paper's numbered workflows.
+
 ## Step 7: settings and stage functions
 
 The pipeline scripts became package functions. `pipeline/` is gone.

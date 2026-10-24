@@ -47,8 +47,8 @@ prod_settings.inversion.maxit = 50;
 prod_settings.inversion.nonnegative = false;
 
 %% Paper path on the paper-v1 code ------------------------------------------------
-% A detached worktree of paper-v1 (code in functions/) replaces toolbox/ on
-% the path. Regularization Tools (get_l) stay on the path from setup_paths;
+% A detached worktree of paper-v1 (code in functions/) is added to the
+% path. Regularization Tools (get_l) stay on the path from setup_paths;
 % the paper code reads data/ relative to the current folder, which
 % setup_paths sets to this checkout (with data_dir unset).
 worktree_dir = fullfile(tempdir, "bmm4d_paper_v1");
@@ -56,8 +56,9 @@ if isfolder(worktree_dir)
     system(sprintf('git -C "%s" worktree remove --force "%s"', project_root, worktree_dir));
 end
 assert(system(sprintf('git -C "%s" worktree add --detach "%s" paper-v1', project_root, worktree_dir)) == 0)
+% Today's code is all in the bmm4d namespace, so the paper-v1 functions
+% (plain names) can sit beside it on the path.
 current_path = path;
-rmpath(genpath(fullfile(project_root, "toolbox")), fullfile(project_root, "examples"))
 addpath(genpath(fullfile(worktree_dir, "functions")))
 try
     assert(startsWith(which("read_rd"), worktree_dir))

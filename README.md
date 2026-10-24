@@ -22,7 +22,7 @@ Copy `local_settings.example.json` to `local_settings.json` (not tracked) and se
 project_root = setup_paths();
 ```
 
-`setup_paths` adds `toolbox/` and the external code, whose folders come from `local_settings.json` (absolute, or relative to the repository root; defaults under `external/`, which is not tracked):
+`setup_paths` installs the `bmm4d` package (`toolbox/`) in place for the MATLAB session, so edits apply at once, and adds the external code, whose folders come from `local_settings.json` (absolute, or relative to the repository root; defaults under `external/`, which is not tracked):
 
 | Setting | Code | Needed for |
 | --- | --- | --- |
@@ -31,6 +31,16 @@ project_root = setup_paths();
 | `fast_gaussian_simulation_dir` | FastGaussianSimulation | Synthetic Gaussian truth fields (`synthetic/`) |
 
 MathWorks toolboxes used: Optimization, Mapping, Image Processing, Statistics and Machine Learning, Curve Fitting, Parallel Computing.
+
+## Package and build
+
+`toolbox/` is a MATLAB package (R2024b or later; `toolbox/resources/mpackage.json`, version 0.1.0). Without `setup_paths`, install it with `mpminstall("toolbox")`, or as an add-on from the toolbox file of `buildtool package`. The external code above still has to be on the path.
+
+```matlab
+buildtool              % check (Code Analyzer, fails on errors) and test (unit tests)
+buildtool regression   % paper-v1 regression test (local data, ~1 min)
+buildtool package      % release/BMM-4D_<version>.mltbx
+```
 
 ## Data
 

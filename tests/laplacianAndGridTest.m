@@ -10,8 +10,10 @@ classdef laplacianAndGridTest < matlab.unittest.TestCase
     methods (TestClassSetup)
         function addProjectFunctions(testCase)
             testCase.ProjectRoot = fileparts(fileparts(mfilename("fullpath")));
-            testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
-                fullfile(testCase.ProjectRoot, "toolbox"), IncludingSubfolders=true));
+            % The bmm4d package, installed in place for the session (as setup_paths)
+            if isempty(mpmlist("bmm4d"))
+                mpminstall(fullfile(testCase.ProjectRoot, "toolbox"), InPlace=true, Temporary=true, Prompt=false, Verbosity="quiet");
+            end
             % compute_vp needs Regularization Tools (external, local_settings.json)
             regtools_dir = bmm4d.util.local_folder("regtools_dir", fullfile("external", "regtools"));
             testCase.assumeTrue(isfolder(regtools_dir), "Regularization Tools not found.")

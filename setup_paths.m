@@ -51,8 +51,12 @@ if isfolder(fgs_dir)
     addpath(fgs_dir);
 end
 
-% Package code (the bmm4d namespace in toolbox/+bmm4d)
-addpath(genpath(fullfile(project_root, "toolbox")));
+% Package code: the bmm4d package (toolbox/, resources/mpackage.json),
+% installed in place for this MATLAB session so edits apply at once.
+toolbox_dir = fullfile(project_root, "toolbox");
+if isempty(mpmlist("bmm4d"))
+    mpminstall(toolbox_dir, InPlace=true, Temporary=true, PathPosition="beginning", Prompt=false, Verbosity="quiet");
+end
 
 end
 

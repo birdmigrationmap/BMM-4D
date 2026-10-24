@@ -9,8 +9,10 @@ classdef advectionConventionTest < matlab.unittest.TestCase
     methods (TestClassSetup)
         function addProjectFunctions(testCase)
             testCase.ProjectRoot = fileparts(fileparts(mfilename("fullpath")));
-            testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
-                fullfile(testCase.ProjectRoot, "toolbox"), IncludingSubfolders=true));
+            % The bmm4d package, installed in place for the session (as setup_paths)
+            if isempty(mpmlist("bmm4d"))
+                mpminstall(fullfile(testCase.ProjectRoot, "toolbox"), InPlace=true, Temporary=true, Prompt=false, Verbosity="quiet");
+            end
             % Synthetic tools are not part of the package
             testCase.applyFixture(matlab.unittest.fixtures.PathFixture( ...
                 fullfile(testCase.ProjectRoot, "synthetic")));

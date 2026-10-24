@@ -16,6 +16,15 @@ Do not optimize for backward compatibility unless explicitly requested.
 
 When replacing an old implementation, update the callers instead of keeping legacy aliases or deprecated parameter names.
 
+## Repository Layout
+
+- `toolbox/` is the MATLAB package `bmm4d` (`resources/mpackage.json`). Its code is in the `bmm4d` namespace, one sub-namespace per role: `bmm4d.radar` (with cleaning filters in `bmm4d.radar.filter`), `bmm4d.forward`, `bmm4d.grid`, `bmm4d.prior`, `bmm4d.advect`, `bmm4d.solve`, `bmm4d.plot`, `bmm4d.util`. Settings and stages are at the top: `bmm4d.config`, `get_volumes`, `clean_volumes`, `static_clutter`, `build_observations`, `invert`, `export_maps`.
+- Call package functions with their full names, also inside the package (`bmm4d.grid.create_grid(...)`); a script may `import bmm4d.radar.*` for short names.
+- Keep alternatives selectable by name in the settings (a new cleaning step is a new filter file plus its name in the `filters` list); remove duplicate implementations of the same method.
+- `examples/` runs cases (`run_case.m`, `case_settings.m`), `studies/` holds research beside the package, `synthetic/` the synthetic-case tools used by tests and studies, `tests/` the unit tests and the paper-v1 regression test.
+- Record every moved, renamed or removed function and every change of method or result in `MIGRATION.md`. Restructuring must keep `paperRegressionTest` passing; a deliberate method change is recorded there with the size of the difference.
+- Run `buildtool` (check and unit tests) before committing; `buildtool regression` when cleaning, forward model, prior or solver change.
+
 ## Canonical Grid Convention
 
 Use one Cartesian grid convention across the project.
@@ -37,13 +46,15 @@ For project setup in scripts, use:
 project_root = setup_paths();
 ```
 
-Capture the return value when the script needs to construct paths or call `run(...)` on other scripts. Do not call `setup_paths();` without assigning `project_root` in new or edited numbered workflow scripts.
+Capture the return value when the script needs to construct paths or call `run(...)` on other scripts. Do not call `setup_paths();` without assigning `project_root` in new or edited scripts.
 
 Do not use manual root discovery such as:
 
 ```matlab
 fileparts(fileparts(fileparts(mfilename("fullpath"))))
 ```
+
+Package code finds data and machine-specific folders through `bmm4d.util.data_path` and `bmm4d.util.local_folder` instead.
 
 Use explicit section headers such as:
 
@@ -63,16 +74,16 @@ Avoid hiding the main workflow inside nested functions or abstractions.
 For MATLAB MCP and Codex runs:
 
 - Treat the project root as the working directory for workflow execution.
-- Before running a numbered script through MATLAB MCP, set the current folder to the project root and add the root to the MATLAB path.
+- Before running a script through MATLAB MCP, set the current folder to the project root and add the root to the MATLAB path.
 - Prefer:
 
 ```matlab
 cd(project_root)
 addpath(project_root)
-run(fullfile(project_root, "03_simulator_fit", "scripts", "S03_B_prepare_scans.m"))
+run(fullfile(project_root, "examples", "run_case.m"))
 ```
 
-- Do not rely on `run_matlab_file(...)` for numbered workflow scripts when they call `setup_paths()`, because that tool starts MATLAB in the script folder rather than the project root.
+- Do not rely on `run_matlab_file(...)` for scripts that call `setup_paths()`, because that tool starts MATLAB in the script folder rather than the project root.
 - If a script saves generated artifacts that are consumed downstream, keep the saved variable names aligned with the active codebase and rerun the upstream script after a naming-contract change.
 - When a long MATLAB job is launched through MCP, expect tool timeouts before MATLAB necessarily finishes. Check whether output files were updated before assuming the run failed.
 
@@ -98,15 +109,15 @@ Only create helpers when the same logic is reused or when the function is a clea
 
 Prefer simple argument lists over compatibility wrappers.
 
-Do not extract one-off script logic into separate helper files unless that logic is reused across multiple files or multiple numbered sections.
+Do not extract one-off script logic into separate helper files unless that logic is reused across multiple files or multiple script sections.
 
 If logic is reused only within one script, prefer inline code first. If repetition becomes large enough to hurt readability, use a local function at the end of that same script instead of creating a separate `.m` file.
 
-For numbered workflow scripts such as `A_*.m`, `B_*.m`, and `C_*.m`, keep the script body linear and move reusable helper functions into shared files under `toolbox/` (package) or a script folder's own `functions/` instead of defining local functions at the end of the script.
+For scripts in `examples/` and `studies/`, keep the script body linear and move reusable helper functions into the package (`toolbox/+bmm4d/+<module>/`) or the study's own `functions/` instead of defining local functions at the end of the script.
 
 Before adding any new helper for plotting, exporting, formatting labels, or figure layout, first check `toolbox/+bmm4d/+plot/` (`bmm4d.plot.*`) and reuse an existing helper when possible.
 
-Do not introduce local helper functions inside numbered workflow scripts when the logic is already covered by an existing shared helper. Prefer calling the shared helper and applying a few explicit script-level axis adjustments afterward.
+Do not introduce local helper functions inside scripts when the logic is already covered by an existing shared helper. Prefer calling the shared helper and applying a few explicit script-level axis adjustments afterward.
 
 ## Naming
 
