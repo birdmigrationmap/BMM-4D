@@ -2,6 +2,25 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## MatConvNet pooling fallback removed
+
+`toolbox/matconvnet_fix/vl_nnpool.m` (a MATLAB max/average pooling that replaced MatConvNet's on Apple Silicon) is removed, with its test.
+
+**The cause** was in wsrlib's build, not in MatConvNet.
+- wsrlib's maca64 build compiled MatConvNet with `-ffast-math`, which implies `-ffinite-math-only`.
+- Clang then drops the -Inf starting value of max pooling, so windows with only negative values returned 0.
+- The fix is to build with `-ffast-math -fno-finite-math-only`: commit "Keep infinities in maca64 MatConvNet builds" on branch `fix/maca64-finite-math` of Rafnuss/wsrlib.
+
+**Check of the rebuilt `vl_nnpool`:**
+- It matches a reference max pooling exactly.
+- MistNet labels and probabilities on a KBYX volume are identical to those obtained with the fallback.
+
+**The fallback had its own error:** average pooling with padding counted the padded zeros in the mean, which MatConvNet does not. MistNet does not use that case.
+
+**Now in BMM-4D:**
+- `mistnet_polar_radar` checks once per session that `vl_nnpool` keeps negative maxima, and stops with `mistnet_polar_radar:BrokenPooling` otherwise. It no longer changes the path.
+- New test `tests/radar/matconvnetPoolingTest`.
+
 ## Step 6: cleaning split into filters
 
 `bmm4d.radar.read_rd` (790 → 270 lines) now reads the volume, then applies cleaning filters in order. Each filter is a function in `bmm4d.radar.filter` (`toolbox/+bmm4d/+radar/+filter/`), with the signature `scan = filter(scan, settings)`.

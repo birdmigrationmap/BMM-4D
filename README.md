@@ -8,7 +8,7 @@ This repository was split from the paper repository `BMM-within` on 24 October 2
 
 | Path | Content |
 | --- | --- |
-| `toolbox/` | The package, in the `bmm4d` namespace (`toolbox/+bmm4d/`): radar reading and cleaning (`bmm4d.radar`), beam kernels and forward operator (`bmm4d.forward`), grid and masks (`bmm4d.grid`), priors (`bmm4d.prior`), advection (`bmm4d.advect`), solvers (`bmm4d.solve`), plotting (`bmm4d.plot`), helpers (`bmm4d.util`). Calls are written in full, e.g. `bmm4d.radar.read_rd(...)`; a script can `import bmm4d.radar.*` to use short names. `toolbox/matconvnet_fix/` overrides one MatConvNet function (outside the namespace). |
+| `toolbox/` | The package, in the `bmm4d` namespace (`toolbox/+bmm4d/`): radar reading and cleaning (`bmm4d.radar`), beam kernels and forward operator (`bmm4d.forward`), grid and masks (`bmm4d.grid`), priors (`bmm4d.prior`), advection (`bmm4d.advect`), solvers (`bmm4d.solve`), plotting (`bmm4d.plot`), helpers (`bmm4d.util`). Calls are written in full, e.g. `bmm4d.radar.read_rd(...)`; a script can `import bmm4d.radar.*` to use short names. |
 | `pipeline/` | Operational pipeline P1–P5 with its case settings, caches and logging (`pipeline/functions/`). See `pipeline/README.md`. |
 | `synthetic/` | Synthetic truths, advection and observations for tests and studies; not part of the package. |
 | `studies/` | Research beside the package: gate density near the radar, cleaning study, sandbox, two-level model, beam-blockage maps, legacy US night, notes. |
@@ -26,7 +26,7 @@ project_root = setup_paths();
 
 | Setting | Code | Needed for |
 | --- | --- | --- |
-| `wsrlib_dir` | [wsrlib](https://github.com/darkecology/wsrlib): NEXRAD reading (rsl2mat), VVP, MatConvNet for MistNet | Required; `setup_paths` stops with an error without it |
+| `wsrlib_dir` | [wsrlib](https://github.com/darkecology/wsrlib): NEXRAD reading (rsl2mat), VVP, MatConvNet for MistNet. On Apple Silicon, MatConvNet must be built without finite-math assumptions (branch `fix/maca64-finite-math` of [Rafnuss/wsrlib](https://github.com/Rafnuss/wsrlib)); `mistnet_polar_radar` stops otherwise. | Required; `setup_paths` stops with an error without it |
 | `regtools_dir` | Hansen's Regularization Tools (`cgsvd`, `tikhonov`, L-curve corner) | `compute_vp` and `compute_scan` |
 | `fast_gaussian_simulation_dir` | FastGaussianSimulation | Synthetic Gaussian truth fields (`synthetic/`) |
 

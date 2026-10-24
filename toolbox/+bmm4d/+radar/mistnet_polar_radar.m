@@ -1,11 +1,16 @@
 function [preds, classes, probs] = mistnet_polar_radar(radar)
 %MISTNET_POLAR Classify sample volumes in polar coordinates using mistnet
 
-if strcmp(computer('arch'), 'maca64')
-    % toolbox/matconvnet_fix, outside the namespace folders
-    pool_fix_dir = fullfile(fileparts(fileparts(fileparts(mfilename("fullpath")))), "matconvnet_fix");
-    addpath(pool_fix_dir, "-begin")
-    pool_fix_cleanup = onCleanup(@() rmpath(pool_fix_dir));
+% MatConvNet built with -ffinite-math-only (wsrlib maca64 builds before
+% the fix) returns 0 for max pooling of negative values, which silently
+% changes MistNet's predictions.
+persistent pooling_checked
+if isempty(pooling_checked)
+    if exist("vl_nnpool", "file") && vl_nnpool(single([-1 -2; -3 -4]), [2 2]) ~= -1
+        error("mistnet_polar_radar:BrokenPooling", ...
+            "MatConvNet's vl_nnpool returns wrong maxima for negative values. Rebuild wsrlib's MatConvNet (vl_compilenn) with -ffast-math -fno-finite-math-only.")
+    end
+    pooling_checked = true;
 end
 
 % Run the upstream MistNet implementation on its Cartesian g.
