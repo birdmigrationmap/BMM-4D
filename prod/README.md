@@ -1,6 +1,6 @@
 # Production test (dev, exploratory)
 
-Purpose: find out what it takes to turn the method into an operational product, meaning animated 3D bird-density maps for a radar network that are robust to rain and anomalies, with realistic regularization, and fast and light enough to run routinely. This folder is a development sandbox. It is not part of the paper and does not change the paper workflows (`01_`–`11_`). It reuses the shared `functions/` and keeps its own code in `prod/functions/`. Improvements that reproduce the paper results can later move into `functions/` as small separate PRs.
+Purpose: find out what it takes to turn the method into an operational product, meaning animated 3D bird-density maps for a radar network that are robust to rain and anomalies, with realistic regularization, and fast and light enough to run routinely. It reuses the shared `functions/` and keeps its own code in `prod/functions/`. The paper workflows (`01_`–`11_`) stay in the paper repository `BMM-within` with their own frozen copy of the code (tag `paper-v1` here).
 
 ## Layout
 

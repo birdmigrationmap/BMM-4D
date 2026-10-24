@@ -10,7 +10,7 @@ project_root = char(project_root);
 while ~isfolder(fullfile(project_root, "functions")) || ~isfile(fullfile(project_root, "setup_paths.m"))
     parent_root = fileparts(project_root);
     if strcmp(parent_root, project_root)
-        error("setup_paths:ProjectRootNotFound", "Could not find the BMM-within project root.")
+        error("setup_paths:ProjectRootNotFound", "Could not find the bmm project root.")
     end
     project_root = parent_root;
 end

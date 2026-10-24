@@ -1,14 +1,11 @@
 .DS_Store
-.Rhistory
-.RData
-.Rproj.user/
 .codex_tmp/
 /.mcp.json
 *.asv
 *.m~
 *.mlx.autosave
 
-# Generated data and archived material
+# Data: reference layers, kernels and raw scans live locally (see README)
 data/**
 **/data/**
 old/**
@@ -17,6 +14,7 @@ archive/**
 # MATLAB outputs
 *.fig
 *.mat
+*.mp4
 
 # Local diagnostics and rendered exports
 **/diagnostics/
@@ -24,35 +22,5 @@ export/*
 tmp/*
 functions/regtools/*
 
-# Track numbered workflow scripts; keep their generated figures local
-0*/figures/
-1*/figures/
-
-# Keep the reproducible terrain-blockage source and its documentation.
-!02_preprocessing/
-02_preprocessing/*
-!02_preprocessing/beam_blockage/
-02_preprocessing/beam_blockage/*
-!02_preprocessing/beam_blockage/README.md
-!02_preprocessing/beam_blockage/beam_blockage_script.m
-/manuscript/references/files
-/manuscript/manuscript_main_files
-/manuscript/appendix_d/appendix_d_files
-/manuscript/appendix_c/appendix_c_files
-/manuscript/appendix_a/appendix_a_files
-/manuscript/appendix_b/appendix_b_files
-/manuscript/review_documents
-manuscript/manuscript_main.tex
-manuscript/manuscript_main.log
-/manuscript/figures/figure_1_panels
-manuscript/manuscript_main_save.pdf
-manuscript/manuscript_main.html
-
-# Track paper rasters; keep optional vector exports local.
-/manuscript/figures/**/*.eps
-
-# Local submission preparation checklist
-/manuscript/tgrs/SUBMISSION_CHECKLIST.md
-
-# Machine-specific paths (raw NEXRAD cache location)
+# Machine-specific paths (raw NEXRAD cache and generated products)
 local_settings.json
