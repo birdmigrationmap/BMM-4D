@@ -2,6 +2,51 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Step 6: cleaning split into filters
+
+`bmm4d.radar.read_rd` (790 → 270 lines) now reads the volume, then applies cleaning filters in order. Each filter is a function in `bmm4d.radar.filter` (`toolbox/+bmm4d/+radar/+filter/`), with the signature `scan = filter(scan, settings)`.
+- The filters work on `scan.gates(i)`, one per sweep, which holds:
+  - `data`, in dBZ until `to_density` and in birds km⁻³ after;
+  - `range`, `az`, `elev` and `vert_half_bw`;
+  - `no_echo`: gates without echo in the raw sweep;
+  - `rain_mask`.
+- A new filter is one new file plus its name in the list.
+
+| Filter | Was in `read_rd` | Default when |
+| --- | --- | --- |
+| `rain_rho`, `rain_dr`, `rain_mistnet` | rain mask by `removeRain` (`mistnet_rho` and `mistnetScreen` handled in `rain_mistnet`) | `removeRain` is not `none` |
+| `rain_dilation` | growing the rain mask | `rainDilation` > 0 |
+| `beam_blockage` | terrain-blocked gates | always |
+| `max_density`, `outlier_mad`, `outlier_continuity` | the three outlier steps | `removeOutliers` > 0 |
+| `no_echo` | no-echo gates kept as zero within `noEchoRange` | always |
+| `to_density` | dBZ to birds km⁻³ | always |
+| `shape` | anisotropy correction (fit in `scan.shape_fit`, returned as `shape_fit`) | `shape` true |
+| `smooth_median` | moving median in range and azimuth | `smoothing` > 0 |
+| `range_limits` | `minRange`, `maxRange`, `maxAlt` | always |
+| `thin` | `data_res` thinning | always |
+
+**Options:**
+- The new `read_rd` option `filters` gives the order. Without it, the list is built from the existing options as above, so existing calls are unchanged.
+- Each volume gets `filter_log`, a table of the net number of gates each filter made missing. Filters that fill gates (`no_echo`, `smooth_median`) count negative.
+- Helpers used by the filters: `remove_rain` (adds to the rain mask and removes those gates) and `finish_plot` (exports or shows a diagnostic figure).
+
+**Checks:**
+- The regression test passes, both paths unchanged.
+- Old and new `read_rd` give identical density sweeps on one KBYX volume for five option sets:
+  - DR rain;
+  - MistNet+ρHV with dilation;
+  - no-echo gates, no outliers, no shape, full resolution;
+  - no rain removal, no smoothing;
+  - screened MistNet with dilation.
+- New `tests/radar/radarFilterOrderTest`:
+  - the explicit default list equals the implicit one;
+  - leaving out `smooth_median` equals `smoothing=0`.
+
+**Changed besides moving code:**
+- The `rain` diagnostic plot is drawn after all filters, from the final rain mask.
+- The `shape` plot's ρHV map uses the ρHV sweep's own ranges. Before, it took the ranges of the last reflectivity sweep.
+- Unused volume fields (`sw`, `dr`, `ph`, …) are removed at the end instead of after the rain mask, so `rain_dr` can run at any position.
+
 ## Step 5: bmm4d namespace
 
 The toolbox modules became namespaces: `toolbox/<module>/` moved to `toolbox/+bmm4d/+<module>/`, and every call was rewritten to its full name. 391 calls in 85 files changed.

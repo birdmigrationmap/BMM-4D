@@ -26,6 +26,10 @@ Use one Cartesian grid convention across the whole project.
 - `+bmm4d/+advect/build_profile_advection_steps.m`: build one advection step per time interval from vertical-profile or grid-wise speed input.
 - `+bmm4d/+advect/compute_continuity_balance.m`: compute within-grid mass balance, signed source-sink residuals, and positive take-off, landing, entering, and leaving count/rate products.
 
+### Radar cleaning filters
+
+`bmm4d.radar.read_rd` reads a volume and applies the filters of `+bmm4d/+radar/+filter/` in the order of its `filters` option (default built from its other options): `rain_rho` / `rain_dr` / `rain_mistnet`, `rain_dilation`, `beam_blockage`, `max_density`, `outlier_mad`, `outlier_continuity`, `no_echo`, `to_density`, `shape`, `smooth_median`, `range_limits`, `thin`. Each takes and returns the volume, whose `gates(i)` hold one sweep (`data` in dBZ before `to_density`, density after). A new cleaning method is one new filter file and its name in the list.
+
 ### Synthetic-only helpers
 
 - `../synthetic/`: synthetic truth generation, synthetic mosaic/radar layouts, and generator-specific transforms and diagnostics.
