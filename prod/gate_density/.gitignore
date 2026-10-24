@@ -1,0 +1,3 @@
+# The report (report.html) embeds these figures
+!figures/
+figures/*.mat

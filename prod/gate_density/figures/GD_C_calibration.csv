@@ -1,0 +1,6 @@
+data,best_sigma_log_sd,best_volume_factor
+"simulated, truth 1 / 1.00",1,1
+"simulated, truth 1.25 / 1.41",1.25,1.4142135623731
+"simulated, truth 0.75 / 0.71",0.75,0.707106781186547
+"real, rings 4-15 km",2,2.82842712474619
+"real, rings 15-45 km",1.75,1.68179283050743
