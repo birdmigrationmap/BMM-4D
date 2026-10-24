@@ -11,7 +11,7 @@ This repository was split from the paper repository `BMM-within` on 24 October 2
 | `functions/` | Shared code: radar reading and cleaning (`radar/read_rd.m`), beam kernels (`F_elev/`), forward operator (`construct_F.m`), grid, priors, advection, synthetic-case tools, plotting helpers. |
 | `prod/` | Operational pipeline (P1–P5), lean solver, sandbox, and studies: gate density near the radar, rain cleaning, the two-level model. See `prod/README.md`. |
 | `preprocessing/beam_blockage/` | Builds the terrain beam-blockage maps used by `read_rd`. |
-| `tests/` | Unit tests of the shared code. |
+| `tests/` | Unit tests of the shared code, and `paperRegressionTest` (tag `Regression`): today's code against outputs of tag `paper-v1` on three Key West volumes. Its reference is local (`data/regression/`), built by `tests/regression/make_regression_reference.m`. |
 
 ## Setup
 
