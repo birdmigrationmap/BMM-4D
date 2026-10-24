@@ -5,9 +5,12 @@
 *.m~
 *.mlx.autosave
 
-# Data: reference layers, kernels and raw scans live locally (see README)
+# Data: reference layers, kernels and raw scans live locally (see README),
+# except the small public radar-site table read by bmm4d.config and read_rd
 data/**
 **/data/**
+!data/reference/
+!data/reference/radar.csv
 old/**
 archive/**
 

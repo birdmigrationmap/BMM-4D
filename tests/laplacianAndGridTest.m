@@ -14,10 +14,6 @@ classdef laplacianAndGridTest < matlab.unittest.TestCase
             if isempty(mpmlist("bmm4d"))
                 mpminstall(fullfile(testCase.ProjectRoot, "toolbox"), InPlace=true, Temporary=true, Prompt=false, Verbosity="quiet");
             end
-            % compute_vp needs Regularization Tools (external, local_settings.json)
-            regtools_dir = bmm4d.util.local_folder("regtools_dir", fullfile("external", "regtools"));
-            testCase.assumeTrue(isfolder(regtools_dir), "Regularization Tools not found.")
-            testCase.applyFixture(matlab.unittest.fixtures.PathFixture(regtools_dir, IncludingSubfolders=true));
         end
     end
 
@@ -133,6 +129,10 @@ classdef laplacianAndGridTest < matlab.unittest.TestCase
         end
 
         function testComputeVpRecoversHorizontallyUniformProfile(testCase)
+            % compute_vp needs Regularization Tools (external, local_settings.json)
+            regtools_dir = bmm4d.util.local_folder("regtools_dir", fullfile("external", "regtools"));
+            testCase.assumeTrue(isfolder(regtools_dir), "Regularization Tools not found.")
+            testCase.applyFixture(matlab.unittest.fixtures.PathFixture(regtools_dir, IncludingSubfolders=true));
             rng(3)
             g = laplacianAndGridTest.grid([4 3 5]);
             vp_true = [5; 9; 12; 8; 3];

@@ -44,11 +44,11 @@ buildtool package      % release/BMM-4D_<version>.mltbx
 
 ## Data
 
-Code reads data through `bmm4d.util.data_path(...)`, from the data folder: `data_dir` in `local_settings.json`, or `data/` in the repository root. Nothing in it is tracked.
+Code reads data through `bmm4d.util.data_path(...)`, from the data folder: `data_dir` in `local_settings.json`, or `data/` in the repository root. Only `reference/radar.csv` (radar sites, 8 KB) is tracked.
 
 | Path in the data folder | Content | Source |
 | --- | --- | --- |
-| `reference/radar.csv` | Radar sites | Copied from the paper repository |
+| `reference/radar.csv` | Radar sites (tracked) | Copied from the paper repository |
 | `reference/DEM/`, `onwater/`, `scan_pattern_new.mat` | Terrain, land–water mask, scan patterns | Copied from the paper repository |
 | `reference/beam_blockage/` | Terrain-horizon maps | `studies/beam_blockage/beam_blockage_script.m` |
 | `derived/F_elev/150km/` | Beam elevation kernels | Copied; `studies/kernels/generate_F_elev.m` rebuilds them |
