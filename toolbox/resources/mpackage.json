@@ -10,7 +10,8 @@
         "bird migration",
         "NEXRAD",
         "aeroecology",
-        "inverse problem"
+        "inverse problem",
+        "GPL-3.0"
     ],
     "readme": "README.md",
     "provider": {

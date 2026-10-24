@@ -56,3 +56,7 @@ Code reads data through `bmm4d.util.data_path(...)`, from the data folder: `data
 | `regression/` | Reference of the paper-v1 regression test | `tests/regression/make_regression_reference.m` |
 
 Two more folders are set in `local_settings.json`: `nexrad_raw_dir`, the cache of downloaded raw volumes (`bmm4d.radar.nexrad_raw_dir()`), and `local_data_dir`, the large generated products such as radar caches, cases and inversions (`bmm4d.util.local_data_dir()`).
+
+## License
+
+GPL-3.0 (`LICENSE`), as wsrlib, on which BMM-4D depends. The package manifest has no license field, so `mpackage.json` carries it as the tag `GPL-3.0`.

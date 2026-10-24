@@ -1,6 +1,6 @@
 # BMM-4D restructure: scope and target layout
 
-Status (24 October 2026): steps 1–8 done (see MIGRATION.md). Open: the license, CITATION.cff, GitHub Actions, the first release.
+Status (24 October 2026): steps 1–8 done (see MIGRATION.md). Open: CITATION.cff, GitHub Actions, the first release (license: GPL-3.0).
 
 ## 1. Scope
 
