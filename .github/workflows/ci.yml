@@ -1,0 +1,42 @@
+# Code Analyzer and unit tests (buildtool check test) on the oldest supported
+# MATLAB release (R2024b, MATLAB packages) and the latest one. wsrlib comes
+# from its fork with the Apple Silicon build fixes; it is not compiled here,
+# so tests needing compiled MatConvNet, local data or Regularization Tools
+# skip themselves.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [R2024b, latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check out wsrlib
+        uses: actions/checkout@v7
+        with:
+          repository: Rafnuss/wsrlib
+          ref: master
+          path: external/wsrlib
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          release: ${{ matrix.release }}
+          products: >
+            Mapping_Toolbox
+            Image_Processing_Toolbox
+            Statistics_and_Machine_Learning_Toolbox
+            Curve_Fitting_Toolbox
+            Optimization_Toolbox
+            Parallel_Computing_Toolbox
+          cache: true
+      - uses: matlab-actions/run-build@v3
+        with:
+          tasks: check test

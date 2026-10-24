@@ -9,7 +9,7 @@ State of the `prod/` dev work on branch `dev/production` (nothing committed sinc
 
 ## Environment
 - MATLAB **R2026b** through the MCP tool, run from the project root: `cd(project_root); addpath(project_root); project_root = setup_paths(); addpath(fullfile(project_root,"prod","functions"), fullfile(project_root,"prod","sandbox"))`.
-- Data and caches live outside OneDrive in `/Users/rafnuss/Data/BMM-within/prod/` (cases `us_east`, `sandbox`, `us_east_near0_zero150`, cleaned volume caches). Disk space is short (~20 GB free).
+- Data and caches live outside OneDrive in `local_data_dir()/prod/` (cases `us_east`, `sandbox`, `us_east_near0_zero150`, cleaned volume caches). Disk space is short (~20 GB free).
 - Long runs time out the MCP tool after 30 min but keep running; watch `stage_log.csv` or the output file with a background shell loop.
 
 ## Where we are
