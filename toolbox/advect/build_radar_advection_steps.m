@@ -1,6 +1,6 @@
 function steps = build_radar_advection_steps(g, radar_scans, dt_seconds, varargin)
 %BUILD_RADAR_ADVECTION_STEPS Interpolate radar velocity and build steps one interval at a time.
-% The global advection penalty is set later in compute_scans_advection.
+% The global advection penalty is set later in solve_advection_lean.
 % Here, shoreline_crossing_coeff only edits the local link coefficients in
 % the sparse advection mapping before the inverse problem is assembled.
 

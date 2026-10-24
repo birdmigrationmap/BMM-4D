@@ -1,11 +1,13 @@
 function [active_field, info] = solve_advection_lean(observations, g, active_mask_3d, steps, prior_active, varargin)
 %SOLVE_ADVECTION_LEAN Joint advection inversion on active cells, batched.
-%   Same objective and term weights as the paper path
-%   (prepare_scans_advection + compute_scans_advection: data, prior,
+%   Same objective and term weights as the paper solver (data, prior,
 %   3D smoothness with land-water cut, advection), restricted to the active
 %   cells (e.g. radar coverage, ground to a flight layer) and optionally in
 %   single precision. All times are applied at once (F * X). With every cell
-%   active and store_class "double" it reproduces the paper solver.
+%   active and store_class "double" it follows the paper solver's PCG
+%   iterations to rounding (Key West: 3e-12 after 50 iterations); it returns
+%   the last iterate, where the paper's MATLAB pcg returned the one with the
+%   lowest residual (MIGRATION.md, step 3).
 %
 %   STEPS are full-grid advection steps (build_radar_advection_steps).
 %   PRIOR_ACTIVE is [n_active n_time]. Returns ACTIVE_FIELD [n_active n_time].
@@ -68,6 +70,11 @@ addParameter(p, "projected_tol", 1e-3);
 parse(p, varargin{:});
 opt = p.Results;
 cls = char(opt.store_class);
+% One advection step per interval between observation times
+if numel(steps) ~= max(size(observations.values, 2) - 1, 0)
+    error("solve_advection_lean:InvalidStepCount", "Expected %d advection steps, got %d.", ...
+        max(size(observations.values, 2) - 1, 0), numel(steps))
+end
 
 %% Data term on active columns ---------------------------------------------
 active_id = find(active_mask_3d(:));
@@ -164,7 +171,7 @@ for i_t = 1:n_time - 1
     steps{i_t} = struct("source", source, "dest", dest, "coeff", cast(coeff, cls));
 end
 
-%% Term weights, as in compute_scans_advection --------------------------------
+%% Term weights, as in the paper solver ----------------------------------------
 prior_scales = opt.prior .* data_block_norms ./ sqrt(n_active);
 smoothness_scales = opt.smoothness .* data_block_norms ./ max(laplacian_norm, eps);
 advection_scales = zeros(max(n_time - 1, 0), 1);
@@ -218,8 +225,13 @@ rz = sum(double(r) .* double(z), "all");
 rhs_norm = max(norm(double(rhs(:))), eps);
 relres = norm(double(r(:))) / rhs_norm;
 flag = 1;
-iter = 0;
-for iter = 1:opt.maxit
+max_iteration = opt.maxit;
+if relres <= opt.tol
+    % The initial field already solves the system (e.g. prior only, no data)
+    flag = 0;
+    max_iteration = 0;
+end
+for iter = 1:max_iteration
     Ad = normal_operator(d, op);
     alpha = rz / sum(double(d) .* double(Ad), "all");
     x = x + cast(alpha, cls) .* d;
@@ -233,6 +245,9 @@ for iter = 1:opt.maxit
     rz_next = sum(double(r) .* double(z), "all");
     d = z + cast(rz_next / rz, cls) .* d;
     rz = rz_next;
+end
+if max_iteration == 0
+    iter = 0;   % an empty for loop leaves iter empty
 end
 solver = struct("name", "lean_batched_pcg", "flag", flag, "relres", relres, "iterations", iter, ...
     "n_active", n_active, "n_time", n_time, "n_rows", size(op.F, 1), "store_class", string(cls), ...

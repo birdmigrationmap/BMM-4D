@@ -35,27 +35,26 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             testCase.verifyEqual(observations.obs_grid_size, info.obs_grid_size)
         end
 
-        function testScalarPriorExpandsToFullSequence(testCase)
+        function testPriorOnlyReturnsPrior(testCase)
             g = jointMosaicVpInversionTest.smallGrid();
             info.obs_grid_size = [0 1 1 1];
             observations = prepare_radar_observations( ...
                 sparse(0, prod(g.sz)), sparse(0, 2), info);
             steps = build_profile_advection_steps(g, {zeros(g.sz(3), 2)}, 1000);
-            system = prepare_scans_advection(observations, g, steps, smoothness=false);
 
-            fields = compute_scans_advection( ...
-                system, 4, advection=0, prior=1, smoothness=0, maxit=20, tol=1e-12);
+            fields = solve_advection_lean(observations, g, true(g.sz), steps, 4 .* ones(prod(g.sz), 2), ...
+                advection=0, prior=1, smoothness=0, maxit=20, tol=1e-12, store_class="double");
 
-            testCase.verifyEqual(fields, 4 .* ones([g.sz 2]), AbsTol=1e-10)
+            testCase.verifyEqual(fields, 4 .* ones(prod(g.sz), 2), AbsTol=1e-10)
         end
 
         function testMatrixFreeSolverMatchesExplicitObjective(testCase)
             [g, observations, steps, prior_field, A_explicit, b_explicit] = ...
                 jointMosaicVpInversionTest.explicitReferenceSystem();
-            system = prepare_scans_advection(observations, g, steps, water=false, coeff_horver=0);
-
-            fields = compute_scans_advection( ...
-                system, prior_field, advection=0.9, prior=0.4, smoothness=0.3, maxit=500, tol=1e-12);
+            % No water cells, so the land-water cut of the lean solver's
+            % Laplacian leaves it equal to the continuous one used here.
+            fields = solve_advection_lean(observations, g, true(g.sz), steps, reshape(prior_field, [], 2), ...
+                advection=0.9, prior=0.4, smoothness=0.3, coeff_horver=0, maxit=500, tol=1e-12, store_class="double");
             x_explicit = lsqr(A_explicit, b_explicit, 1e-12, 500);
 
             testCase.verifyLessThanOrEqual( ...
@@ -71,13 +70,12 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             info.obs_grid_size = [1 1 5 1];
             observations = prepare_radar_observations(F, obs_matrix, info);
             steps = build_profile_advection_steps(g, {zeros(g.sz(3), 2)}, 1000);
-            system = prepare_scans_advection(observations, g, steps, water=false);
 
-            [fields, inversion_info] = compute_scans_advection( ...
-                system, 1, prior=0.3, smoothness=0.2, advection=0.5, maxit=100, tol=1e-10);
+            fields = solve_advection_lean(observations, g, true(g.sz), steps, ones(prod(g.sz), 2), ...
+                prior=0.3, smoothness=0.2, advection=0.5, maxit=100, tol=1e-10, store_class="double");
 
-            testCase.verifySize(fields, [g.sz 2])
-            testCase.verifyTrue(isfinite(inversion_info.objective.total))
+            testCase.verifySize(fields, [prod(g.sz) 2])
+            testCase.verifyTrue(all(isfinite(fields), "all"))
         end
 
         function testProjectedFistaEnforcesNonnegativeSolution(testCase)
@@ -88,27 +86,27 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             g.dx = 1;
             g.dy = 1;
             g.dz = 1;
+            g.mask_water = false(2, 1);
             F = speye(prod(g.sz));
             obs_matrix = sparse([-1; 2]);
             info.obs_grid_size = [1 1 2 1];
             observations = prepare_radar_observations(F, obs_matrix, info);
-            system = prepare_scans_advection(observations, g, cell(0, 1), smoothness=false);
 
-            [fields, inversion_info] = compute_scans_advection( ...
-                system, 0, solver="projected_fista", prior=0, smoothness=0, advection=0, ...
-                projected_step=1, projected_maxit=20, projected_tol=1e-12);
+            [fields, inversion_info] = solve_advection_lean(observations, g, true(g.sz), cell(0, 1), zeros(2, 1), ...
+                nonnegative=true, prior=0, smoothness=0, advection=0, ...
+                projected_maxit=50, projected_tol=1e-12, store_class="double");
 
             testCase.verifyGreaterThanOrEqual(min(fields(:)), 0)
-            testCase.verifyEqual(fields(:), [0; 2], AbsTol=1e-10)
-            testCase.verifyEqual(inversion_info.solver.name, "matrix_free_projected_fista")
+            testCase.verifyEqual(fields(:), [0; 2], AbsTol=1e-8)
+            testCase.verifyEqual(inversion_info.solver.name, "lean_batched_pcg_projected_fista")
         end
 
         function testTemporalDensityPriorReducesProfileJumps(testCase)
             [g, radar_scans, observations] = jointMosaicVpInversionTest.temporalPriorInputs();
 
-            [~, unsmoothed] = build_radar_density_prior( ...
+            [~, unsmoothed] = build_density_prior_fast( ...
                 g, radar_scans, observations, lambda_profile=0, lambda_time_profile=0, maxit=100, tol=1e-12);
-            [~, smoothed] = build_radar_density_prior( ...
+            [~, smoothed] = build_density_prior_fast( ...
                 g, radar_scans, observations, lambda_profile=0, lambda_time_profile=10, maxit=100, tol=1e-12);
             unsmoothed_jump = sum(abs(diff(squeeze(unsmoothed.radar_profiles(:, 1, :)), 1, 2)), "all");
             smoothed_jump = sum(abs(diff(squeeze(smoothed.radar_profiles(:, 1, :)), 1, 2)), "all");
@@ -130,27 +128,25 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             info.obs_grid_size = [1 1 1 4];
             observations = prepare_radar_observations(F, obs_matrix, info);
 
-            [density_prior, density_prior_info] = build_radar_density_prior( ...
+            [density_prior, density_prior_info] = build_density_prior_fast( ...
                 g, radar_scans, observations, ...
                 lambda_profile=0, lambda_time_profile=0, ...
-                split_land_water_profiles=true, maxit=50, tol=1e-12);
+                split_land_water=true, maxit=50, tol=1e-12);
 
             testCase.verifyEqual(squeeze(density_prior), [1 10; 2 20], AbsTol=1e-10)
-            testCase.verifyEqual(squeeze(density_prior_info.radar_profiles(:, 1, 1, :)), ...
+            % Profiles stacked [land; water] per radar and time
+            testCase.verifyEqual(reshape(density_prior_info.radar_profiles(:, 1, 1), 2, 2), ...
                 [1 2; 10 20], AbsTol=1e-10)
-            testCase.verifyEqual(density_prior_info.setup.profile_labels, ["land" "water"])
         end
 
         function testWaterConfigurationChangesLaplacian(testCase)
             g = jointMosaicVpInversionTest.smallGrid();
             g.mask_water = logical([0 1; 0 1]);
-            info.obs_grid_size = [0 1 1 1];
-            observations = prepare_radar_observations(sparse(0, prod(g.sz)), sparse(0, 1), info);
 
-            land_water = prepare_scans_advection(observations, g, cell(0, 1), water=true);
-            continuous = prepare_scans_advection(observations, g, cell(0, 1), water=false);
+            land_water = LaplacianMatrix(g, water=true);
+            continuous = LaplacianMatrix(g, water=false);
 
-            testCase.verifyGreaterThan(norm(land_water.laplacian - continuous.laplacian, "fro"), 0)
+            testCase.verifyGreaterThan(norm(land_water - continuous, "fro"), 0)
         end
 
         function testShorelineCrossingCoeffUsesWaterMask(testCase)
@@ -230,8 +226,8 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             observations = prepare_radar_observations(sparse(0, prod(g.sz)), sparse(0, 2), info);
 
             testCase.verifyError( ...
-                @() prepare_scans_advection(observations, g, cell(0, 1)), ...
-                "prepare_scans_advection:InvalidStepCount")
+                @() solve_advection_lean(observations, g, true(g.sz), cell(0, 1), zeros(prod(g.sz), 2)), ...
+                "solve_advection_lean:InvalidStepCount")
         end
     end
 

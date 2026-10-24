@@ -2,6 +2,35 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Step 3: duplicate implementations removed
+
+Each removed function had a kept counterpart that computes the same method. Equality was checked on the Key West regression case (three KBYX volumes, paper settings) before removal; the regression test then passes with the paper path at 1e-11 of `paper-v1`.
+
+| Removed | Use instead | Check |
+| --- | --- | --- |
+| `toolbox/prior/build_radar_density_prior.m` | `build_density_prior_fast` (default `interpolation="idw"`) | Land profiles: relative difference 7e-16. Separate land and water profiles: 7e-16. |
+| `toolbox/solve/compute_scans_advection.m` + `prepare_scans_advection.m` | `solve_advection_lean` with `true(g.sz)` active and `store_class="double"` | Same PCG iterates: 3e-12 after 50 iterations, 4e-6 after 99. |
+| `toolbox/solve/solve_advection_fast.m` | as above | It was a copy of the PCG path of `compute_scans_advection` (difference 0). |
+| `toolbox/solve/compute_scans_advection_active.m` + `prepare_scans_advection_active.m` | `solve_advection_lean` (active cells, single precision) | Used only by `studies/legacy_us_night`, which was already broken. |
+
+**Moved into the kept functions:**
+- `build_density_prior_fast` gained the paper builder's methods:
+  - `split_land_water` (separate land and water profiles, the paper's Cape May case);
+  - `plot_diag`;
+  - finding each row's radar from `row_ids` when `row_radar_id` is missing.
+- `solve_advection_lean` gained the paper solver's check on the number of advection steps (`solve_advection_lean:InvalidStepCount`).
+
+**One difference left:** when a solve stops before converging, the paper solver (MATLAB `pcg`) returned the iterate with the lowest residual, and `solve_advection_lean` returns the last one. At 1000 iterations without convergence on Key West the two returned fields differ by 1e-3.
+
+**Fix:** `solve_advection_lean` returned NaN when its starting field already solves the system (prior only, no data), because the first step divided 0 by 0. It now stops at once, as `pcg` did.
+
+**Callers updated:**
+- `pipeline/scripts/P4_invert.m`, `solver_path = "paper"`, now uses the lean solver with every cell active, in double precision, without advection relaxation or non-negativity.
+- The unit tests and `tests/benchmarks/benchmark_joint_mosaic_vp_inversion.m` now call the kept functions.
+- The regression's paper chain is split in two:
+  - `regression_case_paper_v1` keeps the paper-v1 calls, used only to rebuild the reference on a checkout of `paper-v1`;
+  - `regression_case_paper` runs the same method with today's functions.
+
 ## Step 2: new layout (no code change)
 
 Files moved with `git mv`, so `git log --follow <new path>` reaches their paper history. Code is unchanged except for folder paths in `setup_paths`, scripts, tests and comments. The regression test against `paper-v1` passes with zero difference on both paths.

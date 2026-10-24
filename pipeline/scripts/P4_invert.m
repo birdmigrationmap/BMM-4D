@@ -1,11 +1,10 @@
 %% Production test 4: reconstruct the density sequence
 % Density prior, advection mappings and the joint advection inversion, with
-% each stage timed. Two solver paths:
+% each stage timed. Both solver paths use solve_advection_lean (same
+% objective and term weights as the paper):
 % - "lean" (default): active cells only (radar coverage, ground to the flight
-%   layer), single precision, all times batched, prior built directly on the
-%   active cells; same objective and term weights as the paper.
-% - "paper": full grid in double precision (prepare_scans_advection +
-%   batched compute_scans_advection), as for the paper figures.
+%   layer), single precision, prior built directly on the active cells;
+% - "paper": every cell active, double precision, as for the paper figures.
 
 %% Load packages and paths ------------------------------------------------
 project_root = setup_paths();
@@ -62,21 +61,25 @@ stage_log(c, "P4_advection_steps", stage_tic)
 
 %% Solve ------------------------------------------------------------------------------
 stage_tic = tic;
-if solver_path == "lean"
-    [active_field, inversion_info] = solve_advection_lean( ...
-        observations, g, active_mask_3d, steps, prior_active, ...
-        prior=inv.prior, smoothness=inv.smoothness, advection=inv.advection, ...
-        coeff_horver=inv.coeff_horver, tol=inv.tol, maxit=inv.maxit, store_class="single", ...
-        advection_relax_exponent=inv.advection_relax_exponent, ...
-        nonnegative=inv.nonnegative, projected_maxit=inv.projected_maxit);
-else
-    system = prepare_scans_advection(observations, g, steps, water=true, coeff_horver=inv.coeff_horver);
-    [active_field, inversion_info] = solve_advection_fast( ...
-        system, prior_field, ...
-        prior=inv.prior, smoothness=inv.smoothness, advection=inv.advection, tol=inv.tol, maxit=inv.maxit);
-    active_field = single(reshape(active_field, [], n_time));
-    clear system prior_field
+% The paper path keeps the paper objective: no advection relaxation, no
+% non-negativity.
+relax_exponent = inv.advection_relax_exponent;
+nonnegative = inv.nonnegative;
+store_class = "single";
+if solver_path == "paper"
+    prior_active = reshape(prior_field, [], n_time);
+    clear prior_field
+    relax_exponent = 0;
+    nonnegative = false;
+    store_class = "double";
 end
+[active_field, inversion_info] = solve_advection_lean( ...
+    observations, g, active_mask_3d, steps, prior_active, ...
+    prior=inv.prior, smoothness=inv.smoothness, advection=inv.advection, ...
+    coeff_horver=inv.coeff_horver, tol=inv.tol, maxit=inv.maxit, store_class=store_class, ...
+    advection_relax_exponent=relax_exponent, ...
+    nonnegative=nonnegative, projected_maxit=inv.projected_maxit);
+active_field = single(active_field);
 stage_log(c, "P4_solve", stage_tic, sprintf("%d iterations, flag %d, relres %.2g, %.3g unknowns", ...
     inversion_info.solver.iterations, inversion_info.solver.flag, inversion_info.solver.relres, numel(active_field)))
 

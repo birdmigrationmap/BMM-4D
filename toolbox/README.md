@@ -19,11 +19,10 @@ Use one Cartesian grid convention across the whole project.
 - `forward/construct_F.m`: build the sparse forward operator that maps grid cells to radar observations.
 - `solve/compute_scan.m`: reconstruct a single 3D density field from one observation vector with optional regularization; residual blocks are normalized by row count before weighting.
 - `forward/prepare_radar_observations.m`: compact the forward operator and observations to active rows for storage and inversion, keeping only rows with at least 90% of their beam weight inside the grid.
-- `prior/build_radar_density_prior.m`: estimate radar vertical density profiles from compact observations and interpolate them into a 4D prior field.
+- `prior/build_density_prior_fast.m`: fit one vertical density profile per radar and time (land only, all cells, or separate land and water profiles) and interpolate them horizontally (IDW or Gaussian weights) into the prior field, on the full grid or on active cells.
 - `advect/build_radar_advection_steps.m`: interpolate radar velocity one interval at a time and retain only compact advection mappings.
 - `prior/radar_uv_on_grid.m`: map a radar velocity profile (height above the antenna) to the sea-level grid layers.
-- `solve/prepare_scans_advection.m`: prepare reusable matrix-free data, smoothing, and advection components.
-- `solve/compute_scans_advection.m`: reconstruct a 4D field with matrix-free PCG applied to the original least-squares normal equations.
+- `solve/solve_advection_lean.m`: reconstruct the 4D field (data, prior, 3D smoothness, advection) with batched PCG on active cells, single or double precision; optional projected FISTA for non-negative densities and study options (row weights, correlated prior, shape term).
 - `advect/build_profile_advection_steps.m`: build one advection step per time interval from vertical-profile or grid-wise speed input.
 - `advect/compute_continuity_balance.m`: compute within-grid mass balance, signed source-sink residuals, and positive take-off, landing, entering, and leaving count/rate products.
 

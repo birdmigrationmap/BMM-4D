@@ -1,11 +1,11 @@
 function out = regression_case_paper(raw_files, kernel_dir, s)
-%REGRESSION_CASE_PAPER Paper path on a small Key West case (S09 A and C).
-%   Runs read_rd with the paper cleaning (rhoHV rain removal), the forward
-%   operator, the IDW radar-profile prior, the advection steps and the
-%   full-grid solver, with the settings S (see make_regression_reference).
-%   Calls only functions that exist at tag paper-v1 with the same
-%   signatures, so the same chain runs on the paper code and on today's.
-%   OUT holds the compared outputs.
+%REGRESSION_CASE_PAPER Paper path on a small Key West case, today's code.
+%   Same method and settings S as regression_case_paper_v1 (paper cleaning,
+%   forward operator, IDW land-profile prior, advection steps, full-grid
+%   solve in double precision without relaxation or non-negativity),
+%   computed with today's functions: build_density_prior_fast and
+%   solve_advection_lean with every cell active. OUT holds the compared
+%   outputs.
 
 %% Clean the volumes --------------------------------------------------------
 radar_scans = read_rd(raw_files, s.read_options{:});
@@ -33,15 +33,15 @@ out.values = observations.values;
 
 %% Prior, advection, solve ---------------------------------------------------
 inv = s.inversion;
-out.prior = single(build_radar_density_prior(g, radar_scans, observations, ...
+out.prior = single(build_density_prior_fast(g, radar_scans, observations, ...
     lambda_profile=inv.lambda_profile, lambda_time_profile=inv.lambda_time_profile, ...
     idw_neighbors=inv.density_prior_idw_neighbors, idw_power=inv.density_prior_idw_power, maxit=inv.maxit));
 dt_seconds = seconds(diff(cellfun(@(scan) scan.datetime, radar_scans(1, :))));
 steps = build_radar_advection_steps(g, radar_scans, dt_seconds, ...
     idw_neighbors=inv.velocity_idw_neighbors, idw_power=inv.velocity_idw_power, ...
     boundary_mode="open", shoreline_crossing_coeff=inv.shoreline_crossing_coeff);
-system = prepare_scans_advection(observations, g, steps, water=true, coeff_horver=inv.coeff_horver);
-field = compute_scans_advection(system, double(out.prior), ...
-    prior=inv.prior, smoothness=inv.smoothness, advection=inv.advection, maxit=inv.maxit);
-out.field = single(field);
+field = solve_advection_lean(observations, g, true(g.sz), steps, reshape(double(out.prior), [], size(out.prior, 4)), ...
+    prior=inv.prior, smoothness=inv.smoothness, advection=inv.advection, coeff_horver=inv.coeff_horver, ...
+    maxit=inv.maxit, tol=1e-6, store_class="double");
+out.field = single(reshape(field, size(out.prior)));
 end

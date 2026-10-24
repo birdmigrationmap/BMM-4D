@@ -1,7 +1,8 @@
 %% Regression reference: paper-v1 outputs on a small Key West case
 % Three KBYX volumes (23 April 2018, 03:00-03:30 UTC) go through two chains:
-% - paper path (regression_case_paper): run on the code at tag paper-v1,
-%   checked against today's code, which must give the same result;
+% - paper path: regression_case_paper_v1 on the code at tag paper-v1,
+%   checked against regression_case_paper (same method, today's code),
+%   which must agree to rounding;
 % - production path (regression_case_prod): run on today's code (it does
 %   not exist at paper-v1).
 % The outputs are saved to data/regression/paper_v1_reference.mat (local,
@@ -59,7 +60,7 @@ rmpath(genpath(fullfile(project_root, "toolbox")), fullfile(project_root, "pipel
 addpath(genpath(fullfile(worktree_dir, "functions")), genpath(fullfile(project_root, "toolbox", "util", "regtools")))
 try
     assert(startsWith(which("read_rd"), worktree_dir))
-    paper_v1 = regression_case_paper(raw_files, kernel_dir, paper_settings);
+    paper_v1 = regression_case_paper_v1(raw_files, kernel_dir, paper_settings);
 catch err
     path(current_path)
     rethrow(err)
