@@ -2,6 +2,30 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Gate density estimator in production
+
+**Method change (production only).** Near the radar a gate holds too few birds for gate-by-gate filters: the outlier filters and the moving median read the empty gates and lose most of the birds within about 20 km (`studies/gate_density/report.html`). Production now turns gates into density with the gate estimator: the density that makes all gates within ±1 km most probable together.
+
+**New:**
+- `bmm4d.radar.gate`: `beam`, `bird_sum_table`, `bounds`, `loglik`, `window_sum`, `estimate_sweep` (from `studies/gate_density/functions/gd_*`).
+- `bmm4d.radar.filter.estimate_density`: the filter. It replaces `max_density`, `outlier_mad`, `outlier_continuity`, `no_echo`, `to_density` and `smooth_median`. Missing gates (rain, blocked beam) stay missing.
+- `read_rd` option `density`: `"median"` (default, the paper chain) or `"estimator"`. `bmm4d.config` sets `"estimator"` and no longer sets `removeOutliers`; `smoothing` (2000 m) is the estimator's window.
+- `tests/radar/gateEstimatorTest.m`.
+
+**Changed against the study code:**
+- The bird-sum table is tabulated on a log-lambda grid (lambda = density x counting volume) and interpolated, which makes a volume about 4x faster (11 s against 45 s for a 150 km volume up to 7°).
+- Beyond the Monte Carlo table (N > 2000 birds per gate) the sum is taken as normal instead of flagging the density as out of range. On a real sweep to 80 km the estimate is the same as the study's to 0.03% (99% of gates). On a synthetic 1500 birds km^-3 sweep at 60-80 km it reads 1493 against 1460 for the study table of 10 000 birds.
+- The table uses its own random stream (seed 1) instead of `rng(1)`, so it no longer resets the caller's random numbers.
+- The estimate is computed only on the rows `range_limits` keeps (plus the window), so the shape correction is fitted on those gates; on one KSGF volume this rescales the lowest sweep by about 1%.
+
+**Unchanged:** the paper path (`read_rd` default) and the frozen production settings of the regression reference, which do not set `density`, so `paperRegressionTest` still compares the median chain. Cleaned volumes with the new settings go to a new volume cache folder (its name hashes `read_options`).
+
+**Study cleanup (`studies/gate_density`):** the scripts call `bmm4d.radar.gate.*`; removed `gd_beam`, `gd_bird_sum_table`, `gd_gate_bounds`, `gd_gate_loglik`, `gd_estimate_sweep`, `gd_window_sum`, the unused `gd_estimate_density`, `gd_estimate_rings`, `gd_gate_posterior`, `gd_read_rd_filters`, and with the clutter mixture `gd_radar_filters`, `gd_high_persistence`, `GD_D_sandbox.m`; `GD_I_clutter_mixture.m` became `GD_I_range_bias.m` (no mixture).
+
+## The gate estimator returns its sd
+
+**New output (densities unchanged).** `bmm4d.radar.gate.estimate_sweep` returns `sd`, the standard deviation of each window's density (birds km^-3) from its likelihood normalized over the density grid (uniform prior in density), and at least density × log_sd where the likelihood is narrower than the grid step. `estimate_density` stores it in each gate's `sd` field, `read_rd` copies it to `dens.sweeps.sd` (missing where a later filter removed the gate). `clean_volume` does not save it yet. Re-cleaning the 168 sandbox volumes reproduces the cached densities exactly (`studies/sandbox/SB_estimator_sd.m`).
+
 ## Repository tidying
 
 Removed from the repository (still in the history, e.g. at `v1.0.1`): `RESTRUCTURE.md` (the restructure plan, done; Steps 2-8 below), the internal notes `studies/notes/HANDOFF.md`, `MODEL_REVIEW.md` and `NEAR_RANGE_DEFICIT.md` (the near-range findings are in the gate-density report), and the studies set aside: `studies/two_level` (two-level separable model), `studies/legacy_us_night` (the US night before the pipeline) and `studies/pipeline_review`. Paths to them in the tables below are historical.
