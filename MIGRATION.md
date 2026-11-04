@@ -2,6 +2,26 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Version 1.0.1
+
+Bug fixes; the paper method is unchanged.
+
+**`bmm4d.util.getSunriseSunset`.** It wrapped the UTC hour with mod 24, so an event after 00 UTC (in the Midwest, every sunset from about late March to late September) was placed on the previous UTC day: the night of 12 May 2021 got its sunset at 01:17 UTC on 12 May instead of 13 May. The local solar time is now wrapped instead, and the UTC time may cross into the next or previous day. Callers: `examples/case_settings.m` (night cases), `studies/sandbox/SB_night_maps.m` (the volumes of the five nights with a sunset after 00 UTC, 2021-05-12, 2023-05-17, 2023-05-21, 2021-09-08, 2025-09-25, came from the evening before, which was not screened for rain; the overlap and propagation tests used them) and `studies/gate_density/scripts/GD_J_select_post2020.m` (spring scans taken 3 h after the previous evening's sunset, i.e. from the night before the Dark Ecology night; each scan was still checked for rain and birds itself). Production nights (`bmm4d.config`, sun elevation) were not affected.
+
+**Column sums count the air part of the lowest cell.** A cell is active when its top is above the ground, and the solved density of the lowest cell is about that of the cell above (median ratio 1.01). Column sums counted whole cells, so a column jumped by a layer of birds where the ground crosses a 100 m layer boundary, and the maps showed blocky contours following the terrain: between neighbouring 4 km columns a one-layer ground step changed the column by 8% (21 October 2026) and 14% (12 May 2021, dense low layer). New `bmm4d.grid.air_fraction(g, active_id)`: the share of each cell above the ground (max(g.dem, 0)). `bmm4d.export_maps` and `bmm4d.plot.radar_distance_bias` now weight the lowest cell by it; the step drops to 1.8% and 4% (`studies/sandbox/SB_ground.m`). The inversion is unchanged: the same share in the forward operator, and radar profiles in height above the ground for the prior, were tested and changed nothing measurable, so they were not kept. Radar-distance bias values computed before this change counted whole cells (sandbox: 0.043 then, 0.046 now).
+
+**The radar-profile prior is clipped at zero** (`bmm4d.prior.build_density_prior_fast`): a weakly smoothed profile can dip below zero, which is not a density and breaks the advection relaxation (ratios of the prior between linked cells). No change with the paper's smoothing (`lambda_profile` 10).
+
+**Correlated prior keeps the white prior's variance** (study option). `solve_advection_lean` option `prior_correlation_m` (and `prior_correlation_vertical_m`) used the precision (I + (l/dx)^2 L_h + (l_v/dz)^2 L_v) without normalization, so a longer correlation length also made the prior much stiffer: at l = 30 / 50 / 100 km on a 4 km grid the prior standard deviation of a cell was 9.7 / 15 / 28 times smaller than with the white prior of the same weight. The precision is now multiplied by the marginal variance on an unbounded lattice (mean of 1 / (1 + a_h lambda_h + a_v lambda_v) over the frequencies), so `prior` sets how far a cell may deviate and l only how far a deviation is correlated. Production does not set these options, so production and the paper path are unchanged. Sandbox results before 2 November 2026 with these options (`studies/sandbox/README.md`, 23 October) used the old, stiffer form.
+
+**`bmm4d.radar.read_level2_moments`** reads Level II archives stored without bzip2 records (some 2015-2016 files).
+
+**`setup_paths`** puts the package folder on the path on parallel workers (batch jobs), which cannot install packages.
+
+## Version 1.0.0
+
+The code behind the submitted manuscript (tag `paper-v1`) as the MATLAB package `bmm4d`: Steps 2-8 below, with CI and a regression test against `paper-v1`. The manifest said 0.1.0 during the restructure.
+
 ## Step 8: package and build files
 
 **Package:**
