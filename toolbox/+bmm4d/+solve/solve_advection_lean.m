@@ -38,7 +38,11 @@ function [active_field, info] = solve_advection_lean(observations, g, active_mas
 %     graph Laplacian on active cells: deviations from the prior are
 %     horizontally correlated over about l (first-order Matern / SPDE),
 %     so a correction made by the data near a radar spreads instead of
-%     stopping at the beam edge.
+%     stopping at the beam edge. The precision is scaled so that each
+%     cell's prior variance stays that of the white prior (mean of
+%     1 / (1 + a_h lambda_h + a_v lambda_v) over the lattice frequencies):
+%     PRIOR sets how far the field may deviate, l only how far a
+%     deviation is correlated.
 %   - PRIOR_CORRELATION_VERTICAL_M (l_v): adds (l_v/dz)^2 L_v (vertical graph
 %     Laplacian) to that precision: a 3D Gaussian-Markov prior. With
 %     smoothness 0 the prior term alone is then a Gaussian-process prior
@@ -139,6 +143,14 @@ if opt.prior_correlation_m > 0 || opt.prior_correlation_vertical_m > 0
         prior_precision = prior_precision + (opt.prior_correlation_vertical_m / g.dz) ^ 2 * L_vertical;
         clear L_vertical
     end
+    % Same marginal variance as the white prior: on an unbounded lattice,
+    % var = mean over frequencies of 1 / (1 + a_h lambda_h + a_v lambda_v)
+    frequency = 2 * pi * (0:255) / 256;
+    [kx, ky, kz] = ndgrid(frequency, frequency, frequency(1:4:end));
+    a_h = (opt.prior_correlation_m / mean([g.dx g.dy])) ^ 2;
+    a_v = (opt.prior_correlation_vertical_m / g.dz) ^ 2;
+    marginal_variance = mean(1 ./ (1 + a_h * (4 - 2 * cos(kx) - 2 * cos(ky)) + a_v * (2 - 2 * cos(kz))), "all");
+    prior_precision = marginal_variance * prior_precision;
 end
 advection_reference = prior_active;
 if ~isempty(opt.advection_reference)
