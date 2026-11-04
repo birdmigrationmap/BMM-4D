@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/birdmigrationmap/BMM-4D/actions/workflows/ci.yml/badge.svg)](https://github.com/birdmigrationmap/BMM-4D/actions/workflows/ci.yml)
 
-Beta (0.x): names, settings and outputs may still change; see `MIGRATION.md`. To cite, use `CITATION.cff` ("Cite this repository" on GitHub).
+Version 1.0.0 is the method of the paper (tag `paper-v1`) as a MATLAB package; changes between versions are listed in `MIGRATION.md`. To cite, use `CITATION.cff` ("Cite this repository" on GitHub).
 
 Code for reconstructing animated 3D bird-density fields from a network of NEXRAD radars: radar processing, forward model, density prior, advection-regularized inversion, and the operational pipeline built on them.
 
@@ -38,7 +38,7 @@ MathWorks toolboxes used: Optimization, Mapping, Image Processing, Statistics an
 
 ## Package and build
 
-`toolbox/` is a MATLAB package (R2024b or later; `toolbox/resources/mpackage.json`, version 0.1.0). The manifest stays on schema 1.0.0 so that R2024b and R2025 can read it; recent MATLAB releases may rewrite it to a newer schema, which older releases reject. Without `setup_paths`, install it with `mpminstall("toolbox")`, or as an add-on from the toolbox file of `buildtool package`. The external code above still has to be on the path.
+`toolbox/` is a MATLAB package (R2024b or later; `toolbox/resources/mpackage.json`, version 1.0.0). The manifest stays on schema 1.0.0 so that R2024b and R2025 can read it; recent MATLAB releases may rewrite it to a newer schema, which older releases reject. Without `setup_paths`, install it with `mpminstall("toolbox")`, or as an add-on from the toolbox file of `buildtool package`. The external code above still has to be on the path.
 
 ```matlab
 buildtool              % check (Code Analyzer, fails on errors) and test (unit tests)
