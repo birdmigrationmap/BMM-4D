@@ -3,8 +3,13 @@ function cache_dir = volume_cache_dir(c)
 %   Cleaned volumes are shared by all cases and depend only on the cleaning
 %   options, so the folder name carries a short hash of read_options and the
 %   velocity-profile settings. Changing any of them starts a new cache.
+%   CLEANING_VERSION is part of the hash: raise it when a fix changes the
+%   cleaned volumes without changing any option, so old caches are not
+%   reused (2: beam-blockage maps read at compass azimuth).
 
-settings_text = jsonencode(struct("read_options", {c.read_options}, "vp", c.vp, "filter", c.filter));
+cleaning_version = 2;
+settings_text = jsonencode(struct("read_options", {c.read_options}, "vp", c.vp, "filter", c.filter, ...
+    "cleaning_version", cleaning_version));
 digest = java.security.MessageDigest.getInstance("MD5");
 hash_bytes = typecast(int8(digest.digest(uint8(char(settings_text)))), "uint8");
 tag = lower(string(reshape(dec2hex(hash_bytes(1:4))', 1, [])));

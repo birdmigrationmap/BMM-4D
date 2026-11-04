@@ -13,6 +13,8 @@ bb_range = 1000:250:500000;
 bb_az = 0:1:365;
 bb = nan(numel(bb_range), numel(bb_az), height(radar), "single");
 
+% bb_az is the math angle (counter-clockwise from east, pol2cart), not the
+% compass azimuth: the filter looks a gate at azimuth az up at 90 - az.
 [AZ, R] = meshgrid(bb_az, bb_range);
 [x, y] = pol2cart(deg2rad(AZ), R);
 

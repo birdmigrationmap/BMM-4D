@@ -4,6 +4,11 @@ function scan = beam_blockage(scan, ~)
 %   map, data/reference/beam_blockage) is above the lower half-power edge
 %   of the beam (elevation minus half the vertical beam width). Blocked
 %   gates are missing, also when they had no echo.
+%
+%   The maps (studies/beam_blockage/beam_blockage_script.m) are indexed by
+%   the math angle bb_az, counter-clockwise from east (pol2cart), while
+%   radar azimuths are compass bearings, clockwise from north: a gate at
+%   azimuth az is looked up at bb_az = 90 - az.
 
 % The map is loaded once per MATLAB process (client or worker).
 persistent bb
@@ -13,7 +18,7 @@ end
 bbr_f = griddedInterpolant({bb.bb_range, bb.bb_az}, bb.bb(:,:,scan.station==bb.bb_radar),'nearest','nearest');
 for i_elev = 1:numel(scan.gates)
     gate = scan.gates(i_elev);
-    blocked = bbr_f({gate.range, gate.az}) > (gate.elev - gate.vert_half_bw);
+    blocked = bbr_f({gate.range, mod(90 - gate.az, 360)}) > (gate.elev - gate.vert_half_bw);
     gate.data(blocked) = nan;
     gate.no_echo(blocked) = false;
     scan.gates(i_elev) = gate;

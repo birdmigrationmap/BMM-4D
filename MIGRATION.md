@@ -2,6 +2,14 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Beam-blockage maps read at compass azimuth
+
+**Bug fix (production and paper chains).** The terrain-horizon maps (`studies/beam_blockage/beam_blockage_script.m`, `data/reference/beam_blockage`) are indexed by the math angle of `pol2cart`, counter-clockwise from east. `bmm4d.radar.filter.beam_blockage` looked them up at the gate's compass azimuth, so it removed gates in the mirrored direction (compass 90° − az) and kept the blocked ones, whose missing echo became zero-density observations. The filter now looks up `mod(90 - az, 360)`; the maps are unchanged.
+- Read this way, the maps of KMRX, KCXX, KFCX, KRLX and KUDX correlate 0.93–1.00 with the DEM horizon (−0.68 to 0.23 before). At 90 km and 0.5° these radars kept blocked gates on 55–113 of 360 azimuths: KMRX 0.5° toward the Smokies (165°, 70–100 km) read 0.2 birds km⁻³, against 45–100 in the valleys at the same height above ground. Radars with empty maps (flat surroundings, e.g. KBYX of the regression reference) are unchanged.
+- Appalachians, 16 radars, 22 Oct 2026 04:30–07:30 UTC (`studies/artifacts`): column over the ridges / valleys 0.41 → 0.46, misfit 0.223 → 0.217.
+- `bmm4d.radar.volume_cache_dir` hashes a `cleaning_version` (now 2) with the cleaning options, so volumes cleaned with the old lookup are not reused: every volume cache starts again.
+- New `tests/radar/beamBlockageTest.m`: KMRX gates behind Clingmans Dome are removed at 0.9°, and the Tennessee Valley is kept at 0.5° (the old lookup removed 0% and 97%).
+
 ## Less vertical smoothing of the radar-profile prior
 
 **Method change (production only).** `bmm4d.config` sets `inversion.lambda_profile` = 1 instead of 10 (the paper's value). The radar profiles of the density prior (`bmm4d.prior.build_density_prior_fast`) were so smooth in height that their low-level peak was flattened: too few birds below 1 km and too many above 2 km. Near the radars the data correct it; between radars the reconstruction falls back to it, so birds were low near radars and high between them. Sandbox night (estimator data, no cuts): radar-distance bias 0.065 → 0.043 with the same misfit (trusted 0.184 → 0.183); column below 1 km near radars 27 (prior) / 39 (solution) birds km^-2 → 42 / 42 (`studies/sandbox/README.md`, "Profile prior and correlated prior"). Unchanged: the paper path and the frozen production settings of the regression reference (`make_regression_reference.m` keeps 10).

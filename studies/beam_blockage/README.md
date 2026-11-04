@@ -27,12 +27,15 @@ scene-specific atmospheric-refraction variability.
 
 The script writes `data/reference/beam_blockage/beam_blockage.mat`, containing
 `bb(range, azimuth, radar)`, `bb_range`, `bb_az`, and `bb_radar`, plus one
-station-specific map per radar. These files are reference data and are ignored
-by Git.
+station-specific map per radar. `bb_az` is the math angle of `pol2cart`
+(degrees counter-clockwise from east), not the compass azimuth of the radar
+gates: the map column `bb_az` holds compass bearing `90 - bb_az`. These files
+are reference data and are ignored by Git.
 
 During scan cleaning, `read_rd.m` nearest-neighbour interpolates a station map
-to each sweep's native polar gates. A gate is excluded when the terrain-horizon
-elevation is greater than the lower half-power edge of that sweep:
+to each sweep's native polar gates, at `bb_az = 90 - azimuth`. A gate is
+excluded when the terrain-horizon elevation is greater than the lower
+half-power edge of that sweep:
 
 ```matlab
 terrain_horizon_elevation > sweep_elevation - vertical_half_beamwidth
