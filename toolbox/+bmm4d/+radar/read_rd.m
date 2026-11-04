@@ -20,10 +20,17 @@ function [radar_scans, shape_fit] = read_rd(scans_filepath, varargin)
 %                       rain edges. Default: 0.
 %     'mistnetScreen' - Run MistNet only on volumes with rain-like echo (see
 %                       rain_like_area); others get no rain mask. Default: false.
-%     'removeOutliers' - MAD value for outlier removal in reflectivity units. Default: 3.
-%     'thr_dens'      - Max bird density (bird/km^3) accepted. Default: 1e9.
+%     'density'       - How gates become bird density: 'median' (the paper:
+%                       gate-by-gate outlier filters, conversion, moving
+%                       median) or 'estimator' (estimate_density: the density
+%                       that makes all gates of the smoothing window most
+%                       probable, without the outlier filters; production).
+%                       Default: 'median'.
+%     'removeOutliers' - MAD value for outlier removal in reflectivity units ('median'). Default: 3.
+%     'thr_dens'      - Max bird density (bird/km^3) accepted ('median'). Default: 1e9.
 %     'shape'         - Apply shape correction (true/false). Default: true.
-%     'smoothing'     - Smoothing window (meters) for bird density. Default: 2000.
+%     'smoothing'     - Smoothing window (meters): the moving median ('median') or
+%                       the estimator's window ('estimator'). Default: 2000.
 %     'limitElev'     - Max elevation scan to consider (degrees). Default: 5.
 %     'minRange'      - Minimum range from radar (meters). Default: 5000.
 %     'maxRange'      - Maximum range from radar (meters). Default: Inf.
@@ -39,13 +46,14 @@ function [radar_scans, shape_fit] = read_rd(scans_filepath, varargin)
 %     'filters'       - Cleaning steps, applied in this order: names of
 %                       functions in bmm4d.radar.filter, each taking and
 %                       returning the volume (see default_filters). Default:
-%                       built from the options above, which reproduces the
-%                       cleaning before the split into filters:
-%                       rain_<method>, rain_dilation, beam_blockage,
+%                       built from the options above: rain_<method>,
+%                       rain_dilation, beam_blockage, then for 'median'
 %                       max_density, outlier_mad, outlier_continuity,
-%                       no_echo, to_density, shape, smooth_median,
-%                       range_limits, thin. Filters before to_density work
-%                       on reflectivity (dBZ), the others on density.
+%                       no_echo, to_density, shape, smooth_median, and for
+%                       'estimator' estimate_density, shape; then
+%                       range_limits, thin. Filters before to_density or
+%                       estimate_density work on reflectivity (dBZ), the
+%                       others on density.
 %
 %   Each volume also gets FILTER_LOG, a table of the net number of gates
 %   each filter made missing; it is negative for filters that fill gates
@@ -60,6 +68,7 @@ addParameter(p,'rainRhoThreshold', 0.95); % rhoHV threshold for rain removal
 addParameter(p,'rainDrThreshold', -12); % Depolarization ratio (dB) threshold for rain removal
 addParameter(p,'rainDilation', 0); % Grow the rain mask by this distance (m)
 addParameter(p,'mistnetScreen', false); % Run MistNet only on volumes with rain-like echo
+addParameter(p,'density', "median"); % Gates to density: "median" (paper) or "estimator"
 addParameter(p,'removeOutliers', 3); % MAD value for outlier removal in reflectivity units
 addParameter(p,'thr_dens', 1e9); % Max density (bird/km^3) accepted
 addParameter(p,'shape', true); % Apply shape correction
@@ -151,14 +160,21 @@ if parms.rainDilation > 0
     filters(end + 1) = "rain_dilation";
 end
 filters(end + 1) = "beam_blockage";
-if parms.removeOutliers > 0
-    filters = [filters "max_density" "outlier_mad" "outlier_continuity"];
+switch parms.density
+    case "estimator"
+        filters(end + 1) = "estimate_density";
+    case "median"
+        if parms.removeOutliers > 0
+            filters = [filters "max_density" "outlier_mad" "outlier_continuity"];
+        end
+        filters = [filters "no_echo" "to_density"];
+    otherwise
+        error("read_rd:UnknownDensity", "Unknown density method: %s", parms.density)
 end
-filters = [filters "no_echo" "to_density"];
 if parms.shape
     filters(end + 1) = "shape";
 end
-if parms.smoothing > 0
+if parms.density == "median" && parms.smoothing > 0
     filters(end + 1) = "smooth_median";
 end
 filters = [filters "range_limits" "thin"];
@@ -253,6 +269,11 @@ radar_scan.dens.type = "Bird density";
 radar_scan.dens.sweeps = struct([]);
 for i_elev=1:numel(radar_scan.gates)
     radar_scan.dens.sweeps(i_elev).data = radar_scan.gates(i_elev).data;
+    if isfield(radar_scan.gates, "sd") && ~isempty(radar_scan.gates(i_elev).sd)
+        % Estimator sd, missing wherever a later filter removed the gate
+        radar_scan.dens.sweeps(i_elev).sd = radar_scan.gates(i_elev).sd;
+        radar_scan.dens.sweeps(i_elev).sd(isnan(radar_scan.gates(i_elev).data)) = nan;
+    end
     radar_scan.dens.sweeps(i_elev).az = radar_scan.gates(i_elev).az;
     radar_scan.dens.sweeps(i_elev).range = radar_scan.gates(i_elev).range;
     radar_scan.dens.sweeps(i_elev).elev = radar_scan.dz.sweeps(i_elev).elev;
@@ -266,3 +287,4 @@ end
 radar_scan = rmfield(radar_scan, intersect(fieldnames(radar_scan), ...
     ["dz" "gates" "sw" "dr" "ph" "spulse" "lpulse" "constants" "params"]));
 end
+

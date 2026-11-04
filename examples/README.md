@@ -19,7 +19,7 @@ Every stage appends its time and client memory to `stage_log.csv`, and reads wha
 | File | Content |
 | --- | --- |
 | `run_case.m` | The stages in order for one case. |
-| `case_settings.m` | The test cases: `keywest` (fast test), `midwest` (17 radars), `us_east` (one night, ~110 radars), `sandbox` (28 radars, 6 frames). Suffixes `_rho`, `_dr`, `_none` (rain removal), `_coarse`, `_nearNN`, `_zeroNN`. |
+| `case_settings.m` | The test cases: `keywest` (fast test), `midwest` (17 radars), `us_east` (one night, ~110 radars), `sandbox` (28 radars, 6 frames). Suffixes `_rho`, `_dr`, `_none` (rain removal), `_coarse`, `_median` (the paper's gate cleaning instead of the gate estimator). |
 
 ```matlab
 project_root = setup_paths();
@@ -37,14 +37,14 @@ A new case is one call, e.g. `c = bmm4d.config("kdox", radars="KDOX", grid_bound
 - Figures: `figures/<case>/` (setting `figure_dir`).
 - Worker memory was sampled every 2 s by an external `ps` loop into `local_data_dir()/prod/memory_samples.csv`, because a client snapshot misses parfor peaks.
 
-The sections below are the development notes of the pipeline; P1–P5, P2b, P4a and P4b are the stages of the table above and the review scripts now in `studies/pipeline_review/`.
+The sections below are the development notes of the pipeline; P1–P5, P2b, P4a and P4b are the stages of the table above and two review scripts (removed; see `MIGRATION.md`).
 
 ## Approach
 
 The goal is a coherent, plausible density field, produced quickly. There is no ground truth, so matching the paper results exactly is not a goal. Removing aberrant echoes matters most; the reconstruction can be approximate.
 
 Current defaults (`bmm4d.config`):
-- **Cleaning:** MistNet within 150 km (its Cartesian grid ends there), with the rain mask grown by 2 km. Gates without echo are kept as zero-density observations (`noEchoRange`), not as missing data; blocked and rain gates stay missing. `read_rd` runs at full gate resolution, then `clean_volume` removes densities above 3000 birds km⁻³ (about 40 dBZ) and connected echo patches smaller than 25 km² (point targets, rain fragments, speckle), and thins the gates to 1 km (2 km for `us_east`).
+- **Cleaning:** MistNet within 150 km (its Cartesian grid ends there), with the rain mask grown by 2 km. Gates become density with the gate estimator (`density` = "estimator", `studies/gate_density`): the density that makes all gates within ±1 km most probable, gates without echo included (below the detection limit, `noEchoRange`); blocked and rain gates stay missing. No gates are cut near the radar or far out (until 1 November 2026: 25 km near-range cut and no-echo zeros only within 75 km, below). `read_rd` runs at full gate resolution, then `clean_volume` thins the gates to 1 km (2 km for `us_east`); no density cap or patch filter since 2 November 2026.
 - **Active domain:** columns within 250 km of a radar (more than half the radar spacing, so there are no gaps between radars), cells from the ground to 3 km above it.
 - **Solver (`P4`, `solver_path = "lean"`):** `solve_advection_lean`. It uses the paper's objective and term weights (data, prior, 3D smoothness with the land–water cut, advection), on active cells, in single precision, with all times batched, and an approximate tolerance of 1e-4. Each advection link is weakened where the density prior changes along it (`advection_relax_exponent` 2), so takeoff and landing are not forced to conserve birds. `solver_path = "paper"` keeps the full-grid double-precision path.
 - **Night window:** `prod_case` keeps the frames where the sun (`sun_elevation`) is below −6° (civil twilight) at one radar at least, and `radar_night` drops each radar's volumes while the sun is above −6° there (P1 does not download them). `P5` hides cells where the sun is up, fading over ±1°. Midwest: 19 frames (01:30–10:30 UTC) and 285 of 323 volumes; Key West unchanged; `us_east`: 2556 of 2782 volumes.
@@ -184,7 +184,7 @@ With a tolerance of 1e-4 (39 iterations) the field changes by 0.7%. The non-nega
 | Setting (us_east) | Bias index | Within 200 km | Shape |
 | --- | ---: | ---: | --- |
 | near range 15 km, no-echo zeros to 150 km | 0.067 | — | dark centre 0–25 km (0.87–0.95), bright ring 25–50 km (up to 1.14 early), dip 75–125 km, brighter between radars |
-| near range 25 km, no-echo zeros within 75 km (now default) | 0.056 | 0.036 | within ±4% up to 200 km |
+| near range 25 km, no-echo zeros within 75 km (default until 1 November 2026) | 0.056 | 0.036 | within ±4% up to 200 km |
 
 **Inversion weights do not remove it.** On 6 early frames (00:30–03:00): smoothness 1 or 3, horizontal smoothing (h 0.3), advection 3 and advection 3 + smoothness 1 all give a bias index of 0.060–0.063 (current 0.060); advection 3 shrinks the ring slightly but raises the data misfit by 24% (`figures/us_east/radar_bias_tests*.png`).
 

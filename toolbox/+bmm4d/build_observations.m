@@ -61,12 +61,10 @@ if isfile(clutter_file)
     clutter_masks(found) = loaded.clutter_masks(id(found));
 end
 clutter_max_elev = c.static_clutter.max_elev;
-near_range_m = c.near_range_m;
-no_echo_max_range_m = c.no_echo_max_range_m;
 parfor i_r = 1:n_radar
     try
         rows{i_r} = bmm4d.forward.build_radar_rows(volume_files(i_r, :), n_time, g_fine, kernel_dir, min_row_mass, aggregate, ...
-            clutter_masks{i_r}, clutter_max_elev, near_range_m, no_echo_max_range_m);
+            clutter_masks{i_r}, clutter_max_elev);
     catch err
         warning("bmm4d:build_observations:RadarFailed", "%s: %s", c.radars(i_r), err.message)
     end

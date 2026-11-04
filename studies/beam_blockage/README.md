@@ -1,7 +1,7 @@
 # Terrain beam-blockage maps
 
 `beam_blockage_script.m` builds the static terrain-horizon maps used by
-`toolbox/radar/read_rd.m` to exclude blocked radar gates.
+`bmm4d.radar.read_rd` (filter `beam_blockage`) to exclude blocked radar gates.
 
 ## Inputs
 

@@ -46,40 +46,27 @@ c.read_options = { ...
     "noEchoRange", 150000, ...    % no-echo gates are observations of zero density
     "rainDilation", 2000, ...     % grow MistNet rain by 2 km (blocky rain edges)
     "mistnetScreen", true, ...    % skip MistNet on volumes without rain-like echo
-    "removeOutliers", 3, ...
+    "density", "estimator", ...   % gate estimator instead of outlier filters and median (studies/gate_density)
     "shape", true, ...
-    "smoothing", 2000, ...
+    "smoothing", 2000, ...        % estimator window: +-1 km
     "data_res", [0 0], ...        % full gate resolution; clean_volume thins after filtering
     "waitbar", false, ...
     "parallel", false};           % volumes are parallelized one level up
 c.vp = struct("zstep_m", 100, "rmin_m", 5000, "rmax_m", 37500, "zmax_m", 3000);
 
-% Filters applied after read_rd (clean_volume), on full-resolution sweeps:
-% - max_density: implausible bird density (birds km^-3); 3000 ~ 40 dBZ.
-% - min_patch_km2: echo patches smaller than this are removed (point
-%   targets, rain fragments, speckle); 0 disables.
-% - data_res: then thin gates to this spacing [range tangential] (m).
-c.filter = struct("max_density", 3000, "min_patch_km2", 25, "data_res", [1000 1000]);
+% After read_rd (clean_volume), the full-resolution density sweeps are
+% thinned to data_res = [range tangential] spacing (m).
+c.filter = struct("data_res", [1000 1000]);
 
 % Static clutter (static_clutter stage): gates > threshold_db above their
 % window_m local median in more than min_fraction of the night's volumes
 % (wind farms, towers) are removed from sweeps below max_elev.
-% Near-range gates are dropped in build_observations: bird echo is
-% suppressed close to the radar (clutter filtering; lowest sweep at 27% of
-% the 30-50 km density at 5-10 km). 25 km also removes the dark centre
-% seen with 15 km (radar distance bias).
-c.near_range_m = 25000;
-% No-echo gates (zero density) are kept only within this range: far out
-% the beam is mostly above the birds and its weak lower edge falls below
-% the radar sensitivity, so "no echo" is not "no birds" there. 75 km
-% halves the bright ring at 25-50 km and flattens 75-150 km.
-c.no_echo_max_range_m = 75000;
 c.static_clutter = struct("threshold_db", 8, "window_m", 20000, "min_fraction", 0.5, ...
     "max_range_m", 150000, "max_elev", 2);
 
 % Inversion (paper Midwest weights by default)
 c.inversion = struct( ...
-    "lambda_profile", 10, ...
+    "lambda_profile", 1, ...                % vertical smoothness of the radar profiles (paper: 10, flattens the low-level peak)
     "lambda_time_profile", 1, ...
     "density_prior_idw_neighbors", 3, ...
     "density_prior_idw_power", 2.25, ...
