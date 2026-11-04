@@ -16,11 +16,14 @@ n_time = size(active_field, 2);
 
 %% Vertically integrated density
 % Density is in birds km^-3 and g.dz in m, so the column is birds km^-2.
+% The lowest cell counts by its share above the ground (air_fraction), so
+% the column does not jump where the ground crosses a layer boundary.
 % Columns without any active cell are NaN (background shows through).
+cell_air = single(bmm4d.grid.air_fraction(g, active_id));
 column_density = zeros([g.sz(1:2) n_time], "single");
 for i_t = 1:n_time
     field = zeros(g.sz, "single");
-    field(active_id) = active_field(:, i_t);
+    field(active_id) = active_field(:, i_t) .* cell_air;
     column_density(:, :, i_t) = sum(field, 3) .* g.dz ./ 1000;
 end
 active_column = false(g.sz(1:2));

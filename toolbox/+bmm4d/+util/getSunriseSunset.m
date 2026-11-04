@@ -51,8 +51,10 @@ else
     H = acosd(cosH);
 end
 
-T = H / 15 + RA - 0.06571 * t - 6.622;
-UT = mod(T - lng_hour, 24);
+% Local mean time on the local date, then UTC: the event can fall on the
+% next or previous UTC day (e.g. a Midwest summer sunset after 00 UTC)
+T = mod(H / 15 + RA - 0.06571 * t - 6.622, 24);
+UT = T - lng_hour;
 
 event_time = day_start + hours(UT);
 event_time.TimeZone = target_timezone(day_start);

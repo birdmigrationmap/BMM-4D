@@ -18,6 +18,7 @@ function [density_prior, info] = build_density_prior_fast(g, radar_scans, observ
 %     are applied to every cell in both cases.
 %   - split_land_water true fits a land and a water profile per radar and
 %     time and applies each to its own cells (paper Cape May case).
+%   - the fitted profiles are clipped at zero (densities are not negative);
 %   - plot_diag true draws the interpolation diagnostics (full-grid output
 %     only).
 %   Observation rows are assigned to radars by observations.row_radar_id,
@@ -133,7 +134,9 @@ for i_r = 1:n_radar
         b_time = zeros(profile_width * (n_time - 1), 1);
     end
     profile_sequence = lsqr(vertcat(A_parts{:}, A_time), vertcat(b_parts{:}, b_time), p.Results.tol, p.Results.maxit);
-    profiles(:, i_r, :) = reshape(profile_sequence, profile_width, 1, n_time);
+    % Densities are not negative: a weakly smoothed profile can dip below
+    % zero, which also breaks the advection relaxation (ratios of the prior)
+    profiles(:, i_r, :) = max(reshape(profile_sequence, profile_width, 1, n_time), 0);
 end
 
 % Interpolate the radar profiles horizontally; with split_land_water, water

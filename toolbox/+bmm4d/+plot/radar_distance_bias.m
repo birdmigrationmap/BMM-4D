@@ -1,7 +1,8 @@
 function [ratio, edges_km, bias_index] = radar_distance_bias(field, active_id, g, radar_selected, edges_km)
 %RADAR_DISTANCE_BIAS Column density as a function of distance to the nearest radar.
-%   FIELD is [n_active n_time] (birds km^-3) on ACTIVE_ID of grid G. For each
-%   time, each column density is divided by its regional mean (Gaussian
+%   FIELD is [n_active n_time] (birds km^-3) on ACTIVE_ID of grid G. Column
+%   densities count the lowest cell by its share above the ground
+%   (bmm4d.grid.air_fraction). For each time, each column density is divided by its regional mean (Gaussian
 %   blur with sigma 150 km over the active columns), so large-scale
 %   patterns cancel; the mean of this ratio in each distance bin
 %   (EDGES_KM, distance to the nearest radar of RADAR_SELECTED) is RATIO
@@ -15,6 +16,7 @@ if nargin < 5
 end
 [ix, iy, ~] = ind2sub(g.sz, active_id);
 column_id = sub2ind(g.sz(1:2), ix, iy);
+cell_air = bmm4d.grid.air_fraction(g, active_id);
 [lon_grid, lat_grid] = ndgrid(g.lon, g.lat);
 distance_km = inf(g.sz(1:2));
 for i_r = 1:height(radar_selected)
@@ -32,7 +34,7 @@ n_bin = numel(edges_km) - 1;
 n_time = size(field, 2);
 ratio = nan(n_bin, n_time);
 for i_t = 1:n_time
-    column = reshape(accumarray(column_id, double(field(:, i_t)), [prod(g.sz(1:2)) 1]) * g.dz / 1000, g.sz(1:2));
+    column = reshape(accumarray(column_id, double(field(:, i_t)) .* cell_air, [prod(g.sz(1:2)) 1]) * g.dz / 1000, g.sz(1:2));
     column = max(column, 0) .* is_active;
     if mean(column(active_column)) < 5
         continue
