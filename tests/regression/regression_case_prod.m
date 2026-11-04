@@ -35,7 +35,7 @@ g = bmm4d.grid.create_grid({struct("x", kernel_ref.x, "y", kernel_ref.y, "z", ke
 g.mask_water(inpolygon(lon_grid, lat_grid, c.water_override(1, :), c.water_override(2, :))) = true;
 g = bmm4d.grid.coarsen_grid(g, c.solve_aggregate);
 rows = bmm4d.forward.build_radar_rows(reshape(volume_files, 1, []), n_time, g, kernel_dir, c.min_row_mass, c.solve_aggregate, ...
-    [], c.static_clutter.max_elev, c.near_range_m, c.no_echo_max_range_m);
+    [], c.static_clutter.max_elev);
 radar_scans = cell(1, n_time);
 for i_t = 1:n_time
     radar_scans{i_t} = struct("station", rows.site.station, "lat", rows.site.lat, "lon", rows.site.lon, ...

@@ -2,6 +2,12 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## No near-range or no-echo cuts
+
+**Method change (production only).** `build_observations` no longer drops observations: the settings `near_range_m` (25 km: gates closer to the radar were dropped because the old cleaning read them far too low) and `no_echo_max_range_m` (75 km: no-echo zeros farther out were dropped) are removed, with the matching arguments of `bmm4d.forward.build_radar_rows` and the `_nearNN` and `_zeroNN` suffixes of `examples/case_settings.m`. With the gate estimator the near-range gates are kept, and the no-echo cut no longer worked anyway: it found no-echo gates as exact zeros, which the estimator does not return. New suffix `_median`: the paper's gate cleaning (outlier filters and moving median), e.g. `sandbox_median`.
+
+**Size of the difference:** `paperRegressionTest/testProductionPathUnchanged` now fails, as intended: the frozen Key West production settings keep the median cleaning but lose the cuts, so the operator has more rows, and the prior and the field differ by 27% and 29% (relative). The paper path still passes. The production reference is not rebuilt.
+
 ## No density cap or patch filter after the estimator
 
 **Method change (production only).** `bmm4d.radar.clean_volume` no longer caps densities at 3000 birds km^-3 or removes echo patches smaller than 25 km^2; it only thins the gates. `bmm4d.config` keeps `c.filter.data_res` only (`max_density` and `min_patch_km2` removed), so cleaned volumes go to a new cache folder. Both filters were made for the paper's chain, where no-echo gates were 0. The gate estimator gives every gate with information a positive density, so the patch filter (echo = data > 0) could only drop valid islands between missing gates; it removed nothing on 4 mid-night volumes of 12 May 2021. The cap removed 0.13% of the birds on one of the 4 (KDMX) and nothing on the others (`studies/sandbox/README.md`, "Post-estimator filters of clean_volume"). The paper's chain (`read_rd` filter `max_density`, `removeOutliers`) is unchanged.

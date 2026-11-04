@@ -1,4 +1,4 @@
-function rows = build_radar_rows(volume_files, n_time, g, kernel_dir, min_row_mass, aggregate, clutter_mask, clutter_max_elev, near_range_m, no_echo_max_range_m)
+function rows = build_radar_rows(volume_files, n_time, g, kernel_dir, min_row_mass, aggregate, clutter_mask, clutter_max_elev)
 %BUILD_RADAR_ROWS Forward-operator rows of one radar for all requested times.
 %   VOLUME_FILES(1, n_time) are the radar's cleaned volumes ("" if missing).
 %   Builds this radar's rows of the forward operator on the shared grid G,
@@ -10,10 +10,6 @@ function rows = build_radar_rows(volume_files, n_time, g, kernel_dir, min_row_ma
 %   their bin spacing matches the coarse layers.
 %   CLUTTER_MASK (static_clutter_mask, or []) removes the flagged gates from
 %   sweeps below CLUTTER_MAX_ELEV (nearest range/azimuth lookup).
-%   Gates closer than NEAR_RANGE_M are dropped: near the radar the bird echo
-%   is suppressed (median 6% / 27% / 89% of the 30-50 km density at 0-5 /
-%   5-10 / 10-15 km, us_east), which digs a hole above each radar.
-%   No-echo gates (zero density) beyond NO_ECHO_MAX_RANGE_M become missing.
 %   ROWS is empty when the radar has no usable volume.
 
 rows = [];
@@ -25,17 +21,6 @@ scans = cell(1, numel(time_id));
 for k = 1:numel(time_id)
     loaded = load(volume_files(time_id(k)), "volume");
     scans{k} = loaded.volume;
-end
-
-% Drop the suppressed near-range gates and the far no-echo gates
-for k = 1:numel(scans)
-    for i_elev = 1:numel(scans{k}.dens.sweeps)
-        sweep_range = scans{k}.dens.sweeps(i_elev).range(:);
-        data = scans{k}.dens.sweeps(i_elev).data;
-        data(sweep_range < near_range_m, :) = nan;
-        data(data == 0 & sweep_range > no_echo_max_range_m) = nan;
-        scans{k}.dens.sweeps(i_elev).data = data;
-    end
 end
 
 % Remove static clutter (wind farms, towers) from the low sweeps

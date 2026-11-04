@@ -61,16 +61,6 @@ c.filter = struct("data_res", [1000 1000]);
 % Static clutter (static_clutter stage): gates > threshold_db above their
 % window_m local median in more than min_fraction of the night's volumes
 % (wind farms, towers) are removed from sweeps below max_elev.
-% Near-range gates are dropped in build_observations: bird echo is
-% suppressed close to the radar (clutter filtering; lowest sweep at 27% of
-% the 30-50 km density at 5-10 km). 25 km also removes the dark centre
-% seen with 15 km (radar distance bias).
-c.near_range_m = 25000;
-% No-echo gates (zero density) are kept only within this range: far out
-% the beam is mostly above the birds and its weak lower edge falls below
-% the radar sensitivity, so "no echo" is not "no birds" there. 75 km
-% halves the bright ring at 25-50 km and flattens 75-150 km.
-c.no_echo_max_range_m = 75000;
 c.static_clutter = struct("threshold_db", 8, "window_m", 20000, "min_fraction", 0.5, ...
     "max_range_m", 150000, "max_elev", 2);
 
