@@ -54,12 +54,9 @@ c.read_options = { ...
     "parallel", false};           % volumes are parallelized one level up
 c.vp = struct("zstep_m", 100, "rmin_m", 5000, "rmax_m", 37500, "zmax_m", 3000);
 
-% Filters applied after read_rd (clean_volume), on full-resolution sweeps:
-% - max_density: implausible bird density (birds km^-3); 3000 ~ 40 dBZ.
-% - min_patch_km2: echo patches smaller than this are removed (point
-%   targets, rain fragments, speckle); 0 disables.
-% - data_res: then thin gates to this spacing [range tangential] (m).
-c.filter = struct("max_density", 3000, "min_patch_km2", 25, "data_res", [1000 1000]);
+% After read_rd (clean_volume), the full-resolution density sweeps are
+% thinned to data_res = [range tangential] spacing (m).
+c.filter = struct("data_res", [1000 1000]);
 
 % Static clutter (static_clutter stage): gates > threshold_db above their
 % window_m local median in more than min_fraction of the night's volumes

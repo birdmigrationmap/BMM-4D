@@ -2,6 +2,10 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## No density cap or patch filter after the estimator
+
+**Method change (production only).** `bmm4d.radar.clean_volume` no longer caps densities at 3000 birds km^-3 or removes echo patches smaller than 25 km^2; it only thins the gates. `bmm4d.config` keeps `c.filter.data_res` only (`max_density` and `min_patch_km2` removed), so cleaned volumes go to a new cache folder. Both filters were made for the paper's chain, where no-echo gates were 0. The gate estimator gives every gate with information a positive density, so the patch filter (echo = data > 0) could only drop valid islands between missing gates; it removed nothing on 4 mid-night volumes of 12 May 2021. The cap removed 0.13% of the birds on one of the 4 (KDMX) and nothing on the others (`studies/sandbox/README.md`, "Post-estimator filters of clean_volume"). The paper's chain (`read_rd` filter `max_density`, `removeOutliers`) is unchanged.
+
 ## Gate density estimator in production
 
 **Method change (production only).** Near the radar a gate holds too few birds for gate-by-gate filters: the outlier filters and the moving median read the empty gates and lose most of the birds within about 20 km (`studies/gate_density/report.html`). Production now turns gates into density with the gate estimator: the density that makes all gates within ±1 km most probable together.
