@@ -37,7 +37,7 @@ A new case is one call, e.g. `c = bmm4d.config("kdox", radars="KDOX", grid_bound
 - Figures: `figures/<case>/` (setting `figure_dir`).
 - Worker memory was sampled every 2 s by an external `ps` loop into `local_data_dir()/prod/memory_samples.csv`, because a client snapshot misses parfor peaks.
 
-The sections below are the development notes of the pipeline; P1–P5, P2b, P4a and P4b are the stages of the table above and the review scripts now in `studies/pipeline_review/`.
+The sections below are the development notes of the pipeline; P1–P5, P2b, P4a and P4b are the stages of the table above and two review scripts (removed; see `MIGRATION.md`).
 
 ## Approach
 

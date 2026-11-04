@@ -1,6 +1,10 @@
 # Migration log
 
-What moved, changed or was removed since tag `paper-v1`, step by step (see `RESTRUCTURE.md`). Use it to port a fix to the paper repository, or to find where a paper function lives now.
+What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
+
+## Repository tidying
+
+Removed from the repository (still in the history, e.g. at `v1.0.1`): `RESTRUCTURE.md` (the restructure plan, done; Steps 2-8 below), the internal notes `studies/notes/HANDOFF.md`, `MODEL_REVIEW.md` and `NEAR_RANGE_DEFICIT.md` (the near-range findings are in the gate-density report), and the studies set aside: `studies/two_level` (two-level separable model), `studies/legacy_us_night` (the US night before the pipeline) and `studies/pipeline_review`. Paths to them in the tables below are historical.
 
 ## Version 1.0.1
 
