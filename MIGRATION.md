@@ -2,6 +2,12 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Less vertical smoothing of the radar-profile prior
+
+**Method change (production only).** `bmm4d.config` sets `inversion.lambda_profile` = 1 instead of 10 (the paper's value). The radar profiles of the density prior (`bmm4d.prior.build_density_prior_fast`) were so smooth in height that their low-level peak was flattened: too few birds below 1 km and too many above 2 km. Near the radars the data correct it; between radars the reconstruction falls back to it, so birds were low near radars and high between them. Sandbox night (estimator data, no cuts): radar-distance bias 0.065 → 0.043 with the same misfit (trusted 0.184 → 0.183); column below 1 km near radars 27 (prior) / 39 (solution) birds km^-2 → 42 / 42 (`studies/sandbox/README.md`, "Profile prior and correlated prior"). Unchanged: the paper path and the frozen production settings of the regression reference (`make_regression_reference.m` keeps 10).
+
+With less smoothing a radar profile can dip below zero (12 May 2021: 4% of the prior cells, down to -8.6 birds km^-3). The advection relaxation uses ratios of the prior between linked cells, so PCG then broke down (500 iterations, relative residual 6e2). `build_density_prior_fast` now clips the fitted profiles at zero (densities are not negative); where the profiles were positive (lambda_profile 10, the paper path) nothing changes, and `testPaperPathUnchanged` passes. With the clip the night converges in 29 iterations.
+
 ## No near-range or no-echo cuts
 
 **Method change (production only).** `build_observations` no longer drops observations: the settings `near_range_m` (25 km: gates closer to the radar were dropped because the old cleaning read them far too low) and `no_echo_max_range_m` (75 km: no-echo zeros farther out were dropped) are removed, with the matching arguments of `bmm4d.forward.build_radar_rows` and the `_nearNN` and `_zeroNN` suffixes of `examples/case_settings.m`. With the gate estimator the near-range gates are kept, and the no-echo cut no longer worked anyway: it found no-echo gates as exact zeros, which the estimator does not return. New suffix `_median`: the paper's gate cleaning (outlier filters and moving median), e.g. `sandbox_median`.
