@@ -1,5 +1,8 @@
 function steps = build_radar_advection_steps(g, radar_scans, dt_seconds, varargin)
 %BUILD_RADAR_ADVECTION_STEPS Interpolate radar velocity and build steps one interval at a time.
+% Radar velocity profiles go to the grid with build_radar_weights: "idw"
+% (default; idw_neighbors, idw_power, as in the paper) or "gaussian"
+% (length_scale_m, as the density prior).
 % The global advection penalty is set later in solve_advection_lean.
 % Here, shoreline_crossing_coeff only edits the local link coefficients in
 % the sparse advection mapping before the inverse problem is assembled.
@@ -21,6 +24,8 @@ function steps = build_radar_advection_steps(g, radar_scans, dt_seconds, varargi
 p = inputParser;
 addParameter(p, "idw_neighbors", 10);
 addParameter(p, "idw_power", 1.6);
+addParameter(p, "interpolation", "idw");
+addParameter(p, "length_scale_m", 150000);
 addParameter(p, "boundary_mode", "open");
 addParameter(p, "shoreline_crossing_coeff", 1);
 addParameter(p, "active_mask_3d", []);
@@ -43,10 +48,8 @@ else
     dt_seconds = dt_seconds(:);
 end
 
-[interpolation_weights, ~] = bmm4d.prior.build_horizontal_idw_weights( ...
-    g, radar_scans, ...
-    n_neighbors=p.Results.idw_neighbors, ...
-    power=p.Results.idw_power);
+interpolation_weights = bmm4d.prior.build_radar_weights(g, radar_scans, interpolation=p.Results.interpolation, ...
+    length_scale_m=p.Results.length_scale_m, idw_neighbors=p.Results.idw_neighbors, idw_power=p.Results.idw_power);
 
 uv_profiles_radar = nan(nz, 2, n_radar, n_time);
 for i_r = 1:n_radar

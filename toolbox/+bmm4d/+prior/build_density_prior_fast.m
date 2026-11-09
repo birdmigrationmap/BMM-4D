@@ -53,12 +53,8 @@ n_radar = size(radar_scans, 1);
 n_time = size(radar_scans, 2);
 nz = g.sz(3);
 nxy = prod(g.sz(1:2));
-if p.Results.interpolation == "gaussian"
-    interpolation_weights = bmm4d.prior.build_gaussian_weights(g, radar_scans, p.Results.length_scale_m);
-else
-    interpolation_weights = bmm4d.prior.build_horizontal_idw_weights(g, radar_scans, ...
-        n_neighbors=p.Results.idw_neighbors, power=p.Results.idw_power);
-end
+interpolation_weights = bmm4d.prior.build_radar_weights(g, radar_scans, interpolation=p.Results.interpolation, ...
+    length_scale_m=p.Results.length_scale_m, idw_neighbors=p.Results.idw_neighbors, idw_power=p.Results.idw_power);
 
 % Map one profile per radar-time to land cells (all cells with
 % include_water; a land and a water profile with split_land_water), then to

@@ -2,6 +2,19 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Velocity field by Gaussian weights, as the density prior
+
+**Method change (production only).** The radar velocity profiles are spread to the grid with the same smooth Gaussian weights as the density prior (150 km), instead of inverse-distance weights of the 10 nearest radars.
+
+- **Settings:** `bmm4d.config` adds `inversion.velocity_interpolation` = "gaussian" and `velocity_length_scale_m` = 150000; `"idw"` restores the previous weights (`velocity_idw_neighbors`, `velocity_idw_power`, used only by "idw").
+- **Code:** new `bmm4d.prior.build_radar_weights` (Gaussian or IDW), used by `build_density_prior_fast`, `build_radar_velocity_prior`, `bmm4d.advect.build_radar_advection_steps` (new options `interpolation`, `length_scale_m`; default "idw", so the paper path and the regression cases are unchanged) and `bmm4d.export_webmap`. `bmm4d.invert` passes the velocity settings on both paths.
+- **Why:** one rule for both prior fields. The IDW field had a patch around each radar and seams where the set of 10 neighbours changes; the Gaussian field varies smoothly everywhere.
+- **Effect** (night_20210512, 28 Midwest radars, 16 frames):
+  - Velocity, weighted by the birds: vector difference median 0.55 m/s (90%: 1.55), direction median 1.5° (90%: 4.7°), for a median speed of 12 m/s.
+  - At a radar's own column the field is now a 150 km average of the nearby radars: 1.75 m/s from that radar's profile (median; 90%: 3.9), against 0.01 with IDW. Over a 30-min step this moves a link by about 3 km, less than a 4 km cell.
+  - `bmm4d.invert`: 28 iterations in both cases, same solve time; total birds 0.9997 of the IDW run; field 4.6% different (3.5–5.1% per frame).
+- **Tests:** `testPaperPathUnchanged` passes. `testProductionPathUnchanged` replays the settings stored with its reference (IDW velocity) and still fails as before this change (its reference predates the gate estimator).
+
 ## Prior and advection by height above the smoothed ground
 
 **Method change (production only).** The radar-profile prior and the advection links no longer use the height above sea level. They use the height above the ground smoothed over 50 km.

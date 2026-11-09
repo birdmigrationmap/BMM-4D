@@ -20,7 +20,7 @@ Use one Cartesian grid convention across the whole project.
 - `+bmm4d/+solve/compute_scan.m`: reconstruct a single 3D density field from one observation vector with optional regularization; residual blocks are normalized by row count before weighting.
 - `+bmm4d/+forward/prepare_radar_observations.m`: compact the forward operator and observations to active rows for storage and inversion, keeping only rows with at least 90% of their beam weight inside the grid.
 - `+bmm4d/+prior/build_density_prior_fast.m`: fit one vertical density profile per radar and time (land only, all cells, or separate land and water profiles) and interpolate them horizontally (IDW or Gaussian weights) into the prior field, on the full grid or on active cells.
-- `+bmm4d/+advect/build_radar_advection_steps.m`: interpolate radar velocity one interval at a time and retain only compact advection mappings.
+- `+bmm4d/+advect/build_radar_advection_steps.m`: interpolate radar velocity one interval at a time (IDW or Gaussian weights) and retain only compact advection mappings.
 - `+bmm4d/+prior/radar_uv_on_grid.m`: map a radar velocity profile (height above the antenna) to the sea-level grid layers.
 - `+bmm4d/+solve/solve_advection_lean.m`: reconstruct the 4D field (data, prior, 3D smoothness, advection) with batched PCG on active cells, single or double precision; optional projected FISTA for non-negative densities and study options (row weights, correlated prior, shape term).
 - `+bmm4d/+advect/build_profile_advection_steps.m`: build one advection step per time interval from vertical-profile or grid-wise speed input.
@@ -59,6 +59,7 @@ Use one Cartesian grid convention across the whole project.
 ### Grid and matrix utilities
 
 - `+bmm4d/+grid/create_grid.m`: build the Cartesian analysis grid and attach shared masks and DEM.
+- `+bmm4d/+prior/build_radar_weights.m`: radar-to-grid weights shared by the density prior, the velocity prior, the advection and the web map export: Gaussian (`build_gaussian_weights`) or IDW.
 - `+bmm4d/+prior/build_horizontal_idw_weights.m`: build reusable sparse radar-to-grid horizontal IDW interpolation weights with duplicate-site handling.
 - `+bmm4d/+grid/LaplacianMatrix.m`: build the 3D smoothness operator used in inversion.
 - `+bmm4d/+grid/LaplacianMatrix1D.m`: build the 1D Laplacian used for vertical smoothing.
