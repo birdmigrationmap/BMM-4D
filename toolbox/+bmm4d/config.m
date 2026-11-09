@@ -56,7 +56,8 @@ c.vp = struct("zstep_m", 100, "rmin_m", 5000, "rmax_m", 37500, "zmax_m", 3000);
 
 % After read_rd (clean_volume), the full-resolution density sweeps are
 % thinned to data_res = [range tangential] spacing (m).
-c.filter = struct("data_res", [1000 1000]);
+c.filter = struct("data_res", [1000 1000], ...
+    "estimator_sd", true);        % keep the estimator's sd of each density (observation errors)
 
 % Static clutter (static_clutter stage): gates > threshold_db above their
 % window_m local median in more than min_fraction of the night's volumes
@@ -87,7 +88,9 @@ c.inversion = struct( ...
     "tol", 1e-4, ...              % approximate solve (paper: 1e-6)
     "advection_relax_exponent", 2, ...  % weaken advection where the prior changes (takeoff, landing)
     "nonnegative", true, ...      % projected FISTA after CG: densities >= 0
-    "projected_maxit", 100);
+    "projected_maxit", 100, ...
+    "observation_weights", true, ... % weight each observation by 1 / sigma^2 from the estimator's sd (observation_weights)
+    "observation_error_floor", 1.5);  % absolute error added to the sd (birds km^-3)
 c.water_override = [];            % [lon; lat] polygon forced to water
 c.domain = [];                    % geographic solve domain (build_domain_mask); [] = radar ranges
 c.radars = strings(0);

@@ -28,6 +28,9 @@ observations = struct( ...
     "row_ids", uint32(active_row_id), ...
     "obs_grid_size", info.obs_grid_size);
 
+if isfield(info, "sd_matrix")
+    observations.sd = info.sd_matrix(active_row_id, :);
+end
 if isfield(info, "row_radar_id")
     observations.row_radar_id = info.row_radar_id(active_row_id);
 end

@@ -102,6 +102,12 @@ observations = struct( ...
     "row_range_m", vertcat(rows_range{:}), ...
     "row_elev_deg", vertcat(rows_elev{:}));
 clear F_parts value_parts rows_range rows_elev
+% Estimator sd of each observation (same entries as values), when every radar has it
+if all(cellfun(@(r) ~isempty(r.sd), rows))
+    sd_parts = cellfun(@(r) r.sd, rows, UniformOutput=false);
+    observations.sd = vertcat(sd_parts{:});
+    clear sd_parts
+end
 clear rows
 case_controls = c;
 save(fullfile(c.data_dir, "case.mat"), "observations", "g", "radar_scans", "radar_selected", ...

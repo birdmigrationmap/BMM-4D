@@ -28,6 +28,8 @@ function [active_field, info] = solve_advection_lean(observations, g, active_mas
 %   Options for the radar-imprint study (all off by default):
 %   - ROW_WEIGHTS [n_rows 1]: weight of each observation row (soft
 %     replacement of hard data cuts); rows and values are scaled by sqrt(w).
+%     [n_rows n_time]: one weight per observation, e.g. 1 / sigma^2 (data
+%     term sum w (F x - y)^2); w = 0 removes that observation.
 %   - SHAPE (lambda): separable-model penalty lambda^2 ||x - p * sum_z(x)||^2
 %     per column and time, with p the prior's normalized vertical profile
 %     of that column: the column total is free, its vertical distribution
@@ -87,7 +89,12 @@ F = observations.F(:, active_id);
 row_keep = full(sum(F, 2)) >= opt.min_row_mass & any(F, 2);
 F = F(row_keep, :);
 values = observations.values(row_keep, :);
-if ~isempty(opt.row_weights)
+data_weight = [];
+if size(opt.row_weights, 2) > 1
+    % One weight per row and time (e.g. 1 / sigma^2 of each observation):
+    % kept as a matrix and applied to the residuals; w = 0 removes an entry
+    data_weight = double(opt.row_weights(row_keep, :));
+elseif ~isempty(opt.row_weights)
     % Soft data weights: scale rows and values by sqrt(w); w = 0 removes a row
     row_scale = sqrt(double(opt.row_weights(row_keep)));
     F = spdiags(row_scale, 0, numel(row_scale), numel(row_scale)) * F;
@@ -98,12 +105,18 @@ if ~isempty(opt.row_weights)
 end
 n_time = size(values, 2);
 obs_mask = full(values ~= 0);
+if isempty(data_weight)
+    data_weight = double(obs_mask);
+else
+    obs_mask = obs_mask & data_weight > 0;
+    data_weight(~obs_mask) = 0;
+end
 data_scales = 1 ./ sqrt(max(sum(obs_mask, 1), 1));
 F_squared = F .^ 2;
 row_norm_squared = full(sum(F_squared, 2));
-data_block_norms = max(data_scales .* sqrt(row_norm_squared' * obs_mask), 1);
-data_diagonal = full(F_squared' * double(obs_mask)) .* data_scales .^ 2;
-data_rhs = full(F' * values) .* data_scales .^ 2;
+data_block_norms = max(data_scales .* sqrt(row_norm_squared' * data_weight), 1);
+data_diagonal = full(F_squared' * data_weight) .* data_scales .^ 2;
+data_rhs = full(F' * (data_weight .* values)) .* data_scales .^ 2;
 clear F_squared
 
 %% Smoothness and advection operators ---------------------------------------
@@ -212,7 +225,12 @@ end
 diagonal(diagonal == 0) = 1;
 clear data_rhs data_diagonal
 
-op = struct("F", cast(F, cls), "L", cast(L, cls), "obs_mask", obs_mask, ...
+if all(data_weight(obs_mask) == 1)
+    data_weight = [];   % plain mask: cheaper in the normal operator
+else
+    data_weight = cast(data_weight, cls);
+end
+op = struct("F", cast(F, cls), "L", cast(L, cls), "obs_mask", obs_mask, "data_weight", data_weight, ...
     "data_scales2", cast(data_scales .^ 2, cls), "prior_scales2", cast(prior_scales .^ 2, cls), ...
     "smoothness_scales2", cast(smoothness_scales .^ 2, cls), "advection_scales2", cast(advection_scales .^ 2, cls), ...
     "steps", {steps}, "n_active", n_active, "n_time", n_time, ...
@@ -310,7 +328,11 @@ end
 function Y = normal_operator(X, op)
 % Data, prior and smoothness for all times at once, then advection links.
 projection = op.F * X;
-projection(~op.obs_mask) = 0;
+if isempty(op.data_weight)
+    projection(~op.obs_mask) = 0;
+else
+    projection = projection .* op.data_weight;
+end
 if isempty(op.prior_precision)
     prior_part = X;
 else

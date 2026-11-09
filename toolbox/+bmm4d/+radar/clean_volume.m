@@ -4,7 +4,8 @@ function status = clean_volume(raw_file, read_options, vp, filter, out_file)
 %   velocity profile while the velocity sweeps are still loaded (VP bins:
 %   height above the antenna), thins the gates of each density sweep to
 %   FILTER.data_res = [range tangential] spacing (m), and saves only what
-%   the forward model needs to OUT_FILE. STATUS is a short message; "ok" on
+%   the forward model needs to OUT_FILE (and, with FILTER.estimator_sd,
+%   the estimator's sd of each density). STATUS is a short message; "ok" on
 %   success.
 
 try
@@ -14,8 +15,15 @@ try
     sweeps = scan.dens.sweeps;
     for i_elev = 1:numel(sweeps)
         sweeps(i_elev).data = thin_sweep(sweeps(i_elev).data, sweeps(i_elev).range(:), sweeps(i_elev).az(:), filter.data_res);
+        if isfield(filter, "estimator_sd") && filter.estimator_sd && isfield(sweeps, "sd") && ~isempty(sweeps(i_elev).sd)
+            sweeps(i_elev).sd = thin_sweep(sweeps(i_elev).sd, sweeps(i_elev).range(:), sweeps(i_elev).az(:), filter.data_res);
+        end
     end
-    sweeps = rmfield(sweeps, setdiff(fieldnames(sweeps), ["elev" "az" "range" "data"]));
+    keep_fields = ["elev" "az" "range" "data"];
+    if isfield(filter, "estimator_sd") && filter.estimator_sd
+        keep_fields = [keep_fields "sd"];
+    end
+    sweeps = rmfield(sweeps, setdiff(fieldnames(sweeps), keep_fields));
     volume = struct( ...
         "station", string(scan.station), ...
         "lat", scan.lat, ...

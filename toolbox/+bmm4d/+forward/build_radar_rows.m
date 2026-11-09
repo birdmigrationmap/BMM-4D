@@ -53,6 +53,11 @@ row_elev_deg = single(kernel_elev(kernel_id));
 clear F obs_matrix info elevation_kernels
 
 [row_id, col_id, obs_value] = find(sparse(double(radar_obs.values)));
+sd = [];
+if isfield(radar_obs, "sd")
+    [sd_row, sd_col, sd_value] = find(radar_obs.sd);
+    sd = sparse(sd_row, time_id(sd_col), sd_value, size(radar_obs.F, 1), n_time);
+end
 uv = nan([size(scans{1}.uv) n_time]);
 for k = 1:numel(scans)
     uv(:, :, time_id(k)) = scans{k}.uv;
@@ -73,5 +78,6 @@ rows = struct( ...
     "uv", uv, ...
     "site", struct("station", scans{1}.station, "lat", scans{1}.lat, "lon", scans{1}.lon, "height", scans{1}.height), ...
     "time_id", time_id, ...
+    "sd", sd, ...
     "n_dropped_sweeps", n_dropped);
 end

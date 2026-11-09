@@ -2,14 +2,6 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
-## Web map viewer: bmm4d.export_webmap and webmap/
-
-**New stage and tool; no change of method or result.**
-- New stage `bmm4d.export_webmap(c)` (or `(c, field, active_id=..., run=..., note=...)` for any field): writes `<c.data_dir>/webmap/<run>/` (column density and birds' wind as PNG, `meta.json` with the run's case, note, time, host, commit or cluster job) and prints the link to the run in the viewer. `examples/run_case.m` calls it after `export_maps`.
-- New top-level `webmap/`: the viewer (`app/`), `serve.py` (lists every export under `local_data_dir` and the new optional setting `cluster_products_dir`, newest first, on http://127.0.0.1:8642/), and `share/` (one night as a self-contained Artifact page, offline Natural Earth basemap). See `webmap/README.md`.
-- Moved from the uncommitted study `studies/webmap/`: `functions/webmap_export.m` → `bmm4d.export_webmap`; `scripts/WM_A_export.m` removed (the one-argument call reads `inversion.mat`); `scripts/WM_B_basemap.R` → `webmap/share/build_basemap.R`; `scripts/WM_C_build_share.py` → `webmap/share/build_share.py`.
-- **Tests:** new `tests/exportWebmapTest.m` exports a synthetic case and decodes it as the viewer does (frames, column within the 3% encoding steps, wind, map placement, one radar as a list).
-
 ## Velocity field by Gaussian weights, as the density prior
 
 **Method change (production only).** The radar velocity profiles are spread to the grid with the same smooth Gaussian weights as the density prior (150 km), instead of inverse-distance weights of the 10 nearest radars.
@@ -22,6 +14,14 @@ What moved, changed or was removed since tag `paper-v1`, step by step. Use it to
   - At a radar's own column the field is now a 150 km average of the nearby radars: 1.75 m/s from that radar's profile (median; 90%: 3.9), against 0.01 with IDW. Over a 30-min step this moves a link by about 3 km, less than a 4 km cell.
   - `bmm4d.invert`: 28 iterations in both cases, same solve time; total birds 0.9997 of the IDW run; field 4.6% different (3.5–5.1% per frame).
 - **Tests:** `testPaperPathUnchanged` passes. `testProductionPathUnchanged` replays the settings stored with its reference (IDW velocity) and still fails as before this change (its reference predates the gate estimator).
+
+## Web map viewer: bmm4d.export_webmap and webmap/
+
+**New stage and tool; no change of method or result.**
+- New stage `bmm4d.export_webmap(c)` (or `(c, field, active_id=..., run=..., note=...)` for any field): writes `<c.data_dir>/webmap/<run>/` (column density and birds' wind as PNG, `meta.json` with the run's case, note, time, host, commit or cluster job) and prints the link to the run in the viewer. `examples/run_case.m` calls it after `export_maps`.
+- New top-level `webmap/`: the viewer (`app/`), `serve.py` (lists every export under `local_data_dir` and the new optional setting `cluster_products_dir`, newest first, on http://127.0.0.1:8642/), and `share/` (one night as a self-contained Artifact page, offline Natural Earth basemap). See `webmap/README.md`.
+- Moved from the uncommitted study `studies/webmap/`: `functions/webmap_export.m` → `bmm4d.export_webmap`; `scripts/WM_A_export.m` removed (the one-argument call reads `inversion.mat`); `scripts/WM_B_basemap.R` → `webmap/share/build_basemap.R`; `scripts/WM_C_build_share.py` → `webmap/share/build_share.py`.
+- **Tests:** new `tests/exportWebmapTest.m` exports a synthetic case and decodes it as the viewer does (frames, column within the 3% encoding steps, wind, map placement, one radar as a list).
 
 ## Prior and advection by height above the smoothed ground
 
@@ -67,6 +67,27 @@ What moved, changed or was removed since tag `paper-v1`, step by step. Use it to
 - `bmm4d.radar.volume_cache_dir` hashes a `cleaning_version` (now 2) with the cleaning options, so volumes cleaned with the old lookup are not reused: every volume cache starts again.
 - New `tests/radar/beamBlockageTest.m`: KMRX gates behind Clingmans Dome are removed at 0.9°, and the Tennessee Valley is kept at 0.5° (the old lookup removed 0% and 97%).
 
+## Observation errors in the production inversion
+
+**Method change (production only).** Every observation now carries the gate estimator's sd and the lean inversion weights it by 1/σ²:
+- `bmm4d.config`: `filter.estimator_sd` (true) makes `clean_volume` keep the thinned sd, which changes the volume cache (sandbox: `fad5e1e1` → `9c2b4ef2`, all volumes cleaned again); `inversion.observation_weights` (true) and `inversion.observation_error_floor` (1.5 birds km⁻³).
+- `construct_F` builds the sd with the same entries as the observations (`info.sd_matrix`), `prepare_radar_observations`, `build_radar_rows` and `build_observations` carry it to `observations.sd`.
+- New `bmm4d.solve.observation_weights`: σ is the sd the estimator has at the density the prior predicts (median sd / density of the night's observations by expected birds per gate and range, read at F × prior), σ² = that² + floor², weights mean(σ²)/σ² (scaled to the mean variance so that the prior, smoothness and advection strengths keep their balance). `bmm4d.invert` passes them to `solve_advection_lean` (`row_weights` [n_rows n_time]); the paper path is unchanged.
+- Sandbox, full run (`examples/run_case.m`): cleaning 919 s (800 s before, the sd is computed and saved), static clutter 64 s, observations 60 s (66 s), solve 32.1 s, 37 iterations, against 23.6 s, 30 iterations with equal weights on the same observations (weights take 1.9 s). Total birds 0.994 of the equal-weight solve, field 7% different (relative L2). Why the floor, the scaling and the prediction: `studies/sandbox/README.md`, "The estimator's own uncertainty against the misfit of the inversion", and the near-range report, Part III.
+- `testProductionPathUnchanged` still fails as before (reference made before the gate estimator); `testPaperPathUnchanged` passes.
+
+## The gate estimator returns its sd
+
+**New output (production volumes gain a field; densities unchanged).** `bmm4d.radar.gate.estimate_sweep` returns `sd`, the standard deviation of each window's density (birds km^-3) from its likelihood normalized over the density grid (uniform prior in density), and at least density × log_sd where the likelihood is narrower than the grid step. `estimate_density` stores it in each gate's `sd` field, `read_rd` copies it to `dens.sweeps.sd` (missing where a later filter removed the gate), and `clean_volume` thins and saves it with the density. Volumes cleaned before this change have no `sd`; see the next entry up for how it is used. Re-cleaning the 168 sandbox volumes reproduces the cached densities exactly (`studies/sandbox/SB_estimator_sd.m`).
+
+## Observation weights per row and time in the lean solver
+
+**New option (now used by production, see above).** `bmm4d.solve.solve_advection_lean` `row_weights` may now be [n_rows n_time]: one weight per observation (1 / sigma^2), applied to the residuals in the data term (sum w (F x - y)^2) instead of scaling the rows of F. A [n_rows 1] weight behaves as before, and with no weights the solve is unchanged (sandbox: same bias, misfit and iterations). Used by `studies/sandbox/sandbox_run.m` (`sigma_model`, `sigma_relative`) and `SB_sigma_weights.m` (`studies/sandbox/README.md`, "Observation errors from the expected birds per gate").
+
+## No density cap or patch filter after the estimator
+
+**Method change (production only).** `bmm4d.radar.clean_volume` no longer caps densities at 3000 birds km^-3 or removes echo patches smaller than 25 km^2; it only thins the gates. `bmm4d.config` keeps `c.filter.data_res` only (`max_density` and `min_patch_km2` removed), so cleaned volumes go to a new cache folder. Both filters were made for the paper's chain, where no-echo gates were 0. The gate estimator gives every gate with information a positive density, so the patch filter (echo = data > 0) could only drop valid islands between missing gates; it removed nothing on 4 mid-night volumes of 12 May 2021. The cap removed 0.13% of the birds on one of the 4 (KDMX) and nothing on the others (`studies/sandbox/README.md`, "Post-estimator filters of clean_volume"). The paper's chain (`read_rd` filter `max_density`, `removeOutliers`) is unchanged.
+
 ## Less vertical smoothing of the radar-profile prior
 
 **Method change (production only).** `bmm4d.config` sets `inversion.lambda_profile` = 1 instead of 10 (the paper's value). The radar profiles of the density prior (`bmm4d.prior.build_density_prior_fast`) were so smooth in height that their low-level peak was flattened: too few birds below 1 km and too many above 2 km. Near the radars the data correct it; between radars the reconstruction falls back to it, so birds were low near radars and high between them. Sandbox night (estimator data, no cuts): radar-distance bias 0.065 → 0.043 with the same misfit (trusted 0.184 → 0.183); column below 1 km near radars 27 (prior) / 39 (solution) birds km^-2 → 42 / 42 (`studies/sandbox/README.md`, "Profile prior and correlated prior"). Unchanged: the paper path and the frozen production settings of the regression reference (`make_regression_reference.m` keeps 10).
@@ -78,10 +99,6 @@ With less smoothing a radar profile can dip below zero (12 May 2021: 4% of the p
 **Method change (production only).** `build_observations` no longer drops observations: the settings `near_range_m` (25 km: gates closer to the radar were dropped because the old cleaning read them far too low) and `no_echo_max_range_m` (75 km: no-echo zeros farther out were dropped) are removed, with the matching arguments of `bmm4d.forward.build_radar_rows` and the `_nearNN` and `_zeroNN` suffixes of `examples/case_settings.m`. With the gate estimator the near-range gates are kept, and the no-echo cut no longer worked anyway: it found no-echo gates as exact zeros, which the estimator does not return. New suffix `_median`: the paper's gate cleaning (outlier filters and moving median), e.g. `sandbox_median`.
 
 **Size of the difference:** `paperRegressionTest/testProductionPathUnchanged` now fails, as intended: the frozen Key West production settings keep the median cleaning but lose the cuts, so the operator has more rows, and the prior and the field differ by 27% and 29% (relative). The paper path still passes. The production reference is not rebuilt.
-
-## No density cap or patch filter after the estimator
-
-**Method change (production only).** `bmm4d.radar.clean_volume` no longer caps densities at 3000 birds km^-3 or removes echo patches smaller than 25 km^2; it only thins the gates. `bmm4d.config` keeps `c.filter.data_res` only (`max_density` and `min_patch_km2` removed), so cleaned volumes go to a new cache folder. Both filters were made for the paper's chain, where no-echo gates were 0. The gate estimator gives every gate with information a positive density, so the patch filter (echo = data > 0) could only drop valid islands between missing gates; it removed nothing on 4 mid-night volumes of 12 May 2021. The cap removed 0.13% of the birds on one of the 4 (KDMX) and nothing on the others (`studies/sandbox/README.md`, "Post-estimator filters of clean_volume"). The paper's chain (`read_rd` filter `max_density`, `removeOutliers`) is unchanged.
 
 ## Gate density estimator in production
 
@@ -102,10 +119,6 @@ With less smoothing a radar profile can dip below zero (12 May 2021: 4% of the p
 **Unchanged:** the paper path (`read_rd` default) and the frozen production settings of the regression reference, which do not set `density`, so `paperRegressionTest` still compares the median chain. Cleaned volumes with the new settings go to a new volume cache folder (its name hashes `read_options`).
 
 **Study cleanup (`studies/gate_density`):** the scripts call `bmm4d.radar.gate.*`; removed `gd_beam`, `gd_bird_sum_table`, `gd_gate_bounds`, `gd_gate_loglik`, `gd_estimate_sweep`, `gd_window_sum`, the unused `gd_estimate_density`, `gd_estimate_rings`, `gd_gate_posterior`, `gd_read_rd_filters`, and with the clutter mixture `gd_radar_filters`, `gd_high_persistence`, `GD_D_sandbox.m`; `GD_I_clutter_mixture.m` became `GD_I_range_bias.m` (no mixture).
-
-## The gate estimator returns its sd
-
-**New output (densities unchanged).** `bmm4d.radar.gate.estimate_sweep` returns `sd`, the standard deviation of each window's density (birds km^-3) from its likelihood normalized over the density grid (uniform prior in density), and at least density × log_sd where the likelihood is narrower than the grid step. `estimate_density` stores it in each gate's `sd` field, `read_rd` copies it to `dens.sweeps.sd` (missing where a later filter removed the gate). `clean_volume` does not save it yet. Re-cleaning the 168 sandbox volumes reproduces the cached densities exactly (`studies/sandbox/SB_estimator_sd.m`).
 
 ## Repository tidying
 
@@ -554,3 +567,7 @@ Files moved with `git mv`, so `git log --follow <new path>` reaches their paper 
 | `functions/synthetic/summarize_static_truth_descriptors.m` | `synthetic/summarize_static_truth_descriptors.m` |
 | `functions/regtools/l_corner.m` (untracked) | `toolbox/util/regtools/l_corner.m` |
 | `functions/regtools/regu/` (untracked) | `toolbox/util/regtools/regu/` |
+
+
+## Clutter filter (CFP) work kept out of the toolbox (dev)
+The removed power as an upper bound (`gate.bounds`), its error `sd_cfp` (`estimate_density`, `read_rd` option `cfp`, `clean_volume`), and the extra error term in `observation_weights` are not in the toolbox: they are a dev patch, `studies/sandbox/dev/cfp_error_toolbox.patch` (git apply / git apply -R), used by `studies/gate_density/scripts/GD_L_cfp_bounds.m` and `studies/sandbox/SB_cfp_error.m`. Production cleaning, observations and weights are as before (estimator sd, floor 1.5).

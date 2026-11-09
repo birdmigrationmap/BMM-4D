@@ -13,6 +13,11 @@ function [active_field, active_id, inversion_info] = invert(c, solver_path)
 %     prior built directly on the active cells;
 %   - "paper": every cell active, double precision, without advection
 %     relaxation or non-negativity, as for the paper figures.
+%
+%   With C.inversion.observation_weights, the lean path weights each
+%   observation by the estimator's sd (bmm4d.solve.observation_weights,
+%   at the prior's prediction, floor C.inversion.observation_error_floor)
+%   when the observations carry it (volumes cleaned with filter.estimator_sd).
 
 arguments
     c (1,1) struct
@@ -85,15 +90,23 @@ if solver_path == "paper"
     nonnegative = false;
     store_class = "double";
 end
+% Observation errors from the estimator's sd at the prior's prediction
+row_weights = [];
+weight_note = "equal weights";
+if solver_path == "lean" && inv.observation_weights && isfield(observations, "sd")
+    row_weights = bmm4d.solve.observation_weights(observations, ...
+        observations.F(:, active_id) * double(prior_active), inv.observation_error_floor);
+    weight_note = sprintf("observation weights, floor %g", inv.observation_error_floor);
+end
 [active_field, inversion_info] = bmm4d.solve.solve_advection_lean( ...
     observations, g, active_mask_3d, steps, prior_active, ...
     prior=inv.prior, smoothness=inv.smoothness, advection=inv.advection, ...
     coeff_horver=inv.coeff_horver, tol=inv.tol, maxit=inv.maxit, store_class=store_class, ...
     advection_relax_exponent=relax_exponent, ...
-    nonnegative=nonnegative, projected_maxit=inv.projected_maxit);
+    nonnegative=nonnegative, projected_maxit=inv.projected_maxit, row_weights=row_weights);
 active_field = single(active_field);
-bmm4d.util.stage_log(c, "invert_solve", stage_tic, sprintf("%d iterations, flag %d, relres %.2g, %.3g unknowns", ...
-    inversion_info.solver.iterations, inversion_info.solver.flag, inversion_info.solver.relres, numel(active_field)))
+bmm4d.util.stage_log(c, "invert_solve", stage_tic, sprintf("%d iterations, flag %d, relres %.2g, %.3g unknowns, %s", ...
+    inversion_info.solver.iterations, inversion_info.solver.flag, inversion_info.solver.relres, numel(active_field), weight_note))
 
 %% Save
 % Only active cells are stored; export_maps expands them to the grid.
@@ -103,3 +116,4 @@ save(fullfile(c.data_dir, "inversion.mat"), "active_field", "active_id", "solver
     "inversion_info", "inversion_controls", "-v7.3")
 bmm4d.util.stage_log(c, "invert_save", stage_tic)
 end
+

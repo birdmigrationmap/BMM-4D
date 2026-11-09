@@ -5,6 +5,9 @@ function [F, obs_matrix, info] = construct_F(radar_scans, elevation_kernels, g, 
 %   scans on GRID. The result is a sparse forward operator F and a sparse
 %   observation matrix OBS_MATRIX with one column per time step.
 %
+%   When every scan carries the estimator's sd (dens.sweeps.sd), INFO.sd_matrix
+%   holds it with the same entries as OBS_MATRIX.
+%
 %   CONSTRUCT_F(..., aggregate=[fx fy fz]) sums the kernel weights of each
 %   block of fx x fy x fz grid cells into one column, so F is built directly
 %   on the coarse grid of size ceil(g.sz ./ aggregate) (block (i,j,k) holds
@@ -71,10 +74,14 @@ end
 
 %% Compute the observation matrix
 obs_entries = cell(numel(radar_sites), numel(elevation_kernels));
+sd_entries = cell(numel(radar_sites), numel(elevation_kernels));
 obs_presence = cell(numel(radar_sites), numel(elevation_kernels));
+% The estimator's sd of each density, when every volume carries it
+has_sd = all(cellfun(@(s) isfield(s.dens.sweeps, "sd"), radar_scans(~cellfun(@isempty, radar_scans))));
 for i_r = 1:numel(radar_sites) % through the radars
     for i_f = 1:numel(elevation_kernels) % through the unique scan
         obs_entries_time = cell(width(radar_scans), 1);
+        sd_entries_time = cell(width(radar_scans), 1);
         obs_presence_i = false(prod(obs_grid_size(1:2)), 1);
         for i_t = 1:width(radar_scans) % time 
             % Find the index in the radar data of the particular scan.
@@ -99,9 +106,14 @@ for i_r = 1:numel(radar_sites) % through the radars
             i_raz = sub2ind(obs_grid_size(1:2), i_range, i_az);
             obs_presence_i(i_raz) = true;
             obs_entries_time{i_t} = [obs_block_offset(i_r,i_f) + i_raz repmat(i_t, numel(i_raz), 1) sweep_data(present_obs_id)];
+            if has_sd
+                sweep_sd = radar_scans{i_r,i_t}.dens.sweeps(i_elev).sd + eps;
+                sd_entries_time{i_t} = [obs_entries_time{i_t}(:, 1:2) sweep_sd(present_obs_id)];
+            end
         end
 
         obs_entries{i_r,i_f} = vertcat(obs_entries_time{:});
+        sd_entries{i_r,i_f} = vertcat(sd_entries_time{:});
         obs_presence{i_r,i_f} = obs_presence_i;
     end
 end
@@ -148,6 +160,12 @@ F = sparse(vertcat(F_rows{:}), vertcat(F_cols{:}), vertcat(F_vals{:}), prod(obs_
 
 %% 
 info.obs_grid_size = obs_grid_size;
+if has_sd
+    % Same entries as OBS_MATRIX; a missing sd becomes 0 (no observation error known)
+    sd_triplets = vertcat(sd_entries{:});
+    sd_triplets(isnan(sd_triplets(:, 3)), 3) = 0;
+    info.sd_matrix = sparse(sd_triplets(:,1), sd_triplets(:,2), sd_triplets(:,3), prod(obs_grid_size), width(radar_scans));
+end
 info.obs_block_offset = obs_block_offset;
 info.coverage_fraction = coverage_fraction;
 info.has_partial_coverage = coverage_fraction < 1;
