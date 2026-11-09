@@ -43,21 +43,30 @@ prior_args = {"lambda_profile", inv.lambda_profile, "lambda_time_profile", inv.l
     "idw_neighbors", inv.density_prior_idw_neighbors, "idw_power", inv.density_prior_idw_power, "maxit", inv.maxit, ...
     "interpolation", inv.prior_interpolation, "length_scale_m", inv.prior_length_scale_m, "include_water", inv.prior_include_water};
 if solver_path == "lean"
-    prior_active = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, prior_args{:}, active_id=active_id);
+    % Profiles by height above the smoothed ground (paper: above sea level)
+    prior_active = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, prior_args{:}, active_id=active_id, ...
+        ground_smoothing_m=inv.ground_smoothing_m);
 else
     prior_field = bmm4d.prior.build_density_prior_fast(g, radar_scans, observations, prior_args{:});
 end
 bmm4d.util.stage_log(c, "invert_density_prior", stage_tic)
 
 %% Advection mappings
+% Links keep the height above the smoothed ground and climb over the
+% terrain (lean path); the paper path keeps the height above sea level.
 stage_tic = tic;
+ground_smoothing_m = Inf;
+if solver_path == "lean"
+    ground_smoothing_m = inv.ground_smoothing_m;
+end
 steps = bmm4d.advect.build_radar_advection_steps( ...
     g, radar_scans, seconds(diff(c.times)), ...
     idw_neighbors=inv.velocity_idw_neighbors, ...
     idw_power=inv.velocity_idw_power, ...
     boundary_mode="open", ...
     shoreline_crossing_coeff=inv.shoreline_crossing_coeff, ...
-    active_mask_3d=active_mask_3d);
+    active_mask_3d=active_mask_3d, ...
+    ground_smoothing_m=ground_smoothing_m);
 bmm4d.util.stage_log(c, "invert_advection_steps", stage_tic)
 
 %% Solve

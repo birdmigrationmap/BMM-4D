@@ -2,6 +2,30 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Prior and advection by height above the smoothed ground
+
+**Method change (production only).** The radar-profile prior and the advection links no longer use the height above sea level. They use the height above the ground smoothed over 50 km.
+
+- **Settings:** `bmm4d.config` sets `inversion.ground_smoothing_m` = 50000; `Inf` restores the height above sea level. The new `bmm4d.grid.smooth_ground` gives the smoothed grid ground, `max(g.dem, 0)` with a Gaussian of that standard deviation.
+- **Effect:** birds follow plateaus and basins, and fly level over ridges and valleys narrower than ~50 km. The radars still measure at their true altitude: the grid, the active cells and the forward operator are unchanged.
+- **Prior:** `bmm4d.prior.build_density_prior_fast` (`ground_smoothing_m`) lays each radar's profile at the same height above the smoothed ground. A cell at z reads the profile at z + G_s(radar) − G_s(cell), so a lowland radar's low layer sits on a plateau as on the lowlands. The profiles are blended once on a height grid, so the cost is unchanged.
+- **Links:** `bmm4d.advect.build_radar_advection_steps` (`ground_smoothing_m`, needs `active_mask_3d` and the open boundary) shifts each source cell by the rise of the smoothed ground.
+  - The cell links to every layer it overlaps, with coefficient sqrt(share of that cell's air covered), so a fraction of a layer is split instead of rounded away. Equal-density links with a slowly varying shift carry the column without squeezing it.
+  - A link whose destination is under the ground of an active column now goes to the lowest air cell of that column (the birds climb) instead of being dropped (`climb_valid` in the steps). Before, about 15% of the uphill links in the Appalachians were dropped and 12% of the lee cells got no inflow.
+- **`bmm4d.invert`:** the lean path uses the setting, and the paper path keeps the height above sea level.
+- **Why** (`studies/artifacts/README.md`, "Fix 2c"):
+  - Within a radar's view the rows over ridges and valleys agree by height above sea level, not above ground: level flight over ridges.
+  - Between radars, a profile sits on its radar's regional ground (KFCX on the Blue Ridge plateau).
+  - On held-out Appalachian radars, smoothing over 25–50 km predicts as well as following the ground everywhere (relative error 0.482–0.488 against 0.484; sea level 0.508), without lifting a layer over every crest.
+  - 50 km was chosen once from that study, not tuned per case.
+- **Check** (Appalachian and Plains cases):
+  - No new artefact in the column maps or the sections.
+  - The lowest cell over the ridges is 1.17 times the cell 300 m above it (sea level 1.36), so climbing piles nothing up.
+  - The edge score of the coverage discs is unchanged.
+  - `bmm4d.invert` on the Appalachian case: 40 iterations as with the sea-level rule; total birds 0.992 of it; field 8.6% different; column over ground above 1000 m against below 450 m: 0.58 (sea level 0.46).
+- **Grid top:** only 0.2% of the source cells lose their link through the 3000 m top, so it is unchanged for us_east. A domain west of −104° needs a higher top anyway: at −104° the High Plains leave 1460 m of air under it.
+- **Tests:** new `tests/terrainFollowingTest.m` checks three things: flat ground gives the sea-level links; links keep the height above the smoothed ground exactly; links into a ridge climb. Unchanged: `testPaperPathUnchanged` passes; `testProductionPathUnchanged` already failed before this change (its reference predates the gate estimator).
+
 ## Beam-blockage maps read at compass azimuth
 
 **Bug fix (production and paper chains).** The terrain-horizon maps (`studies/beam_blockage/beam_blockage_script.m`, `data/reference/beam_blockage`) are indexed by the math angle of `pol2cart`, counter-clockwise from east. `bmm4d.radar.filter.beam_blockage` looked them up at the gate's compass azimuth, so it removed gates in the mirrored direction (compass 90° − az) and kept the blocked ones, whose missing echo became zero-density observations. The filter now looks up `mod(90 - az, 360)`; the maps are unchanged.

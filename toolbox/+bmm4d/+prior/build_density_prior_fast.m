@@ -19,6 +19,13 @@ function [density_prior, info] = build_density_prior_fast(g, radar_scans, observ
 %   - split_land_water true fits a land and a water profile per radar and
 %     time and applies each to its own cells (paper Cape May case).
 %   - the fitted profiles are clipped at zero (densities are not negative);
+%   - ground_smoothing_m (default Inf: by height above sea level) lays the
+%     profiles by height above the ground smoothed over that length
+%     (bmm4d.grid.smooth_ground), as the advection links: a cell at height
+%     z takes each radar's profile at z + G_s(radar) - G_s(cell), so a
+%     radar's low layer sits on a plateau as on the lowlands, and ridges
+%     narrower than the length do not lift it. Profiles are held constant
+%     beyond the grid's first and last layer;
 %   - plot_diag true draws the interpolation diagnostics (full-grid output
 %     only).
 %   Observation rows are assigned to radars by observations.row_radar_id,
@@ -36,6 +43,7 @@ addParameter(p, "interpolation", "idw");
 addParameter(p, "length_scale_m", 150000);
 addParameter(p, "include_water", false);
 addParameter(p, "split_land_water", false);
+addParameter(p, "ground_smoothing_m", Inf);
 addParameter(p, "plot_diag", false);
 parse(p, varargin{:});
 assert(~(p.Results.include_water && p.Results.split_land_water), ...
@@ -140,19 +148,24 @@ for i_r = 1:n_radar
 end
 
 % Interpolate the radar profiles horizontally; with split_land_water, water
-% cells take the interpolated water profile.
+% cells take the interpolated water profile. With a finite
+% ground_smoothing_m, by height above the smoothed ground.
 water_cell = repmat(water_mask(:), nz, 1);
+terrain = [];
+if isfinite(p.Results.ground_smoothing_m)
+    terrain = terrain_frame(g, radar_scans, p.Results.ground_smoothing_m);
+end
 if isempty(p.Results.active_id)
     density_prior = zeros([g.sz n_time]);
     for i_t = 1:n_time
         density_prior(:, :, :, i_t) = reshape(interpolate_profiles(interpolation_weights, profiles(:, :, i_t), ...
-            nz, n_profile_type, water_cell), g.sz);
+            nz, n_profile_type, water_cell, terrain), g.sz);
     end
 else
     active_id = p.Results.active_id(:);
     density_prior = zeros(numel(active_id), n_time, "single");
     for i_t = 1:n_time
-        field_t = interpolate_profiles(interpolation_weights, profiles(:, :, i_t), nz, n_profile_type, water_cell);
+        field_t = interpolate_profiles(interpolation_weights, profiles(:, :, i_t), nz, n_profile_type, water_cell, terrain);
         density_prior(:, i_t) = single(field_t(active_id));
     end
 end
@@ -171,14 +184,61 @@ end
 info = struct("radar_profiles", profiles, "profile_data_norms", profile_data_norms);
 end
 
-function field = interpolate_profiles(interpolation_weights, profiles_t, nz, n_profile_type, water_cell)
+function field = interpolate_profiles(interpolation_weights, profiles_t, nz, n_profile_type, water_cell, terrain)
 % Field [nxy*nz 1] of one time from the radar profiles [profile_width n_radar]
-field = full(interpolation_weights * profiles_t(1:nz, :)');   % nxy x nz
-field = field(:);
+field = blend(interpolation_weights, profiles_t(1:nz, :), terrain);
 if n_profile_type == 2
-    field_water = full(interpolation_weights * profiles_t(nz + 1:end, :)');
+    field_water = blend(interpolation_weights, profiles_t(nz + 1:end, :), terrain);
     field(water_cell) = field_water(water_cell);
 end
+end
+
+function field = blend(interpolation_weights, profiles, terrain)
+% Weighted radar profiles [nz n_radar] at every cell, [nxy*nz 1]. With
+% TERRAIN, each profile is first read by height above its radar's smoothed
+% ground (on the height grid terrain.height), blended, then read at each
+% cell's own height above its smoothed ground.
+if isempty(terrain)
+    field = full(interpolation_weights * profiles');           % nxy x nz
+    field = field(:);
+    return
+end
+n_radar = size(profiles, 2);
+by_height = zeros(numel(terrain.height), n_radar);
+for i_r = 1:n_radar
+    by_height(:, i_r) = read_profile(profiles(:, i_r), terrain.radar_layer(:, i_r));
+end
+blended = full(interpolation_weights * by_height');          % nxy x n_height
+lower = floor(terrain.cell_height_index);
+fraction = terrain.cell_height_index - lower;
+upper = min(lower + 1, numel(terrain.height));
+nxy = size(blended, 1);
+column = repmat((1:nxy)', size(lower, 2), 1);
+field = (1 - fraction(:)) .* blended(column + (lower(:) - 1) * nxy) + fraction(:) .* blended(column + (upper(:) - 1) * nxy);
+end
+
+function value = read_profile(profile, layer)
+% Profile [nz 1] at fractional layers, held constant beyond the grid
+layer = min(max(layer, 1), numel(profile));
+lower = floor(layer);
+upper = min(lower + 1, numel(profile));
+value = (1 - (layer - lower)) .* profile(lower) + (layer - lower) .* profile(upper);
+end
+
+function terrain = terrain_frame(g, radar_scans, length_m)
+% Heights above the smoothed ground: a regular grid (spacing dz) covering
+% every cell, the fractional layer of each of these heights in each
+% radar's column, and the fractional index of each cell on that grid
+ground_smooth = bmm4d.grid.smooth_ground(g, length_m);
+z = squeeze(g.z);
+radar_x = g.f_X(cellfun(@(s) s.lon, radar_scans(:, 1)));
+radar_y = g.f_Y(cellfun(@(s) s.lat, radar_scans(:, 1)));
+radar_ground = interp2(g.y, g.x, ground_smooth, min(max(radar_y, g.y(1)), g.y(end)), min(max(radar_x, g.x(1)), g.x(end)));
+height = (z(1) - max(ground_smooth(:)):g.dz:z(end) - min(ground_smooth(:)) + g.dz)';
+radar_layer = (height + radar_ground(:)' - z(1)) / g.dz + 1;            % n_height x n_radar
+cell_height = z(:)' - ground_smooth(:);                                % nxy x nz
+terrain = struct("height", height, "radar_layer", radar_layer, ...
+    "cell_height_index", (cell_height - height(1)) / g.dz + 1);
 end
 
 function scale = regularization_scale(data_norm, regularization_norm, lambda_value)
