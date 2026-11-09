@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bird Migration Map</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map"></div>
+<canvas id="flow"></canvas>
+
+<div id="loading"><div class="loading-box"><div id="loading-text">Loading…</div><div class="bar"><div id="loading-bar"></div></div></div></div>
+
+<div id="panel">
+  <div id="heading" hidden></div>
+  <div class="row run-row" id="dataset-field">
+    <select id="dataset" aria-label="Inversion run"></select>
+    <button id="refresh" type="button" title="Look for new exports" aria-label="Look for new exports">↻</button>
+  </div>
+  <div class="row head">
+    <button id="play" class="play" title="Play / pause (space)" aria-label="Play">▶</button>
+    <div class="time-block">
+      <div id="time-label">–</div>
+      <input id="time" type="range" min="0" max="1" step="0.001" value="0" aria-label="Time">
+    </div>
+  </div>
+  <div class="row legend">
+    <canvas id="colorbar" width="256" height="10"></canvas>
+    <div class="ticks"><span id="tick-0">0</span><span id="tick-1"></span><span id="tick-2"></span></div>
+    <div class="legend-title">Birds in the column (km<sup>−2</sup>)</div>
+  </div>
+  <div class="row flow-legend" id="flow-legend"><canvas id="flow-key"></canvas><span id="flow-key-label"></span></div>
+  <details id="settings">
+    <summary>Settings</summary>
+    <label class="field">Speed
+      <select id="speed">
+        <option value="600">10 min / s</option>
+        <option value="1800" selected>30 min / s</option>
+        <option value="3600">1 h / s</option>
+        <option value="7200">2 h / s</option>
+      </select>
+    </label>
+    <label class="field">Colour max <input id="cmax" type="range" min="0" max="1" step="0.001"></label>
+    <label class="field">Opacity <input id="opacity" type="range" min="0.2" max="1" step="0.01" value="0.85"></label>
+    <label class="check"><input id="morph" type="checkbox" checked> Advect between frames</label>
+    <label class="check"><input id="night" type="checkbox" checked> Night only (sun below limit)</label>
+    <label class="check"><input id="lowfade" type="checkbox"> Fade low densities</label>
+    <label class="field">Flow
+      <select id="flow-mode">
+        <option value="particles" selected>Particles</option>
+        <option value="arrows">Arrows</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <label class="field" id="particle-count-field" title="Particles in the view at the night's maximum of birds; fewer when fewer birds fly">Particles <input id="particle-count" type="range" min="1000" max="20000" step="1000" value="4000"></label>
+    <label class="check"><input id="radars" type="checkbox"> Radars</label>
+  </details>
+  <div id="credit" hidden></div>
+</div>
+<div id="tooltip" hidden></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

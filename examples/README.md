@@ -13,6 +13,7 @@ From radar volumes to animated 3D bird-density maps for a radar network: robust 
 | `bmm4d.build_observations(c)` | Grid, then forward-operator rows per radar (in parallel), stacked (P3) | `case.mat` |
 | `bmm4d.invert(c)` | Density prior, advection mappings, joint inversion; `invert(c, "paper")` for the full-grid double-precision path (P4) | `inversion.mat` |
 | `bmm4d.export_maps(c)` | Nine-time column-density map and MP4 (P5) | `column_density.png`, `.mp4` in `c.figure_dir` |
+| `bmm4d.export_webmap(c, ...)` | Frames and birds' wind for the web map viewer, then prints the link to the run (`webmap/README.md`) | `webmap/<run>/` in `c.data_dir` |
 
 Every stage appends its time and client memory to `stage_log.csv`, and reads what the earlier stages saved, so one stage can be rerun alone.
 

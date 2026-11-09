@@ -1,4 +1,4 @@
-%% Reconstruct one case: volumes, cleaning, observations, inversion, maps
+%% Reconstruct one case: volumes, cleaning, observations, inversion, maps, web map
 % Each stage saves its products in c.data_dir (manifest, static clutter,
 % case, inversion) and logs its time and memory in stage_log.csv, so a
 % stage can be rerun alone once the earlier ones are done. Cleaned volumes
@@ -35,3 +35,9 @@ obs_case = bmm4d.build_observations(c);
 
 %% Maps
 bmm4d.export_maps(c)
+
+%% Web map
+% Export for the web map viewer (webmap/README.md): writes
+% <c.data_dir>/webmap/inversion/ and prints the link that opens this run.
+% obs_case gives the grid and radar scans (without it, case.mat is read).
+bmm4d.export_webmap(c, active_field, active_id=active_id, run="inversion", note="examples/run_case.m", case_data=obs_case);

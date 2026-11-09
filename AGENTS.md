@@ -18,12 +18,13 @@ When replacing an old implementation, update the callers instead of keeping lega
 
 ## Repository Layout
 
-- `toolbox/` is the MATLAB package `bmm4d` (`resources/mpackage.json`). Its code is in the `bmm4d` namespace, one sub-namespace per role: `bmm4d.radar` (with cleaning filters in `bmm4d.radar.filter`), `bmm4d.forward`, `bmm4d.grid`, `bmm4d.prior`, `bmm4d.advect`, `bmm4d.solve`, `bmm4d.plot`, `bmm4d.util`. Settings and stages are at the top: `bmm4d.config`, `get_volumes`, `clean_volumes`, `static_clutter`, `build_observations`, `invert`, `export_maps`.
+- `toolbox/` is the MATLAB package `bmm4d` (`resources/mpackage.json`). Its code is in the `bmm4d` namespace, one sub-namespace per role: `bmm4d.radar` (with cleaning filters in `bmm4d.radar.filter`), `bmm4d.forward`, `bmm4d.grid`, `bmm4d.prior`, `bmm4d.advect`, `bmm4d.solve`, `bmm4d.plot`, `bmm4d.util`. Settings and stages are at the top: `bmm4d.config`, `get_volumes`, `clean_volumes`, `static_clutter`, `build_observations`, `invert`, `export_maps`, `export_webmap`.
 - Call package functions with their full names, also inside the package (`bmm4d.grid.create_grid(...)`); a script may `import bmm4d.radar.*` for short names.
 - Keep alternatives selectable by name in the settings (a new cleaning step is a new filter file plus its name in the `filters` list); remove duplicate implementations of the same method.
-- `examples/` runs cases (`run_case.m`, `case_settings.m`), `studies/` holds research beside the package, `synthetic/` the synthetic-case tools used by tests and studies, `tests/` the unit tests and the paper-v1 regression test.
+- `examples/` runs cases (`run_case.m`, `case_settings.m`), `webmap/` is the viewer of inversion results, `studies/` holds research beside the package, `synthetic/` the synthetic-case tools used by tests and studies, `tests/` the unit tests and the paper-v1 regression test.
 - Record every moved, renamed or removed function and every change of method or result in `MIGRATION.md`. Restructuring must keep `paperRegressionTest` passing; a deliberate method change is recorded there with the size of the difference.
 - Run `buildtool` (check and unit tests) before committing; `buildtool regression` when cleaning, forward model, prior or solver change.
+- Viewing inversions: the web map (`webmap/`) is the one place to look at inversion results, on the laptop or the cluster, production or test. `examples/run_case.m` exports every pipeline run; after any other inversion, call `bmm4d.export_webmap(c, active_field, active_id=active_id, run="<short name>", note="<what it tests>")` (~10 MB, seconds to a minute) and give the user the link it prints (`http://127.0.0.1:8642/?data=...`); the user opens it with `python3 webmap/serve.py`. Don't build other viewers or videos to inspect runs; extend the web map instead. Details in `webmap/README.md`.
 
 ## Canonical Grid Convention
 

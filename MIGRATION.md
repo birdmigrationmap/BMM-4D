@@ -2,6 +2,14 @@
 
 What moved, changed or was removed since tag `paper-v1`, step by step. Use it to port a fix to the paper repository, or to find where a paper function lives now.
 
+## Web map viewer: bmm4d.export_webmap and webmap/
+
+**New stage and tool; no change of method or result.**
+- New stage `bmm4d.export_webmap(c)` (or `(c, field, active_id=..., run=..., note=...)` for any field): writes `<c.data_dir>/webmap/<run>/` (column density and birds' wind as PNG, `meta.json` with the run's case, note, time, host, commit or cluster job) and prints the link to the run in the viewer. `examples/run_case.m` calls it after `export_maps`.
+- New top-level `webmap/`: the viewer (`app/`), `serve.py` (lists every export under `local_data_dir` and the new optional setting `cluster_products_dir`, newest first, on http://127.0.0.1:8642/), and `share/` (one night as a self-contained Artifact page, offline Natural Earth basemap). See `webmap/README.md`.
+- Moved from the uncommitted study `studies/webmap/`: `functions/webmap_export.m` → `bmm4d.export_webmap`; `scripts/WM_A_export.m` removed (the one-argument call reads `inversion.mat`); `scripts/WM_B_basemap.R` → `webmap/share/build_basemap.R`; `scripts/WM_C_build_share.py` → `webmap/share/build_share.py`.
+- **Tests:** new `tests/exportWebmapTest.m` exports a synthetic case and decodes it as the viewer does (frames, column within the 3% encoding steps, wind, map placement, one radar as a list).
+
 ## Velocity field by Gaussian weights, as the density prior
 
 **Method change (production only).** The radar velocity profiles are spread to the grid with the same smooth Gaussian weights as the density prior (150 km), instead of inverse-distance weights of the 10 nearest radars.

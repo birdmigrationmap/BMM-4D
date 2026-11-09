@@ -1,0 +1,32 @@
+/* The parts of maplibre-gl.css (4.7) the viewer uses, for builds that cannot
+   load external stylesheets (the Artifact page allows Google Fonts only):
+   map container, canvas, control corners, zoom buttons, scale bar. */
+.maplibregl-map { position: relative; overflow: hidden; -webkit-tap-highlight-color: transparent; font: 12px/20px "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.maplibregl-canvas { position: absolute; left: 0; top: 0; }
+.maplibregl-canvas-container.maplibregl-interactive { cursor: grab; }
+.maplibregl-canvas-container.maplibregl-interactive:active { cursor: grabbing; }
+.maplibregl-canvas-container.maplibregl-touch-drag-pan,
+.maplibregl-canvas-container.maplibregl-touch-zoom-rotate,
+.maplibregl-canvas-container.maplibregl-touch-drag-pan.maplibregl-touch-zoom-rotate { touch-action: none; }
+.maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { position: absolute; z-index: 2; pointer-events: none; }
+.maplibregl-ctrl-top-left { top: 0; left: 0; }
+.maplibregl-ctrl-top-right { top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px); }
+.maplibregl-ctrl-bottom-left { bottom: 0; left: 0; }
+.maplibregl-ctrl-bottom-right { bottom: env(safe-area-inset-bottom, 0px); right: env(safe-area-inset-right, 0px); }
+.maplibregl-ctrl { clear: both; pointer-events: auto; transform: translate(0); }
+.maplibregl-ctrl-top-right .maplibregl-ctrl { float: right; margin: 10px 10px 0 0; }
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl { float: right; margin: 0 10px 10px 0; }
+.maplibregl-ctrl-group { background: #fff; border-radius: 4px; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1); }
+.maplibregl-ctrl-group button { display: block; width: 29px; height: 29px; padding: 0; border: 0; background: transparent; cursor: pointer; box-sizing: border-box; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid #ddd; }
+.maplibregl-ctrl-group button:first-child { border-radius: 4px 4px 0 0; }
+.maplibregl-ctrl-group button:last-child { border-radius: 0 0 4px 4px; }
+.maplibregl-ctrl-group button:hover { background-color: rgba(0, 0, 0, 0.05); }
+.maplibregl-ctrl-group button:focus-visible { box-shadow: 0 0 2px 2px #0096ff; }
+.maplibregl-ctrl-group button:disabled { cursor: not-allowed; opacity: 0.35; }
+.maplibregl-ctrl button .maplibregl-ctrl-icon { display: block; width: 100%; height: 100%; background-position: center; background-repeat: no-repeat; }
+.maplibregl-ctrl button.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 29'%3E%3Cpath d='M14.5 8.5v12M8.5 14.5h12' stroke='%23333' stroke-width='2'/%3E%3C/svg%3E"); }
+.maplibregl-ctrl button.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 29'%3E%3Cpath d='M8.5 14.5h12' stroke='%23333' stroke-width='2'/%3E%3C/svg%3E"); }
+.maplibregl-ctrl-scale { box-sizing: border-box; padding: 0 5px; border: 2px solid #333; border-top: 0; background: rgba(255, 255, 255, 0.75); color: #333; font-size: 10px; }

@@ -2,6 +2,7 @@
     "data_dir": "data",
     "nexrad_raw_dir": "/path/to/nexrad_raw",
     "local_data_dir": "/path/to/generated_products",
+    "cluster_products_dir": "/Volumes/UNIT_Vogelzug/BMM-4D/products",
     "figure_dir": "figures",
     "wsrlib_dir": "external/wsrlib",
     "regtools_dir": "external/regtools",
