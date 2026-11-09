@@ -47,6 +47,11 @@ What moved, changed or was removed since tag `paper-v1`, step by step. Use it to
 - **Grid top:** only 0.2% of the source cells lose their link through the 3000 m top, so it is unchanged for us_east. A domain west of −104° needs a higher top anyway: at −104° the High Plains leave 1460 m of air under it.
 - **Tests:** new `tests/terrainFollowingTest.m` checks three things: flat ground gives the sea-level links; links keep the height above the smoothed ground exactly; links into a ridge climb. Unchanged: `testPaperPathUnchanged` passes; `testProductionPathUnchanged` already failed before this change (its reference predates the gate estimator).
 
+## Cluster runs: hpc/
+
+**New tooling; no change of method or result.** `hpc/submit.sh` (and `hpc/bmm4d_submit.m` for MATLAB) runs a MATLAB command on the Vogelwarte HPC cluster with a frozen, read-only snapshot of the laptop's working tree and a provenance record; `hpc/job.sh` is the Slurm job run from the snapshot. See `hpc/README.md`. Unit tests on the cluster: 65 passed, `radarFilterOrderTest` skipped (the regression reference stores a laptop path). `CLAUDE.md` imports `AGENTS.md` for Claude Code.
+- `bmm4d.export_maps` writes the animation as Motion JPEG `column_density.avi` where MATLAB has no MPEG-4 writer (Linux); it stopped with "The specified profile is not valid" on the cluster. Unchanged on macOS and Windows (`.mp4`). Sandbox on the cluster: all stages ran, 37 solver iterations as on the laptop.
+
 ## Beam-blockage maps read at compass azimuth
 
 **Bug fix (production and paper chains).** The terrain-horizon maps (`studies/beam_blockage/beam_blockage_script.m`, `data/reference/beam_blockage`) are indexed by the math angle of `pol2cart`, counter-clockwise from east. `bmm4d.radar.filter.beam_blockage` looked them up at the gate's compass azimuth, so it removed gates in the mirrored direction (compass 90° − az) and kept the blocked ones, whose missing echo became zero-density observations. The filter now looks up `mod(90 - az, 360)`; the maps are unchanged.

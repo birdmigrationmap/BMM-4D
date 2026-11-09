@@ -17,6 +17,7 @@ This repository was split from the paper repository `BMM-within` on 24 October 2
 | `synthetic/` | Synthetic truths, advection and observations for tests and studies; not part of the package. |
 | `studies/` | Research beside the package: gate density near the radar, cleaning study, sandbox, two-level model, pipeline review (prior plots, weight tests), beam-blockage maps, kernel generation, legacy US night, notes. |
 | `tests/` | Unit tests of the shared code, and `paperRegressionTest` (tag `Regression`): today's code against outputs of tag `paper-v1` on three Key West volumes. Its reference is local (`data/regression/`), built by `tests/regression/make_regression_reference.m`. |
+| `hpc/` | Runs on the Vogelwarte HPC cluster from a frozen snapshot of the working tree (`submit.sh`, `bmm4d_submit.m`); see `hpc/README.md`. |
 | `webmap/` | The viewer of inversion results: `bmm4d.export_webmap` exports a run, `python3 webmap/serve.py` lists every run on the laptop and the cluster share and shows it on a zoomable, animated map; see `webmap/README.md`. |
 
 ## Setup

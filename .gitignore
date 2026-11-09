@@ -18,6 +18,7 @@ archive/**
 *.fig
 *.mat
 *.mp4
+*.avi
 
 # Local diagnostics and rendered exports
 **/diagnostics/

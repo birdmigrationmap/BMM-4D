@@ -24,6 +24,7 @@ When replacing an old implementation, update the callers instead of keeping lega
 - `examples/` runs cases (`run_case.m`, `case_settings.m`), `webmap/` is the viewer of inversion results, `studies/` holds research beside the package, `synthetic/` the synthetic-case tools used by tests and studies, `tests/` the unit tests and the paper-v1 regression test.
 - Record every moved, renamed or removed function and every change of method or result in `MIGRATION.md`. Restructuring must keep `paperRegressionTest` passing; a deliberate method change is recorded there with the size of the difference.
 - Run `buildtool` (check and unit tests) before committing; `buildtool regression` when cleaning, forward model, prior or solver change.
+- Cluster runs go through `hpc/submit.sh` only (rules in `hpc/README.md`): code is edited on the laptop, each job runs its own read-only snapshot, and nothing is ever edited, cloned or pulled on the cluster.
 - Viewing inversions: the web map (`webmap/`) is the one place to look at inversion results, on the laptop or the cluster, production or test. `examples/run_case.m` exports every pipeline run; after any other inversion, call `bmm4d.export_webmap(c, active_field, active_id=active_id, run="<short name>", note="<what it tests>")` (~10 MB, seconds to a minute) and give the user the link it prints (`http://127.0.0.1:8642/?data=...`); the user opens it with `python3 webmap/serve.py`. Don't build other viewers or videos to inspect runs; extend the web map instead. Details in `webmap/README.md`.
 
 ## Canonical Grid Convention
@@ -211,9 +212,4 @@ Prefer these MCP actions:
 - run MATLAB test files
 - use MATLAB code analysis when reviewing or debugging MATLAB code
 
-As of `2026-06-06`, the MATLAB MCP connection was verified from Codex and reported:
-
-- `MATLAB R2026a Update 2`
-- `MATLAB MCP Core Server Toolbox 0.1.1`
-
-Do not add instructions that rely on `matlab -batch` or other command-line MATLAB startup from the Codex shell unless that workflow is re-verified and explicitly needed.
+The laptop runs MATLAB R2026b. When the MCP connection is down, `matlab -batch` from the shell works as a fallback for checks and tests (verified 2026-11-06), from the project root; say so when using it. Cluster jobs always run `matlab -batch`, through `hpc/` only.

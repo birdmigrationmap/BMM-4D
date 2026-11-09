@@ -1,8 +1,9 @@
 function export_maps(c)
 %EXPORT_MAPS Maps and animation of the vertically integrated density.
 %   BMM4D.EXPORT_MAPS(C) writes, in C.figure_dir, a nine-time overview
-%   (column_density.png) and an MP4 of every time step
-%   (column_density.mp4) of the inversion of the case, on a light
+%   (column_density.png) and an animation of every time step
+%   (column_density.mp4; column_density.avi, Motion JPEG, where MATLAB has
+%   no MPEG-4 writer, as on Linux) of the inversion of the case, on a light
 %   land/water background. The map fades to 40% opacity between the end of
 %   the radar data (r_lim) and the edge of the solved domain, and hides
 %   cells where the sun is up.
@@ -85,7 +86,12 @@ bmm4d.plot.export_fixed_figure(fig, fullfile(c.figure_dir, "column_density.png")
 close(fig)
 
 %% Animation of all times
-video = VideoWriter(fullfile(c.figure_dir, "column_density.mp4"), "MPEG-4");
+% MPEG-4 is only available on Windows and macOS; Linux (cluster) writes Motion JPEG AVI
+if any(strcmp({VideoWriter.getProfiles().Name}, "MPEG-4"))
+    video = VideoWriter(fullfile(c.figure_dir, "column_density.mp4"), "MPEG-4");
+else
+    video = VideoWriter(fullfile(c.figure_dir, "column_density.avi"), "Motion JPEG AVI");
+end
 video.FrameRate = 4;
 open(video)
 fig = bmm4d.plot.create_export_figure(2400, 1800, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
