@@ -4,14 +4,16 @@ function scans_filepath = load_rd(scan_radar, scan_time, varargin)
 %   array with one filepath per requested radar-time combination, or ""
 %   when no file lies within the accepted offset.
 %
-%   Files are searched in the local cache (nexrad_raw_dir) and in
+%   Files are searched in the local cache (nexrad_raw_dir), in
 %   raw_scans/nexrad of the data folder (data_path) used by earlier
-%   workflows. Downloads always go to the local cache.
+%   workflows, and in the shared archive "nexrad_shared_dir" of
+%   local_settings.json when it is set and reachable (e.g. the cluster's
+%   raw folder mounted on a laptop). Downloads always go to the local cache.
 %
 %   Options:
 %   - 'closest_accepted': maximum time offset in minutes.
 %   - 'download': download missing files from the Unidata S3 bucket when true.
-%   - 'search_dirs': folders to search instead of the two above.
+%   - 'search_dirs': folders to search instead of the ones above.
 
 p = inputParser;
 addParameter(p,'closest_accepted',10);
@@ -24,6 +26,11 @@ scan_radar = string(scan_radar);
 bucket_url = "https://unidata-nexrad-level2.s3.amazonaws.com";
 cache_dir = bmm4d.radar.nexrad_raw_dir();
 search_dirs = unique([string(cache_dir) string(bmm4d.util.data_path("raw_scans", "nexrad"))], "stable");
+% Shared archive (e.g. the cluster store mounted over SMB); skipped when not mounted
+shared_dir = bmm4d.util.local_folder("nexrad_shared_dir", "");
+if shared_dir ~= "" && isfolder(shared_dir)
+    search_dirs = unique([search_dirs shared_dir], "stable");
+end
 if ~isempty(p.Results.search_dirs)
     search_dirs = string(p.Results.search_dirs);
 end

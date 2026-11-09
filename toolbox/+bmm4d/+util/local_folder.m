@@ -3,7 +3,8 @@ function folder = local_folder(name, default)
 %   FOLDER = LOCAL_FOLDER(NAME, DEFAULT) returns field NAME of
 %   local_settings.json in the repository root (not tracked; see
 %   local_settings.example.json), or DEFAULT when the file or the field is
-%   missing. Relative folders are taken from the repository root.
+%   missing. Relative folders are taken from the repository root; an empty
+%   folder stays empty (an optional setting that is not set).
 
 % The package locates its own repository from this file
 % (toolbox/+bmm4d/+util/local_folder.m), so it works from any current folder.
@@ -16,7 +17,7 @@ if isfile(settings_file)
         folder = string(settings.(name));
     end
 end
-if ~startsWith(folder, ["/" "~"]) && ~contains(folder, ":")
+if folder ~= "" && ~startsWith(folder, ["/" "~"]) && ~contains(folder, ":")
     folder = fullfile(repository_root, folder);
 end
 end

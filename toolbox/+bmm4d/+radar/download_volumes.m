@@ -4,7 +4,8 @@ function n_downloaded = download_volumes(radars, times, need, closest_accepted_m
 %   listed over HTTPS from the public Unidata bucket (one listing per radar
 %   and UTC day) and fetched concurrently with curl into the raw cache
 %   (nexrad_raw_dir, layout <RADAR>_<yyyymmdd>/<file>), where load_rd finds
-%   them.
+%   them. Volumes archived as .gz (before mid-2016) are unpacked, because
+%   load_rd skips .gz files.
 
 bucket_url = "https://unidata-nexrad-level2.s3.amazonaws.com";
 raw_dir = bmm4d.radar.nexrad_raw_dir();
@@ -50,4 +51,10 @@ if status ~= 0
     warning("download_volumes:CurlErrors", "Some downloads failed:\n%s", out)
 end
 delete(config_file)
+
+% Unpack .gz volumes next to the archive, which load_rd would skip
+for file = outputs(endsWith(outputs, ".gz") & isfile(outputs))'
+    gunzip(file, fileparts(file))
+    delete(file)
+end
 end

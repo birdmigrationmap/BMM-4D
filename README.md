@@ -61,7 +61,13 @@ Code reads data through `bmm4d.util.data_path(...)`, from the data folder: `data
 | `raw_scans/nexrad/` | Older raw volumes | Symbolic link to the paper repository's folder (read only) |
 | `regression/` | Reference of the paper-v1 regression test | `tests/regression/make_regression_reference.m` |
 
-Two more folders are set in `local_settings.json`: `nexrad_raw_dir`, the cache of downloaded raw volumes (`bmm4d.radar.nexrad_raw_dir()`), and `local_data_dir`, the large generated products such as radar caches, cases and inversions (`bmm4d.util.local_data_dir()`). Optional `cluster_products_dir`, read by `webmap/serve.py` only, is the cluster's `local_data_dir` as mounted here (`/Volumes/UNIT_Vogelzug/BMM-4D/products`), so the web map lists cluster runs.
+More folders are set in `local_settings.json`:
+- `nexrad_raw_dir`: where raw volumes are downloaded and searched first (`bmm4d.radar.nexrad_raw_dir()`).
+- `nexrad_shared_dir` (optional): a raw archive `load_rd` also searches but never writes to, skipped when not mounted. On the laptop, the cluster's raw folder (`/Volumes/UNIT_Vogelzug/weather_radar_us/nexrad_level2`).
+- `local_data_dir`: large generated products such as volume caches, cases and inversions (`bmm4d.util.local_data_dir()`).
+- `cluster_products_dir` (optional, read by `webmap/serve.py` only): the cluster's `local_data_dir` as mounted here (`/Volumes/UNIT_Vogelzug/BMM-4D/products`), so the web map lists cluster runs.
+
+Cluster runs and their settings: `hpc/README.md`.
 
 ## License
 

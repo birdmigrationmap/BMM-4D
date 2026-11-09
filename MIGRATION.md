@@ -52,6 +52,13 @@ What moved, changed or was removed since tag `paper-v1`, step by step. Use it to
 **New tooling; no change of method or result.** `hpc/submit.sh` (and `hpc/bmm4d_submit.m` for MATLAB) runs a MATLAB command on the Vogelwarte HPC cluster with a frozen, read-only snapshot of the laptop's working tree and a provenance record; `hpc/job.sh` is the Slurm job run from the snapshot. See `hpc/README.md`. Unit tests on the cluster: 65 passed, `radarFilterOrderTest` skipped (the regression reference stores a laptop path). `CLAUDE.md` imports `AGENTS.md` for Claude Code.
 - `bmm4d.export_maps` writes the animation as Motion JPEG `column_density.avi` where MATLAB has no MPEG-4 writer (Linux); it stopped with "The specified profile is not valid" on the cluster. Unchanged on macOS and Windows (`.mp4`). Sandbox on the cluster: all stages ran, 37 solver iterations as on the laptop.
 
+## Raw volumes: .gz archives unpacked, shared raw folder
+
+**Bug fix (also applies to release 1.0.1) and new setting; no change of method or result.**
+- `bmm4d.radar.download_volumes` now unpacks volumes archived as `.gz` (Unidata keys before mid-2016, e.g. KABR 2015). It saved them packed, `load_rd` skips `.gz` files, so these volumes were never found and were downloaded again on every `get_volumes`. `load_rd`'s own `download=true` path already unpacked them.
+- New optional `nexrad_shared_dir` in `local_settings.json`: a read-only raw archive that `load_rd` searches after `nexrad_raw_dir` and `data/raw_scans/nexrad`, when set and reachable (on the laptop, the cluster's raw folder; see README, Data). Downloads still go to `nexrad_raw_dir`.
+- `bmm4d.util.local_folder` keeps an empty default empty instead of turning it into the repository root, so optional settings can be absent.
+
 ## Beam-blockage maps read at compass azimuth
 
 **Bug fix (production and paper chains).** The terrain-horizon maps (`studies/beam_blockage/beam_blockage_script.m`, `data/reference/beam_blockage`) are indexed by the math angle of `pol2cart`, counter-clockwise from east. `bmm4d.radar.filter.beam_blockage` looked them up at the gate's compass azimuth, so it removed gates in the mirrored direction (compass 90° − az) and kept the blocked ones, whose missing echo became zero-density observations. The filter now looks up `mod(90 - az, 360)`; the maps are unchanged.
