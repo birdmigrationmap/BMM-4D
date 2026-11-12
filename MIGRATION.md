@@ -6,6 +6,8 @@ What moved, changed or was removed since tag `paper-v1`, step by step. Use it to
 
 New production defaults; the paper path and its regression test against `paper-v1` are unchanged. Newest change first.
 
+**Regression reference rebuilt for version 2** (12 November 2026, `make_regression_reference.m` at commit 6394c40). The paper path still matches `paper-v1` (field 1.3e-11 relative, all other outputs identical). The production part of the reference now holds the version 2 production path, so `testProductionPathUnchanged` passes again and guards version 2 from here on; the version 1 reference is kept locally as `data/regression/paper_v1_reference_v1.0.mat`. Checked at 6394c40: `buildtool check test` (Code Analyzer 0 errors; 74 unit tests passed with the local data) and `buildtool regression` (both paths pass).
+
 ### Velocity field by Gaussian weights, as the density prior
 
 **Method change (production only).** The radar velocity profiles are spread to the grid with the same smooth Gaussian weights as the density prior (150 km), instead of inverse-distance weights of the 10 nearest radars.
