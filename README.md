@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/birdmigrationmap/BMM-4D/actions/workflows/ci.yml/badge.svg)](https://github.com/birdmigrationmap/BMM-4D/actions/workflows/ci.yml)
 
-Version 1.0 is the method of the paper (tag `paper-v1`) as a MATLAB package; changes between versions are listed in `MIGRATION.md`. To cite, use `CITATION.cff` ("Cite this repository" on GitHub).
+Version 1 (`v1.0.0`, `v1.0.1`) is the method of the paper (tag `paper-v1`) as a MATLAB package. Version 2 changes the production defaults: radar data to density, observation errors, prior and wind field, terrain following, the web map and cluster runs. The paper path is kept and checked against `paper-v1` by the regression test. Every change between versions is listed in `MIGRATION.md`. To cite, use `CITATION.cff` ("Cite this repository" on GitHub).
 
 Code for reconstructing animated 3D bird-density fields from a network of NEXRAD radars: radar processing, forward model, density prior, advection-regularized inversion, and the operational pipeline built on them.
 
@@ -15,7 +15,7 @@ This repository was split from the paper repository `BMM-within` on 24 October 2
 | `toolbox/` | The package, in the `bmm4d` namespace (`toolbox/+bmm4d/`): radar reading and cleaning (`bmm4d.radar`), beam kernels and forward operator (`bmm4d.forward`), grid and masks (`bmm4d.grid`), priors (`bmm4d.prior`), advection (`bmm4d.advect`), solvers (`bmm4d.solve`), plotting (`bmm4d.plot`), helpers (`bmm4d.util`). Calls are written in full, e.g. `bmm4d.radar.read_rd(...)`; a script can `import bmm4d.radar.*` to use short names. |
 | `examples/` | Running a case: `run_case.m` calls the stages (`bmm4d.config`, `get_volumes`, `clean_volumes`, `static_clutter`, `build_observations`, `invert`, `export_maps`, `export_webmap`); `case_settings.m` holds the test cases. See `examples/README.md`. |
 | `synthetic/` | Synthetic truths, advection and observations for tests and studies; not part of the package. |
-| `studies/` | Research beside the package: gate density near the radar, cleaning study, sandbox, two-level model, pipeline review (prior plots, weight tests), beam-blockage maps, kernel generation, legacy US night, notes. |
+| `studies/` | Research beside the package: gate density near the radar (`gate_density`), rain and cleaning methods (`cleaning_study`), the Midwest sandbox (`sandbox`), beam-blockage maps (`beam_blockage`) and kernel generation (`kernels`). |
 | `tests/` | Unit tests of the shared code, and `paperRegressionTest` (tag `Regression`): today's code against outputs of tag `paper-v1` on three Key West volumes. Its reference is local (`data/regression/`), built by `tests/regression/make_regression_reference.m`. |
 | `hpc/` | Runs on the Vogelwarte HPC cluster from a frozen snapshot of the working tree (`submit.sh`, `bmm4d_submit.m`); see `hpc/README.md`. |
 | `webmap/` | The viewer of inversion results: `bmm4d.export_webmap` exports a run, `python3 webmap/serve.py` lists every run on the laptop and the cluster share and shows it on a zoomable, animated map; see `webmap/README.md`. |
