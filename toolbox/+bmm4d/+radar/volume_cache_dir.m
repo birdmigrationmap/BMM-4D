@@ -5,9 +5,10 @@ function cache_dir = volume_cache_dir(c)
 %   velocity-profile settings. Changing any of them starts a new cache.
 %   CLEANING_VERSION is part of the hash: raise it when a fix changes the
 %   cleaned volumes without changing any option, so old caches are not
-%   reused (2: beam-blockage maps read at compass azimuth).
+%   reused (2: beam-blockage maps read at compass azimuth; 3: each sweep
+%   keeps its cut's waveform).
 
-cleaning_version = 2;
+cleaning_version = 3;
 settings_text = jsonencode(struct("read_options", {c.read_options}, "vp", c.vp, "filter", c.filter, ...
     "cleaning_version", cleaning_version));
 digest = java.security.MessageDigest.getInstance("MD5");

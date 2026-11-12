@@ -61,10 +61,11 @@ if isfile(clutter_file)
     clutter_masks(found) = loaded.clutter_masks(id(found));
 end
 clutter_max_elev = c.static_clutter.max_elev;
+near_radar = c.near_radar;
 parfor i_r = 1:n_radar
     try
         rows{i_r} = bmm4d.forward.build_radar_rows(volume_files(i_r, :), n_time, g_fine, kernel_dir, min_row_mass, aggregate, ...
-            clutter_masks{i_r}, clutter_max_elev);
+            clutter_masks{i_r}, clutter_max_elev, near_radar);
     catch err
         warning("bmm4d:build_observations:RadarFailed", "%s: %s", c.radars(i_r), err.message)
     end
@@ -74,8 +75,8 @@ clear g_fine
 kept = ~cellfun(@isempty, rows);
 rows = rows(kept);
 radar_selected = radar(radar_id(kept), :);
-bmm4d.util.stage_log(c, "build_observations_rows", stage_tic, sprintf("%d/%d radars, %d sweeps without kernel", ...
-    nnz(kept), n_radar, sum(cellfun(@(r) r.n_dropped_sweeps, rows))))
+bmm4d.util.stage_log(c, "build_observations_rows", stage_tic, sprintf("%d/%d radars, %d sweeps without kernel, %d near-radar gates dropped", ...
+    nnz(kept), n_radar, sum(cellfun(@(r) r.n_dropped_sweeps, rows)), sum(cellfun(@(r) r.n_near_dropped_gates, rows))))
 
 %% Stack the observation system--------
 % Rows are stacked radar by radar; row_radar_id gives each row's radar.

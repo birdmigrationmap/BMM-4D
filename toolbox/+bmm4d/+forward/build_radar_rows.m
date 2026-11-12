@@ -1,4 +1,4 @@
-function rows = build_radar_rows(volume_files, n_time, g, kernel_dir, min_row_mass, aggregate, clutter_mask, clutter_max_elev)
+function rows = build_radar_rows(volume_files, n_time, g, kernel_dir, min_row_mass, aggregate, clutter_mask, clutter_max_elev, near_radar)
 %BUILD_RADAR_ROWS Forward-operator rows of one radar for all requested times.
 %   VOLUME_FILES(1, n_time) are the radar's cleaned volumes ("" if missing).
 %   Builds this radar's rows of the forward operator on the shared grid G,
@@ -10,6 +10,8 @@ function rows = build_radar_rows(volume_files, n_time, g, kernel_dir, min_row_ma
 %   their bin spacing matches the coarse layers.
 %   CLUTTER_MASK (static_clutter_mask, or []) removes the flagged gates from
 %   sweeps below CLUTTER_MAX_ELEV (nearest range/azimuth lookup).
+%   NEAR_RADAR (bmm4d.config near_radar: waveforms, max_range_m) removes
+%   the gates of those cuts closer than max_range_m (drop_near_radar_cuts).
 %   ROWS is empty when the radar has no usable volume.
 
 rows = [];
@@ -37,6 +39,8 @@ if ~isempty(clutter_mask)
         end
     end
 end
+% Remove the steep cuts near the radar (near-radar deficit)
+[scans, n_near_dropped] = bmm4d.forward.drop_near_radar_cuts(scans, near_radar.waveforms, near_radar.max_range_m);
 [elevation_kernels, scans, n_dropped] = bmm4d.forward.attach_kernels(scans, kernel_dir);
 [F, obs_matrix, info] = bmm4d.forward.construct_F(scans, elevation_kernels, g, aggregate=aggregate);
 radar_obs = bmm4d.forward.prepare_radar_observations(F, obs_matrix, info, min_row_mass=min_row_mass);
@@ -79,5 +83,6 @@ rows = struct( ...
     "site", struct("station", scans{1}.station, "lat", scans{1}.lat, "lon", scans{1}.lon, "height", scans{1}.height), ...
     "time_id", time_id, ...
     "sd", sd, ...
-    "n_dropped_sweeps", n_dropped);
+    "n_dropped_sweeps", n_dropped, ...
+    "n_near_dropped_gates", n_near_dropped);
 end

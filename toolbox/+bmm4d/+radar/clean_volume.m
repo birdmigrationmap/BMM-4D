@@ -5,8 +5,12 @@ function status = clean_volume(raw_file, read_options, vp, filter, out_file)
 %   height above the antenna), thins the gates of each density sweep to
 %   FILTER.data_res = [range tangential] spacing (m), and saves only what
 %   the forward model needs to OUT_FILE (and, with FILTER.estimator_sd,
-%   the estimator's sd of each density). STATUS is a short message; "ok" on
-%   success.
+%   the estimator's sd of each density). Each sweep also keeps the
+%   waveform of its cut, read from the volume's header (read_vcp):
+%   "split" (an elevation with a contiguous surveillance cut, whose
+%   reflectivity the cleaning reads), "doppler_ar", "doppler", "batch",
+%   "staggered", or "unknown" (no header, or no cut within 0.1 deg).
+%   STATUS is a short message; "ok" on success.
 
 try
     scan_cell = bmm4d.radar.read_rd(raw_file, read_options{:});
@@ -19,7 +23,28 @@ try
             sweeps(i_elev).sd = thin_sweep(sweeps(i_elev).sd, sweeps(i_elev).range(:), sweeps(i_elev).az(:), filter.data_res);
         end
     end
-    keep_fields = ["elev" "az" "range" "data"];
+    % Waveform of each sweep's cut (build_radar_rows drops near-radar cuts by waveform)
+    try
+        cuts = bmm4d.radar.read_vcp(raw_file).cuts;
+    catch
+        cuts = table();
+    end
+    for i_elev = 1:numel(sweeps)
+        sweeps(i_elev).waveform = "unknown";
+        if isempty(cuts)
+            continue
+        end
+        [gap, i_cut] = min(abs(cuts.elev - sweeps(i_elev).elev));
+        if gap > 0.1
+            continue
+        end
+        if cuts.split(i_cut)
+            sweeps(i_elev).waveform = "split";
+        elseif cuts.waveform_name(i_cut) ~= ""
+            sweeps(i_elev).waveform = cuts.waveform_name(i_cut);
+        end
+    end
+    keep_fields = ["elev" "az" "range" "data" "waveform"];
     if isfield(filter, "estimator_sd") && filter.estimator_sd
         keep_fields = [keep_fields "sd"];
     end

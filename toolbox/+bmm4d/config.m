@@ -5,7 +5,7 @@ function c = config(name, varargin)
 %   static_clutter, build_observations, invert, export_maps). NAME names
 %   the case and its product folder. Any field below can be given as a
 %   name-value pair: a struct value (vp, filter, static_clutter,
-%   inversion, domain) only replaces the fields it contains, and a
+%   near_radar, inversion, domain) only replaces the fields it contains, and a
 %   read_options cell only replaces the read_rd options it names.
 %
 %   Required: radars (string array), times (datetime), grid_bounds
@@ -64,6 +64,12 @@ c.filter = struct("data_res", [1000 1000], ...
 % (wind farms, towers) are removed from sweeps below max_elev.
 c.static_clutter = struct("threshold_db", 8, "window_m", 20000, "min_fraction", 0.5, ...
     "max_range_m", 150000, "max_elev", 2);
+
+% Near radar (build_observations): the gates of these cuts closer than
+% max_range_m (slant range) are dropped; the split cuts (0.5-1.3 deg) stay
+% at every range. The batch cuts read low near the radar (studies/near_radar).
+% waveforms = strings(1, 0) keeps every cut.
+c.near_radar = struct("waveforms", "batch", "max_range_m", 20000);
 
 % Inversion (paper Midwest weights by default)
 c.inversion = struct( ...
