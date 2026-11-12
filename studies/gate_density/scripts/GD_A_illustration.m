@@ -3,11 +3,12 @@
 % 1. why gates near a radar are spiky: birds per gate, empty gates, and the
 %    reflectivity of one bird, by range;
 % 2. what the gates look like (value distribution by range);
-% 3. maps of one simulated sweep: true density, radar output, our current
-%    cleaning (read_rd), the window mean and the homogeneous-density
-%    estimator, all with the same 2 km window;
-% 4. recovered / true density by range for 5, 20, 50 and 200 birds km^-3,
-%    and the per-gate error of the window mean and of the estimator.
+% 3. maps of one simulated sweep: true density, radar output, the cleaning
+%    of BMM-4D before the estimator (GD_OLD_CLEANING: outlier filters and a
+%    2 km moving median), the moving mean of the output over the estimator's
+%    window (GD_WINDOW_MEAN) and the homogeneous-density estimator;
+% 4. recovered / true density by range for 5, 20, 50 and 200 birds km^-3:
+%    the same four methods (the per-gate errors are kept in the csv).
 % Outputs: studies/gate_density/figures/GD_A_*.png and .csv.
 
 %% Load packages and paths ------------------------------------------------
@@ -16,11 +17,11 @@ addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "g
 figure_dir = fullfile(project_root, "studies", "gate_density", "figures");
 
 %% Settings ---------------------------------------------------------------
-beam = gd_beam();                                    % 0.95 deg beam, 250 m gates, sigma 11 cm^2, log-sd 1
-table_s = gd_bird_sum_table(beam, 300, 20000);
+beam = bmm4d.radar.gate.beam();                                    % 0.95 deg beam, 250 m gates, sigma 11 cm^2, log-sd 1.25
+table_s = bmm4d.radar.gate.bird_sum_table(beam, 650, 20000);
 range_m = (2:0.25:60)' * 1000;
 az_step_deg = 0.5;
-radius_m = 2000;                                     % window half-width (range) and half-arc
+radius_m = 1000;                                     % window half-width (range) and half-arc: a 2 km window
 detection_dbz = -28 + 20 * log10(range_m / 5000);    % about the clear-air sensitivity seen near range
 background_dbz = -15;
 s_floor_cm2 = 0.1;                                   % 1% of a mean bird
@@ -72,10 +73,11 @@ eta = gd_simulate_sweep(true_density, range_m, az_step_deg, beam);
 dbz = gd_observe(eta, detection_dbz, background_dbz);
 output = density_from_dbz(dbz);
 output(isnan(dbz)) = 0;
-cleaned = gd_read_rd_filters(dbz, range_m, az_step_deg);
 window_mean = gd_window_mean(output, range_m, az_step_deg, radius_m);
-[lo, hi] = gd_gate_bounds(dbz, zeros(size(dbz)), range_m, beam, detection_dbz, s_floor_cm2);
-estimate = gd_estimate_sweep(lo, hi, range_m, az_step_deg, beam, table_s, radius_m=radius_m);
+[lo, hi] = bmm4d.radar.gate.bounds(dbz, isnan(dbz), range_m, beam, detection_dbz, s_floor_cm2);
+estimate = bmm4d.radar.gate.estimate_sweep(lo, hi, range_m, az_step_deg, beam, table_s, radius_m=radius_m);
+az_deg = (0:size(dbz, 2) - 1) * az_step_deg;
+old_cleaning = gd_old_cleaning(dbz, range_m, az_deg, 0.5);
 truth_window = gd_window_mean(true_density, range_m, az_step_deg, radius_m);   % the target: true density averaged over the window
 
 dbz_edges = -40:2.5:50;
@@ -100,10 +102,9 @@ map_range = range_m <= 30000;
 [az_grid, r_grid] = meshgrid(0:az_step_deg:360, range_m(map_range) / 1000);
 x = r_grid .* sind(az_grid);
 y = r_grid .* cosd(az_grid);
-panels = {true_density, output, cleaned, window_mean, estimate.density};
-panel_titles = ["True density" "Radar output (each gate)" "Our current cleaning (read_rd)" ...
-    "Window mean (2 km)" "Estimator (2 km)"];
-fig = bmm4d.plot.create_export_figure(3600, 820, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+panels = {true_density, output, old_cleaning, window_mean, estimate.density};
+panel_titles = ["True density" "Radar output (each gate)" "BMM-4D before (outlier filters)" "Moving mean (±1 km)" "Estimator"];
+fig = bmm4d.plot.create_export_figure(4000, 860, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
 t = tiledlayout(fig, 1, numel(panels), TileSpacing="tight", Padding="tight");
 for i_p = 1:numel(panels)
     ax = nexttile(t);
@@ -119,9 +120,9 @@ close(fig)
 %% 4. Recovery by range, four densities --------------------------------------------
 test_density = [5 20 50 200];
 n_replicate = 3;
-method_name = ["output, ring mean" "our cleaning" "window mean" "estimator"];
+method_name = ["radar output" "BMM-4D before (outlier filters)" "moving mean" "estimator"];
 recovered = nan(numel(bin_km), numel(method_name), n_replicate, numel(test_density));
-gate_rmse = nan(numel(bin_km), 2, numel(test_density));          % window mean, estimator
+gate_rmse = nan(numel(bin_km), 2, numel(test_density));          % moving mean, estimator
 for i_d = 1:numel(test_density)
     squared = zeros(numel(bin_km), 2);
     for i_rep = 1:n_replicate
@@ -131,9 +132,10 @@ for i_d = 1:numel(test_density)
         output = density_from_dbz(dbz);
         output(isnan(dbz)) = 0;
         window_mean = gd_window_mean(output, range_m, az_step_deg, radius_m);
-        [lo, hi] = gd_gate_bounds(dbz, zeros(size(dbz)), range_m, beam, detection_dbz, s_floor_cm2);
-        estimate = gd_estimate_sweep(lo, hi, range_m, az_step_deg, beam, table_s, radius_m=radius_m);
-        values = {output, gd_read_rd_filters(dbz, range_m, az_step_deg), window_mean, estimate.density};
+        [lo, hi] = bmm4d.radar.gate.bounds(dbz, isnan(dbz), range_m, beam, detection_dbz, s_floor_cm2);
+        estimate = bmm4d.radar.gate.estimate_sweep(lo, hi, range_m, az_step_deg, beam, table_s, radius_m=radius_m);
+        old_cleaning = gd_old_cleaning(dbz, range_m, (0:size(dbz, 2) - 1) * az_step_deg, 0.5);
+        values = {output, old_cleaning, window_mean, estimate.density};
         for i_m = 1:numel(method_name)
             recovered(:, i_m, i_rep, i_d) = bin_mean(values{i_m} / test_density(i_d));
         end
@@ -147,35 +149,30 @@ for i_d = 1:numel(test_density)
         summary.(matlab.lang.makeValidName(sprintf("d%d_%s", test_density(i_d), method_name(i_m)))) = ...
             round(mean(recovered(:, i_m, :, i_d), 3), 2);
     end
-    summary.(sprintf("d%d_gate_rmse_window_mean", test_density(i_d))) = round(gate_rmse(:, 1, i_d), 2);
+    summary.(sprintf("d%d_gate_rmse_moving_mean", test_density(i_d))) = round(gate_rmse(:, 1, i_d), 2);
     summary.(sprintf("d%d_gate_rmse_estimator", test_density(i_d))) = round(gate_rmse(:, 2, i_d), 2);
 end
 disp(summary)
 writetable(summary, fullfile(figure_dir, "GD_A_recovery.csv"))
 
-method_colors = [0.1 0.4 0.8; 0.8 0.2 0.15; 0.5 0.5 0.5; 0 0 0];
-fig = bmm4d.plot.create_export_figure(3600, 2100, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
-t = tiledlayout(fig, 2, numel(test_density), TileSpacing="tight", Padding="tight");
+method_colors = [0.55 0.55 0.55; 0.75 0.15 0.15; 0.85 0.5 0.1; 0 0 0];   % output grey, old cleaning red
+fig = bmm4d.plot.create_export_figure(3600, 1100, DefaultAxesFontName="Helvetica", DefaultTextFontName="Helvetica");
+t = tiledlayout(fig, 1, numel(test_density), TileSpacing="tight", Padding="tight");
 for i_d = 1:numel(test_density)
-    ax = nexttile(t, i_d); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
+    ax = nexttile(t); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
     for i_m = 1:numel(method_name)
         gd_plot_band(ax, bin_km, squeeze(recovered(:, i_m, :, i_d)), method_colors(i_m, :), method_name(i_m))
     end
     yline(ax, 1, "k--", HandleVisibility="off")
-    set(ax, XScale="log", YScale="log", FontSize=12); xlim(ax, [2 60]); ylim(ax, [0.005 3])
-    xticks(ax, [2 5 10 20 30 60]); yticks(ax, [0.01 0.03 0.1 0.3 1 3])
-    xlabel(ax, "Range (km)"); ylabel(ax, "Recovered / true (ring mean)")
+    set(ax, XScale="log", YScale="log", FontSize=12); xlim(ax, [2 60]); ylim(ax, [0.03 3])
+    xticks(ax, [2 5 10 20 30 60]); yticks(ax, [0.03 0.1 0.3 1 3])
+    xlabel(ax, "Distance to the radar, d (km)")
+    if i_d == 1
+        ylabel(ax, "b(d) = recovered / true density")
+    end
     title(ax, sprintf("%d birds km^{-3}", test_density(i_d)), FontWeight="normal")
     if i_d == 1
         legend(ax, Location="southeast", FontSize=10)
-    end
-    ax = nexttile(t, numel(test_density) + i_d); hold(ax, "on"); box(ax, "on"); grid(ax, "on")
-    plot(ax, bin_km, gate_rmse(:, 1, i_d), "-o", Color=method_colors(3, :), LineWidth=2, DisplayName="window mean")
-    plot(ax, bin_km, gate_rmse(:, 2, i_d), "-o", Color=method_colors(4, :), LineWidth=2, DisplayName="estimator")
-    set(ax, XScale="log", YScale="log", FontSize=12); xlim(ax, [2 60]); ylim(ax, [0.02 5])
-    xticks(ax, [2 5 10 20 30 60]); xlabel(ax, "Range (km)"); ylabel(ax, "Per-gate relative RMS error")
-    if i_d == 1
-        legend(ax, Location="northeast", FontSize=10)
     end
 end
 bmm4d.plot.export_fixed_figure(fig, fullfile(figure_dir, "GD_A_recovery.png"), Resolution=150)
