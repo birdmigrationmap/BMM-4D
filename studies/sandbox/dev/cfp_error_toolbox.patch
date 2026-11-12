@@ -1,0 +1,226 @@
+--- a/toolbox/+bmm4d/+radar/+gate/bounds.m
++++ b/toolbox/+bmm4d/+radar/+gate/bounds.m
+@@ -1,4 +1,4 @@
+-function [log10_lo, log10_hi] = bounds(dbz, no_echo, range_m, beam, detection_dbz, s_floor_cm2)
++function [log10_lo, log10_hi] = bounds(dbz, no_echo, range_m, beam, detection_dbz, s_floor_cm2, removed_db, point_clutter)
+ %BOUNDS What each gate tells about its summed bird contribution.
+ %   Converts a sweep DBZ [n_range n_az] into intervals [LOG10_LO, LOG10_HI]
+ %   of s = eta * V_eff (log10 cm^2, BMM4D.RADAR.GATE.BEAM):
+@@ -10,6 +10,15 @@
+ %   - anything below S_FLOOR_CM2 (a small fraction of one bird) cannot be
+ %     told from no bird or a background echo (insects, noise): lower end
+ %     -Inf.
++%   Optional, from the radar's clutter filter (Level II CFP):
++%   - REMOVED_DB [n_range n_az], the power the filter removed (dB, 0 or NaN
++%     where it was not applied): the gate held the output plus at most
++%     that power, birds or ground clutter. Its upper end is raised by
++%     REMOVED_DB + 0.5 dB (CFP comes in whole dB), its lower end stays, so
++%     strong clutter gives a lower bound only and does not raise the
++%     estimate;
++%   - POINT_CLUTTER [n_range n_az] logical, gates whose value the point
++%     clutter filter replaced: at least the output, upper end Inf.
+ 
+ range_m = range_m(:);
+ volume = beam.volume_eff_km3(range_m);
+@@ -22,6 +31,14 @@
+ log10_hi(no_echo) = log10_det(no_echo);
+ log10_lo(log10_lo < floor_value) = -Inf;
+ log10_hi(log10_hi < floor_value) = floor_value;
++if nargin >= 7 && ~isempty(removed_db)
++    raise = (removed_db + 0.5) / 10;
++    raise(isnan(raise)) = 0;
++    log10_hi = log10_hi + raise;
++end
++if nargin >= 8 && ~isempty(point_clutter)
++    log10_hi(point_clutter & ~isnan(dbz)) = Inf;
++end
+ unknown = isnan(dbz) & ~no_echo;
+ log10_lo(unknown) = -Inf;
+ log10_hi(unknown) = Inf;
+--- a/toolbox/+bmm4d/+radar/+filter/estimate_density.m
++++ b/toolbox/+bmm4d/+radar/+filter/estimate_density.m
+@@ -18,6 +18,12 @@
+ %   Works on reflectivity (dBZ) and returns density (birds km^-3), and in
+ %   each gate's SD field the standard deviation of that density from the
+ %   window likelihood (estimate_sweep).
++%   With the clutter filter's removed power (GATES.cfp_code, read_rd option
++%   'cfp'), a second estimate takes each filtered gate as at most the output
++%   plus the removed power and point-clutter gates as at least the output
++%   (BMM4D.RADAR.GATE.BOUNDS). The removed power holds birds and clutter in
++%   unknown shares, so the density stays the first estimate and SD_CFP, the
++%   second minus the first, is the error the filter allows.
+ 
+ 
+ % The bird-sum table is built once per MATLAB process (client or worker)
+@@ -30,6 +36,9 @@
+ if ~isfield(scan.gates, "sd")
+     [scan.gates.sd] = deal([]);
+ end
++if ~isfield(scan.gates, "sd_cfp")
++    [scan.gates.sd_cfp] = deal([]);
++end
+ for i_elev = 1:numel(scan.gates)
+     gate = scan.gates(i_elev);
+     range_m = gate.range(:);
+@@ -45,6 +54,16 @@
+     estimate = bmm4d.radar.gate.estimate_sweep(lo, hi, range_m, 360 / numel(gate.az), beam, table_s, radius_m=radius_m);
+     density = estimate.density;
+     density(isnan(gate.data) & ~no_echo) = nan;
++    if isfield(gate, "cfp_code") && ~isempty(gate.cfp_code)
++        % CFP: 0 not applied, 1 point clutter filter, 2 dual-pol filter, >= 8 removed (code - 8 dB)
++        removed_db = gate.cfp_code - 8;
++        removed_db(gate.cfp_code < 8 | isnan(gate.cfp_code)) = nan;
++        [lo, hi] = bmm4d.radar.gate.bounds(gate.data, no_echo, range_m, beam, detection_dbz, s_floor_cm2, ...
++            removed_db, gate.cfp_code == 1);
++        upper = bmm4d.radar.gate.estimate_sweep(lo, hi, range_m, 360 / numel(gate.az), beam, table_s, radius_m=radius_m);
++        gate.sd_cfp = max(upper.density - density, 0);
++        gate.sd_cfp(isnan(density)) = nan;
++    end
+     gate.data = density;
+     gate.sd = estimate.sd;
+     gate.sd(isnan(density)) = nan;
+--- a/toolbox/+bmm4d/+radar/read_rd.m
++++ b/toolbox/+bmm4d/+radar/read_rd.m
+@@ -38,6 +38,10 @@
+ %     'noEchoRange'   - Gates without echo within this range (meters) are kept
+ %                       as zero density instead of missing. Default: 0 (off).
+ %     'data_res'      - Data resolution [range, azimuth*range] in meters. Default: [2000 2000].
++%     'cfp'           - Read the clutter filter's removed power (Level II
++%                       CFP) of every gate into GATES.cfp_code, so that
++%                       estimate_density also returns the error it allows
++%                       (SD_CFP). Needs the raw Archive II file. Default: false.
+ %     'waitbar'       - Show waitbar (true/false). Default: true.
+ %     'plot'          - Plot options (cell array of strings). Default: "".
+ %     'exportDir'     - Output folder for exported figures. Default: "export/read_rd".
+@@ -79,6 +83,7 @@
+ addParameter(p,'maxAlt', 3000); % Maximum altitude to consider (meters)
+ addParameter(p,'noEchoRange', 0); % Range (m) within which no-echo gates are zero density
+ addParameter(p,'data_res', [2000 2000]); % Data resolution [range, azimuth*range] in meters
++addParameter(p,'cfp', false); % Read the clutter filter's removed power (CFP) of every gate
+ addParameter(p,'waitbar', false); % Show waitbar
+ addParameter(p,'plot', ""); % Plot options
+ addParameter(p,'exportDir', fullfile("export", "read_rd")); % Output folder for exported figures
+@@ -226,6 +231,9 @@
+         "data", sweep_dbz, "unit", "dBZ", "no_echo", isnan(sweep_dbz), "rain_mask", false(size(sweep_dbz)));
+ end
+ radar_scan.gates = gates;
++if parms.cfp
++    radar_scan.gates = attach_cfp(radar_scan.gates, scan_file, parms.limitElev);
++end
+ 
+ % Apply the filters, counting the gates each one removes
+ n_removed = zeros(numel(parms.filters), 1);
+@@ -274,6 +282,11 @@
+         radar_scan.dens.sweeps(i_elev).sd = radar_scan.gates(i_elev).sd;
+         radar_scan.dens.sweeps(i_elev).sd(isnan(radar_scan.gates(i_elev).data)) = nan;
+     end
++    if isfield(radar_scan.gates, "sd_cfp") && ~isempty(radar_scan.gates(i_elev).sd_cfp)
++        % Error the clutter filter allows, missing where the gate is
++        radar_scan.dens.sweeps(i_elev).sd_cfp = radar_scan.gates(i_elev).sd_cfp;
++        radar_scan.dens.sweeps(i_elev).sd_cfp(isnan(radar_scan.gates(i_elev).data)) = nan;
++    end
+     radar_scan.dens.sweeps(i_elev).az = radar_scan.gates(i_elev).az;
+     radar_scan.dens.sweeps(i_elev).range = radar_scan.gates(i_elev).range;
+     radar_scan.dens.sweeps(i_elev).elev = radar_scan.dz.sweeps(i_elev).elev;
+@@ -288,3 +301,32 @@
+     ["dz" "gates" "sw" "dr" "ph" "spulse" "lpulse" "constants" "params"]));
+ end
+ 
++
++function gates = attach_cfp(gates, scan_file, limit_elev)
++% CFP code of every gate from the raw file (bmm4d.radar.read_level2_moments):
++% the cut with CFP (the surveillance pass of a split cut) closest in
++% elevation, the nearest radial and the gate at the same range. Gates
++% without a match get NaN.
++cuts = bmm4d.radar.read_level2_moments(scan_file, "CFP", limit_elev + 0.5);
++cuts = cuts(arrayfun(@(cut) ~isempty(cut.CFP), cuts));
++cut_elev = [cuts.elev];
++for i_elev = 1:numel(gates)
++    gates(i_elev).cfp_code = nan(size(gates(i_elev).data));
++    [gap, k] = min(abs(cut_elev - gates(i_elev).elev));
++    if isempty(k) || gap > 0.2
++        continue
++    end
++    cut = cuts(k);
++    code = double(cut.CFP_code);
++    % Nearest radial (circular) and gate
++    az_cut = double(cut.az(:));
++    [az_sorted, order] = sort(az_cut);
++    az_ext = [az_sorted(end) - 360; az_sorted; az_sorted(1) + 360];
++    order_ext = [order(end); order; order(1)];
++    az_id = order_ext(interp1(az_ext, 1:numel(az_ext), double(gates(i_elev).az(:)), "nearest"));
++    range_cut = double(cut.CFP_range(:));
++    range_id = interp1(range_cut, 1:numel(range_cut), double(gates(i_elev).range(:)), "nearest");
++    in_range = ~isnan(range_id) & abs(range_cut(max(range_id, 1)) - double(gates(i_elev).range(:))) < 0.5 * median(diff(range_cut));
++    gates(i_elev).cfp_code(in_range, :) = code(range_id(in_range), az_id);
++end
++end
+--- a/toolbox/+bmm4d/+radar/clean_volume.m
++++ b/toolbox/+bmm4d/+radar/clean_volume.m
+@@ -5,8 +5,9 @@
+ %   height above the antenna), thins the gates of each density sweep to
+ %   FILTER.data_res = [range tangential] spacing (m), and saves only what
+ %   the forward model needs to OUT_FILE (and, with FILTER.estimator_sd,
+-%   the estimator's sd of each density). STATUS is a short message; "ok" on
+-%   success.
++%   the estimator's sd of each density; with FILTER.cfp_error, also SD_CFP,
++%   the error the radar's clutter filter allows, which needs the read_rd
++%   option 'cfp'). STATUS is a short message; "ok" on success.
+ 
+ try
+     scan_cell = bmm4d.radar.read_rd(raw_file, read_options{:});
+@@ -18,11 +19,17 @@
+         if isfield(filter, "estimator_sd") && filter.estimator_sd && isfield(sweeps, "sd") && ~isempty(sweeps(i_elev).sd)
+             sweeps(i_elev).sd = thin_sweep(sweeps(i_elev).sd, sweeps(i_elev).range(:), sweeps(i_elev).az(:), filter.data_res);
+         end
++        if isfield(filter, "cfp_error") && filter.cfp_error && isfield(sweeps, "sd_cfp") && ~isempty(sweeps(i_elev).sd_cfp)
++            sweeps(i_elev).sd_cfp = thin_sweep(sweeps(i_elev).sd_cfp, sweeps(i_elev).range(:), sweeps(i_elev).az(:), filter.data_res);
++        end
+     end
+     keep_fields = ["elev" "az" "range" "data"];
+     if isfield(filter, "estimator_sd") && filter.estimator_sd
+         keep_fields = [keep_fields "sd"];
+     end
++    if isfield(filter, "cfp_error") && filter.cfp_error
++        keep_fields = [keep_fields "sd_cfp"];
++    end
+     sweeps = rmfield(sweeps, setdiff(fieldnames(sweeps), keep_fields));
+     volume = struct( ...
+         "station", string(scan.station), ...
+--- a/toolbox/+bmm4d/+solve/observation_weights.m
++++ b/toolbox/+bmm4d/+solve/observation_weights.m
+@@ -1,4 +1,4 @@
+-function weights = observation_weights(observations, prediction, error_floor)
++function weights = observation_weights(observations, prediction, error_floor, filter_error)
+ %OBSERVATION_WEIGHTS Weight of each observation from the estimator's sd.
+ %   WEIGHTS = OBSERVATION_WEIGHTS(OBSERVATIONS, PREDICTION, ERROR_FLOOR)
+ %   returns [n_rows n_time] weights 1 / sigma^2 for the data term of
+@@ -14,6 +14,15 @@
+ %   estimator does not see (forward model, density varying within a cell);
+ %   it also caps the largest weights, which set the number of PCG
+ %   iterations.
++%   FILTER_ERROR (optional, [n_rows n_time] like OBSERVATIONS.values, birds
++%   km^-3) is the error the radar's clutter filter allows: how much higher
++%   the estimate could be if the power the filter removed were birds
++%   (SD_CFP of bmm4d.radar.filter.estimate_density). It is added in
++%   quadrature as it is, not scaled to the prediction: it says what the
++%   filter may have taken from this gate, birds or clutter. The scale
++%   below is taken without it, so it only lowers the weights of what the
++%   filter touched (a few clutter gates with very large errors would
++%   otherwise raise every other weight).
+ %   Weights are scaled to the mean variance, mean(sigma^2) / sigma^2, so
+ %   that weight 1 stands for an observation of average error, as the
+ %   equal weights the regularization strengths were tuned with. (Scaled to
+@@ -42,7 +51,10 @@
+ predicted = max(full(prediction(sub2ind(size(prediction), row, col))), 0.1);
+ relative = relative_sd(sub2ind([n_lambda n_range], lambda_bin_of(predicted .* volume_sample), range_bin));
+ sigma2 = (predicted .* relative) .^ 2 + error_floor ^ 2;
+-
++scale = mean(sigma2);
++if nargin >= 4 && ~isempty(filter_error)
++    sigma2 = sigma2 + full(filter_error(sub2ind(size(filter_error), row, col))) .^ 2;
++end
+ weights = zeros(size(observations.values));
+-weights(sub2ind(size(weights), row, col)) = mean(sigma2) ./ sigma2;
++weights(sub2ind(size(weights), row, col)) = scale ./ sigma2;
+ end

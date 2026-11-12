@@ -1,0 +1,15 @@
+vcp,top_split_deg,first_other_deg,other_types,GroupCount,radars,sets
+35,1.27,1.8,batch,375,86,sandbox_nights us_east_20261021
+35,1.32,1.8,batch,313,29,night_20210512 sandbox_nights us_east_20261021
+32,1.49,2.5,batch,84,10,night_20210512 sandbox_nights
+215,1.27,1.8,batch,63,19,us_east_20261021
+215,1.32,1.8,batch,44,15,night_20210512 sandbox_nights
+212,1.32,1.8,batch,33,16,night_20210512 sandbox_nights
+35,1.27,1.8,staggered,31,86,sandbox_nights us_east_20261021
+34,1.27,1.8,batch+doppler,21,4,us_east_20261021
+212,1.27,1.8,batch,19,7,us_east_20261021
+31,2.5,3.52,doppler,14,5,night_20210512 sandbox_nights
+215,1.27,1.8,staggered,4,19,us_east_20261021
+12,1.27,1.8,batch,1,1,us_east_20261021
+12,1.32,1.8,batch,1,1,sandbox_nights
+212,1.27,1.8,staggered,1,7,us_east_20261021

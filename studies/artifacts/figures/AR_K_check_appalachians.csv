@@ -1,0 +1,4 @@
+solve,lowest_over_300m_ridge,lowest_over_300m_valley,edge
+ASL (production),1.356678,1.071782,1.48600506646683
+AGL,1.064265,1.050667,1.2645226267095
+smooth 50 km + climb,1.165591,1.054092,1.43196768671318

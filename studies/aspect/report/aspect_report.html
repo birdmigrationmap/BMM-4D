@@ -1,0 +1,1288 @@
+<title>Radar Bird Aspect Correction</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
+  svg: { fontCache: "global" },
+  options: { enableMenu: false }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+<style>
+/* Layout: one reading column (~68ch) with figure plates that widen to 1080px.
+   Light theme only, on purpose: the parula density maps and the manuscript figures sit on white paper. */
+:root {
+  --paper: #fbfcfc;
+  --plate: #eff3f5;
+  --ink: #17212b;
+  --ink-2: #4a5866;
+  --ink-3: #7c8893;
+  --rule: #d2d9df;
+  --side: #1f63b5;      /* c2, side-on; also the shared function */
+  --front: #c4521f;     /* c1, front/back; also the ellipse */
+  --none: #39434e;      /* no correction */
+  --focus: #d89a00;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.62 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: var(--side); text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.page { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 96px; display: flex; flex-direction: column; align-items: center; gap: 56px; }
+.page > header, .page > nav, .page > section, .page > footer { width: min(100%, 1080px); display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.page > * > * { width: min(100%, 700px); }
+.page > * > .plate, .page > * > .wide { width: 100%; }
+
+/* Type */
+h1, h2, h3, h4 { font-family: var(--display); color: var(--ink); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.1rem, 5.2vw, 3.2rem); font-weight: 760; font-stretch: 82%; line-height: 1.04; letter-spacing: -0.012em; }
+h2 { font-size: 1.75rem; font-weight: 720; font-stretch: 86%; line-height: 1.15; display: flex; gap: 14px; align-items: baseline; padding-top: 8px; border-top: 1px solid var(--rule); }
+h2 .num { font-family: var(--mono); font-size: 0.95rem; font-weight: 500; color: var(--ink-3); min-width: 1.4em; }
+h3 { font-size: 1.2rem; font-weight: 660; font-stretch: 92%; line-height: 1.25; margin-top: 10px; }
+h3 .num { font-family: var(--mono); font-weight: 500; font-size: 0.85rem; color: var(--ink-3); margin-right: 8px; }
+p, li, dd { margin: 0; }
+p + p { margin-top: 0; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.lede { font-size: 1.16rem; line-height: 1.55; color: var(--ink); }
+.aim { font-size: 1.07rem; line-height: 1.58; color: var(--ink-2); }
+.small { font-size: 14.5px; color: var(--ink-2); }
+ul, ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; }
+.mono { font-family: var(--mono); font-size: 0.88em; }
+.eq { overflow-x: auto; overflow-y: hidden; }
+mjx-container[display="true"] { margin: 0.4em 0 !important; }
+
+/* Header blocks */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 24px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.facts div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.facts b { font-family: var(--display); font-weight: 650; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.facts span { font-size: 15px; line-height: 1.5; }
+.toc ol { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 4px 24px; counter-reset: toc; }
+.toc li { font-family: var(--display); font-size: 15px; font-stretch: 94%; display: flex; gap: 10px; }
+.toc li .n { font-family: var(--mono); color: var(--ink-3); font-size: 13px; min-width: 1.2em; padding-top: 1px; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+
+.notation { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; font-size: 15.5px; }
+.notation dt { font-family: var(--mono); font-size: 14px; color: var(--ink); white-space: nowrap; }
+.notation dd { color: var(--ink-2); min-width: 0; }
+.note { border: 1px solid var(--rule); border-radius: 8px; padding: 12px 16px; font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.note b { font-family: var(--display); color: var(--ink); font-weight: 650; }
+
+/* Figure plates */
+.plate { background: var(--plate); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 14px; margin: 8px 0; box-sizing: border-box; }
+.fig-head { display: flex; gap: 10px 14px; align-items: baseline; flex-wrap: wrap; }
+.fig-no { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.fig-title { font-family: var(--display); font-weight: 650; font-size: 1.04rem; font-stretch: 94%; }
+.tag { font-family: var(--mono); font-size: 11px; border: 1px solid var(--rule); border-radius: 999px; padding: 1px 8px; color: var(--ink-2); background: var(--paper); }
+.tag.data { border-color: var(--side); color: var(--side); }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: flex-end; }
+.ctl { display: flex; flex-direction: column; gap: 3px; }
+.ctl label, .ctl .lbl { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.ctl output { color: var(--ink); font-weight: 600; }
+input[type="range"] { width: 172px; accent-color: var(--side); margin: 0; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--paper); }
+.seg button { font: 550 12.5px var(--display); padding: 6px 11px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.presets .lbl { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); margin-right: 2px; }
+.btn { font: 550 12.5px var(--display); padding: 6px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--ink-3); }
+.btn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.panels { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.panels.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.panel { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.panel .ph { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.panel .ph b { color: var(--ink); font-weight: 600; }
+.map { width: 100%; aspect-ratio: 1 / 1; display: block; border-radius: 4px; background: var(--plate); }
+.chart { display: block; width: 100%; overflow: visible; }
+.chart text { font-family: var(--mono); font-size: 11px; fill: var(--ink-2); }
+.chart .lab { fill: var(--ink); font-size: 11.5px; }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .frame { fill: none; stroke: var(--ink-3); stroke-width: 1; }
+.chart .zero { stroke: var(--ink-3); stroke-width: 1; }
+.chart .halo { paint-order: stroke; stroke: var(--plate); stroke-width: 3px; stroke-linejoin: round; }
+.cbar { display: flex; flex-direction: column; gap: 2px; }
+.cb-ramp { height: 10px; border-radius: 2px; }
+.cb-ticks { position: relative; height: 15px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+.cb-ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.cb-label { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2.5px solid currentColor; vertical-align: middle; margin-right: 5px; }
+.legend i.dash { border-top-style: dashed; }
+.legend i.dot { border-top-style: dotted; }
+.legend i.pt { width: 8px; height: 8px; border: 0; border-radius: 50%; background: currentColor; }
+.readout { overflow-x: auto; }
+.readout table { border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; width: 100%; }
+.readout th, .readout td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.readout th { font-weight: 500; color: var(--ink-2); }
+.readout th:first-child, .readout td:first-child { text-align: left; }
+.readout td { color: var(--ink); }
+.hover-read { font-family: var(--mono); font-size: 12px; color: var(--ink-2); min-height: 1.5em; }
+figcaption { font-size: 14.5px; line-height: 1.52; color: var(--ink-2); max-width: 82ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+/* Result tables */
+.tbl { overflow-x: auto; }
+.tbl table { border-collapse: collapse; width: 100%; min-width: 560px; }
+.tbl th { font: 600 12.5px/1.3 var(--display); text-align: right; color: var(--ink-2); border-bottom: 1px solid var(--ink-3); padding: 6px 10px; vertical-align: bottom; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl td { font-family: var(--mono); font-size: 13px; padding: 6px 10px; border-bottom: 1px solid var(--rule); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl td:first-child { font-family: var(--body); font-size: 14.5px; white-space: normal; }
+.tbl tr.rec td { font-weight: 600; }
+.tbl caption { caption-side: bottom; text-align: left; font-size: 13.5px; color: var(--ink-2); padding-top: 8px; }
+
+footer { font-size: 14px; color: var(--ink-2); }
+footer h2 { font-size: 1.2rem; }
+footer ul { font-size: 14px; }
+
+@media (max-width: 560px) {
+  body { font-size: 16.5px; }
+  .plate { padding: 14px 12px; }
+  input[type="range"] { width: 150px; }
+  .notation { grid-template-columns: 1fr; gap: 0 0; }
+  .notation dd { margin-bottom: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<main class="page">
+
+<header>
+  <p class="eyebrow">BMM-4D · development report · studies/aspect · 5 November 2026</p>
+  <h1>Bird aspect correction for weather-radar density</h1>
+  <p class="lede">A bird seen side-on reflects more radar energy than the same bird seen head-on or tail-on. When a migrating population shares a direction of flight, this viewing-angle effect becomes an azimuthal pattern in radar bird density that says nothing about where the birds are. This report explains the effect, shows why a single radar scan cannot separate it from real structure in the density field, describes the correction used in production (Appendix B), and derives a measurement from radar overlaps in which the density field cancels. That measurement supports one shared aspect function, which is then followed through one radar volume.</p>
+  <div class="facts">
+    <div><b>Data</b><span>Every fitted number comes from one autumn night, 21–22 October 2026: 107 NEXRAD radars of the us_east domain, 26 frames every 30 min from 23:30 to 12:00 UTC.</span></div>
+    <div><b>Status</b><span>Development study (studies/aspect). Production code and the manuscript are unchanged.</span></div>
+    <div><b>Figures</b><span>Figures tagged <span class="tag">synthetic</span> are computed in the page from the formulas. Figures tagged <span class="tag data">data</span> use small extracts of the study outputs.</span></div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><span class="n">1</span><a href="#s1">Why aspect matters</a></li>
+    <li><span class="n">2</span><a href="#s2">What one radar sees</a></li>
+    <li><span class="n">3</span><a href="#s3">The Appendix B method</a></li>
+    <li><span class="n">4</span><a href="#s4">The overlap principle</a></li>
+    <li><span class="n">5</span><a href="#s5">The shared function</a></li>
+    <li><span class="n">6</span><a href="#s6">Worked example: KDMX</a></li>
+    <li><span class="n">7</span><a href="#s7">Results</a></li>
+    <li><span class="n">8</span><a href="#s8">Limits and the multi-night question</a></li>
+  </ol>
+</nav>
+
+<section id="notation" aria-labelledby="h-notation">
+  <h2 id="h-notation"><span class="num">§</span>Notation</h2>
+  <p class="aim">The symbols follow Appendix B where it defines them. The shared function needs two more, its harmonic amplitudes.</p>
+  <dl class="notation">
+    <dt>φ</dt><dd>Azimuth of a gate seen from the radar, clockwise from north.</dd>
+    <dt>θ</dt><dd>Orientation of the birds' motion (track or heading), same convention.</dd>
+    <dt>ψ = φ − θ</dt><dd>Viewing angle. ψ = 0 is tail-on: the beam points along the flight, and the birds fly away from the radar. ψ = 180° is head-on, ψ = ±90° is side-on.</dd>
+    <dt>ρ, ρ̂</dt><dd>True bird density, and the density derived from reflectivity (birds km⁻³).</dd>
+    <dt>T(ψ)</dt><dd>Aspect function: derived over true density, with an azimuthal mean of 1.</dd>
+    <dt>c₂, c₁</dt><dd>Side-on and front/back amplitudes of log T, in natural-log units. c₂ &gt; 0: side-on birds are brighter. c₁ &lt; 0: tail-on birds are dimmer than head-on birds. The dev code and the study README call them b2 and b1.</dd>
+    <dt>h</dt><dd>Beam-centre height above the antenna.</dd>
+    <dt>ρ<sub>HV</sub></dt><dd>Co-polar correlation coefficient.</dd>
+    <dt>R(φ); a, b₁, b₂, x<sub>m</sub></dt><dd>The Appendix B ellipse template and its parameters.</dd>
+  </dl>
+</section>
+
+<!-- ============================ 1 ============================ -->
+<section id="s1" aria-labelledby="h1s">
+  <h2 id="h1s"><span class="num">1</span>Why aspect matters</h2>
+  <p class="aim">This section explains where the effect comes from. It starts from the cross-section of one bird, then averages over a population whose headings scatter, which gives the amplitude a weather radar can see.</p>
+
+  <h3><span class="num">1.1</span>Cross-section and viewing angle</h3>
+  <p class="aim">Radar bird density is reflectivity divided by an assumed cross-section per bird. This subsection writes how a viewing-angle dependence of that cross-section enters the density, and summarises what laboratory and field studies report about its size.</p>
+  <p>The radar sees each bird at the viewing angle \(\psi = \phi - \theta\). If the cross-section depends on \(\psi\), the derived density is the true density times a factor \(T(\psi)\), the cross-section at \(\psi\) relative to its average over all viewing angles:</p>
+  <div class="eq">\[ \hat\rho(r,\phi) = \rho(r,\phi)\,T(\psi), \qquad \psi = \phi-\theta, \qquad \frac{1}{2\pi}\int_0^{2\pi} T(\psi)\,d\psi = 1 . \]</div>
+  <p>The normalisation keeps the conversion meaningful: the assumed cross-section stays an average over viewing directions, and a uniform field keeps its azimuthal mean. What the literature says about the size of the effect:</p>
+  <ul>
+    <li><b>Single birds in the laboratory</b> (X band, wings closed): broadside is 14–90 times head-on (11–20 dB), and head-on is 1.1–1.4 times tail-on (Edwards &amp; Houghton 1959).</li>
+    <li><b>Standing ducks at UHF:</b> breast toward the radar is 14 dB above tail toward (Blacksmith &amp; Mack 1965).</li>
+    <li><b>Size and wingbeat:</b> passerines are in the resonance region at S band, and the wingbeat modulates the cross-section by 10–20 dB (Vaughn 1985).</li>
+    <li><b>Spread wings:</b> in an electromagnetic model of a bat, spread wings reverse the HH pattern, with side/head 0.54 (Mirkovic et al. 2016). Flying birds are therefore much less anisotropic than laboratory bodies.</li>
+    <li><b>Birds in flight at X band:</b> terns show broadside 3–4 dB above head and tail, a factor of 2–2.5 (Urmy &amp; Warren 2017).</li>
+    <li><b>Weather-radar mosaics:</b> density is higher perpendicular to the flight direction, at most by about a factor of 2 (Kranstauber et al. 2020).</li>
+    <li><b>Standard tools:</b> vol2bird and bioRad do not correct for aspect and rely on averaging over azimuth (Dokter et al. 2011, 2019).</li>
+    <li>We found no published S-band Z<sub>H</sub> side/head ratio for passerine migration.</li>
+  </ul>
+
+  <h3><span class="num">1.2</span>Averaging over headings</h3>
+  <p class="aim">A radar volume holds many birds whose headings scatter around θ. This subsection derives how that scatter damps each harmonic of the single-bird pattern, which sets the amplitude to expect at the population level.</p>
+  <p>Write the pattern of one bird, symmetric about its flight axis, as a Fourier series in \(\psi\), with signs chosen so that \(\alpha_2 > 0\) makes side-on brighter:</p>
+  <div class="eq">\[ T_1(\psi) = 1 + \alpha_1\cos\psi - \alpha_2\cos 2\psi + \dots \]</div>
+  <p>If headings scatter about \(\theta\) by \(\delta \sim \mathcal N(0,\sigma^2)\), the radar sees the average over \(\delta\). Since \(\mathbb E[\cos n\delta] = e^{-n^2\sigma^2/2}\) and \(\mathbb E[\sin n\delta] = 0\),</p>
+  <div class="eq">\[ T(\psi) = \mathbb E_\delta\!\left[T_1(\psi-\delta)\right] = 1 + \alpha_1 e^{-\sigma^2/2}\cos\psi - \alpha_2 e^{-2\sigma^2}\cos 2\psi + \dots \]</div>
+  <p>The side-on term is damped by \(e^{-2\sigma^2}\) and the front/back term by \(e^{-\sigma^2/2}\). With \(\sigma = 30^\circ\) the side-on term keeps 58% of its single-bird amplitude and the front/back term 87%; with \(\sigma = 45^\circ\), 29% and 73%. Heading scatter shrinks the side-on contrast much more than the front/back contrast. The study therefore expects a population side-on amplitude of 0.05–0.3 at S band, and a front/back term is physically expected.</p>
+  <p>The rest of the report uses the log form, with \(N\) keeping the azimuthal mean of \(T\) at 1:</p>
+  <div class="eq">\[ \log T(\psi) = c_2\,(-\cos 2\psi) + c_1\cos\psi - \log N . \]</div>
+  <p>For small amplitudes, \(c_2 \approx \alpha_2\) and \(c_1 \approx \alpha_1\).</p>
+
+  <figure class="plate" id="fig1">
+    <div class="fig-head"><span class="fig-no">Figure 1</span><span class="fig-title">Aspect function of one bird and of a population</span><span class="tag">synthetic</span></div>
+    <div class="controls">
+      <div class="ctl"><label for="f1-c2">single bird c₂ <output id="f1-c2-v"></output></label><input type="range" id="f1-c2" min="0" max="0.8" step="0.01" value="0.30"></div>
+      <div class="ctl"><label for="f1-c1">single bird c₁ <output id="f1-c1-v"></output></label><input type="range" id="f1-c1" min="-0.6" max="0.3" step="0.01" value="-0.24"></div>
+      <div class="ctl"><label for="f1-sig">heading spread σ <output id="f1-sig-v"></output></label><input type="range" id="f1-sig" min="0" max="60" step="1" value="25"></div>
+    </div>
+    <div class="panels two">
+      <div class="panel"><svg class="chart" id="f1-polar" role="img" aria-label="Polar plot of the aspect function"></svg>
+        <div class="legend"><span style="color:var(--ink-3)"><i class="dash"></i>single bird</span><span style="color:var(--side)"><i></i>population</span></div>
+      </div>
+      <div class="panel readout">
+        <table>
+          <thead><tr><th></th><th>single bird</th><th>population</th></tr></thead>
+          <tbody id="f1-table"></tbody>
+        </table>
+        <p class="small" style="margin-top:10px">Damping of the side-on term \(e^{-2\sigma^2}\) = <span id="f1-d2" class="mono"></span>, of the front/back term \(e^{-\sigma^2/2}\) = <span id="f1-d1" class="mono"></span>. Population amplitudes are the cos 2ψ and cos ψ Fourier coefficients of log T.</p>
+      </div>
+    </div>
+    <figcaption>Polar plot of T(ψ) with the radar at the centre and the birds flying toward the top, so the upper half is where the beam looks along the flight (tail-on). Dashed: one bird with amplitudes c₂ and c₁. Solid: a population whose headings scatter with standard deviation σ, computed by averaging the dashed curve over a wrapped Gaussian of headings. The defaults put the population near the overlap measurement of Section 7 (c₂ ≈ 0.20, c₁ ≈ −0.21); the single-bird values are illustrative.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section id="s2" aria-labelledby="h2s">
+  <h2 id="h2s"><span class="num">2</span>What one radar sees</h2>
+  <p class="aim">This section asks what a single scan can tell about aspect. It writes the scan as field times aspect, expands both in azimuth, and uses a synthetic scan to show that real structure produces the same harmonics as aspect.</p>
+
+  <h3><span class="num">2.1</span>Field and aspect share the same harmonics</h3>
+  <p class="aim">The aim is to see which azimuthal patterns aspect can produce and which real fields produce the same ones. Taking logs turns the product into a sum, so the two can be compared term by term.</p>
+  <div class="eq">\[ \log\hat\rho(r,\phi) = \log\rho(r,\phi) \;+\; c_2\,\bigl(-\cos 2(\phi-\theta)\bigr) \;+\; c_1\cos(\phi-\theta) \;-\; \log N . \]</div>
+  <p>Aspect adds exactly two terms with a fixed phase relative to \(\theta\): a second harmonic peaking side-on and a first harmonic along the flight axis. The field can add any harmonic at any phase. Two common shapes add exactly the aspect ones:</p>
+  <ul>
+    <li>A <b>gradient</b> of log density across the disc, \(g\,r\cos(\phi-\phi_g)\), adds a first harmonic peaking toward \(\phi_g\). If density increases upstream (\(\phi_g = \theta + 180^\circ\)), it has the form of \(c_1 < 0\).</li>
+    <li>A <b>band</b> of birds through the radar adds a second harmonic peaking along the band. If the band lies across the flight (\(\phi_b = \theta \pm 90^\circ\)), it has the form of \(c_2 > 0\).</li>
+  </ul>
+  <p>A scan only shows the sum. Range gives little extra leverage, because the beam rises with range and the aspect amplitude grows with height. Averaged over many scans, the field harmonics cancel only when the real gradients have no preferred direction relative to the flight.</p>
+
+  <h3><span class="num">2.2</span>Evidence from single scans</h3>
+  <p class="aim">This subsection checks the argument on the night's volumes, using a harmonic that aspect cannot produce as a reference.</p>
+  <p>Aspect is symmetric about the flight axis, so it produces no harmonic at 45° to it. At 10–60 km, the per-volume standard deviation of the side-on harmonic equals that of the 45° harmonic (0.145 and 0.145). Per volume, the side-on amplitude cannot be told apart from real structure, and a fit to one volume mostly fits structure.</p>
+
+  <figure class="plate" id="fig2">
+    <div class="fig-head"><span class="fig-no">Figure 2</span><span class="fig-title">One synthetic scan: field and aspect in the azimuthal profile</span><span class="tag">synthetic</span></div>
+    <div class="presets" id="f2-presets">
+      <span class="lbl">presets</span>
+      <button class="btn" data-p="aspect" type="button">Aspect, uniform field</button>
+      <button class="btn" data-p="band" type="button">Band across the flight, no aspect</button>
+      <button class="btn" data-p="grad" type="button">Gradient along the flight, no aspect</button>
+      <button class="btn" data-p="both" type="button">Band and aspect</button>
+    </div>
+    <div class="controls">
+      <div class="ctl"><span class="lbl">field</span><div class="seg" id="f2-field"><button type="button" data-v="uniform">uniform</button><button type="button" data-v="gradient">gradient</button><button type="button" data-v="band">band</button></div></div>
+      <div class="ctl"><label for="f2-alpha">field direction <output id="f2-alpha-v"></output></label><input type="range" id="f2-alpha" min="0" max="359" step="1" value="100"></div>
+      <div class="ctl"><label for="f2-s">field strength <output id="f2-s-v"></output></label><input type="range" id="f2-s" min="0" max="2" step="0.01" value="0.6"></div>
+      <div class="ctl"><span class="lbl">aspect</span><div class="seg" id="f2-asp"><button type="button" data-v="on">on</button><button type="button" data-v="off">off</button></div></div>
+      <div class="ctl"><label for="f2-theta">flight direction θ <output id="f2-theta-v"></output></label><input type="range" id="f2-theta" min="0" max="359" step="1" value="190"></div>
+    </div>
+    <div class="panels">
+      <div class="panel"><div class="ph"><b>True density ρ</b></div><canvas class="map" id="f2-true" aria-label="True density map"></canvas></div>
+      <div class="panel"><div class="ph"><b>Derived density ρ̂ = ρ·T</b></div><canvas class="map" id="f2-obs" aria-label="Observed density map"></canvas></div>
+      <div class="panel"><div class="ph"><b>Azimuthal profile, 10–60 km</b> (log, minus mean)</div><svg class="chart" id="f2-prof" role="img" aria-label="Azimuthal profile with harmonics"></svg>
+        <div class="legend"><span style="color:var(--ink)"><i></i>profile</span><span style="color:var(--front)"><i class="dash"></i>1st harmonic</span><span style="color:var(--side)"><i class="dash"></i>2nd harmonic</span></div>
+      </div>
+    </div>
+    <div class="panels two">
+      <div class="cbar" id="f2-cb"></div>
+      <div class="readout">
+        <table>
+          <thead><tr><th>harmonic on the flight axis</th><th>−cos 2ψ</th><th>cos ψ</th><th>sin 2ψ</th><th>sin ψ</th></tr></thead>
+          <tbody id="f2-table"></tbody>
+        </table>
+      </div>
+    </div>
+    <figcaption>Synthetic scan to 100 km, birds flying toward θ (arrow; dashed ring at 50 km). Left: true density. Middle: the density the radar derives, with c₂ = 0.20 and c₁ = −0.21 when aspect is on (constant with height in this toy). Right: log of the mean density at 10–60 km against azimuth φ, with its first and second harmonics; ticks mark tail-on (t), side-on (s) and head-on (h). The table splits the harmonics on the flight axis into the part from the field and the part from aspect; the scan shows only their sum. The two "no aspect" presets set the field strength so the field alone produces the c₂ or the c₁ of the aspect.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section id="s3" aria-labelledby="h3s">
+  <h2 id="h3s"><span class="num">3</span>The Appendix B method</h2>
+  <p class="aim">This section describes the correction in Appendix B, which is also what production code applies now, and tests it on the synthetic scan. It follows the appendix step by step, rewrites its template in the flight frame used here, and reproduces the fit in the page.</p>
+
+  <h3><span class="num">3.1</span>Steps</h3>
+  <p class="aim">The correction runs once per volume, after precipitation filtering, beam-blockage masking and conversion to density. It has four steps.</p>
+  <ol>
+    <li><b>Orientation from ρ<sub>HV</sub>.</b> Per sweep, a density-weighted azimuthal mean of ρ<sub>HV</sub> is formed over gates with at least 10 birds km⁻³. The means are pooled over sweeps and fitted with \(q(\phi) = A\sin(\phi+\varphi) + C\); the phase gives the orientation axis. ρ<sub>HV</sub> is lowest tail-on and highest head-on (Stepanian &amp; Horton 2015; Stepanian et al. 2016; Horton et al. 2016), so its azimuthal pattern carries the axis.</li>
+    <li><b>Azimuthal summary.</b> Per sweep, density is averaged over range after trimming the lowest and highest 5% in each azimuth, then smoothed circularly with a short moving median and a moving mean. This gives \(m_e(\phi)\).</li>
+    <li><b>Template fit.</b> An asymmetric ellipse \(R(\phi)\) is fitted to the pooled \(m_e(\phi)\), with weights proportional to \(m_e\).</li>
+    <li><b>Application.</b> Each sweep is divided by \(R(\phi)\) and rescaled to its own mean density.</li>
+  </ol>
+  <p>In the appendix's notation, with \(\psi_B = \phi - \theta_B\) measured from the fitted orientation axis \(\theta_B\):</p>
+  <div class="eq">\[ R(\phi) = x_m\,\frac{a\,b(\psi_B)}{\sqrt{a^2\sin^2\psi_B + b(\psi_B)^2\cos^2\psi_B}}, \qquad b(\psi_B) = \begin{cases} b_1, & \psi_B \bmod 360^\circ < 180^\circ \\ b_2, & \text{otherwise} \end{cases} \]</div>
+  <div class="eq">\[ \rho^{\mathrm{corr}}_e(r,\phi) = \frac{\rho_e(r,\phi)}{R(\phi)}\;\frac{\overline{\rho_e}}{\overline{\rho_e/R}} . \]</div>
+  <p class="note"><b>Notation.</b> The template equals \(x_m a\) at \(\psi_B = 0\) and \(180^\circ\), which the appendix calls the broadside direction, and \(x_m b_1\) or \(x_m b_2\) at \(\psi_B = \pm 90^\circ\). So \(\theta_B\) lies 90° from the flight axis \(\theta\) used in this report, and \(\psi_B = \psi \pm 90^\circ\). In the flight frame the same template reads \(R = x_m\,a\,b(\psi)\big/\sqrt{a^2\cos^2\psi + b(\psi)^2\sin^2\psi}\): side-on gets \(x_m a\), and the two along-track directions get \(x_m b_1\) and \(x_m b_2\). The production code fits \(a\) and a share \(\beta\), with \(b_1 = \beta/a\) and \(b_2 = (1-\beta)/a\), \(a \in [0.1, 5]\) and \(\beta \in [0.1, 0.9]\).</p>
+
+  <h3><span class="num">3.2</span>What the fit absorbs</h3>
+  <p class="aim">The template is fitted to the same scan it corrects. This subsection states what that implies, and Figure 3 shows it.</p>
+  <p>\(R(\phi)\) depends on azimuth only, and it is free in its side-on contrast (\(a\) against \(b_1, b_2\)) and in its front/back contrast (\(b_1\) against \(b_2\)). It therefore absorbs any second harmonic on the broadside axis and any first harmonic along the flight axis, whatever their cause. A band across the flight or a gradient along it is removed together with the aspect, and the per-sweep rescaling then moves density between sectors. The result is a correction factor that changes by sector, which on a map looks like a bow-tie.</p>
+  <p>On this night's data the ellipse leaves part of the aspect on the overlap measurement (c₂ 0.073 ± 0.016 and c₁ −0.116 ± 0.040, from 0.200 and −0.220 without correction; Section 7). It also lowers the median first harmonic of single scans at 10–60 km from 0.27 to 0.20, which is field structure. At KDMX 06:30 UTC its factor runs from 0.66 to 2.9 by azimuth (Section 6).</p>
+
+  <figure class="plate" id="fig3">
+    <div class="fig-head"><span class="fig-no">Figure 3</span><span class="fig-title">The Appendix B fit on a synthetic scan</span><span class="tag">synthetic</span></div>
+    <div class="presets" id="f3-presets">
+      <span class="lbl">scan</span>
+      <button class="btn" data-p="band" type="button">Band across the flight, no aspect</button>
+      <button class="btn" data-p="aspect" type="button">Aspect, uniform field</button>
+      <button class="btn" data-p="both" type="button">Band and aspect</button>
+    </div>
+    <div class="controls">
+      <div class="ctl"><span class="lbl">correction</span><div class="seg" id="f3-method"><button type="button" data-v="ellipse">ellipse (Appendix B)</button><button type="button" data-v="shared">shared function</button></div></div>
+      <div class="ctl"><label for="f3-theta">flight direction θ <output id="f3-theta-v"></output></label><input type="range" id="f3-theta" min="0" max="359" step="1" value="190"></div>
+    </div>
+    <div class="panels">
+      <div class="panel"><div class="ph"><b>Derived density ρ̂</b></div><canvas class="map" id="f3-obs" aria-label="Observed density"></canvas></div>
+      <div class="panel"><div class="ph"><b>Corrected</b></div><canvas class="map" id="f3-cor" aria-label="Corrected density"></canvas></div>
+      <div class="panel"><div class="ph"><b>Corrected ÷ true density</b></div><canvas class="map" id="f3-rat" aria-label="Corrected over true density"></canvas></div>
+    </div>
+    <div class="panels two">
+      <div class="cbar" id="f3-cb1"></div>
+      <div class="cbar" id="f3-cb2"></div>
+    </div>
+    <div class="panels two">
+      <div class="panel"><div class="ph"><b>Azimuthal mean, 0–100 km</b> (birds km⁻³)</div><svg class="chart" id="f3-prof" role="img" aria-label="Azimuthal profile with fitted template"></svg>
+        <div class="legend"><span style="color:var(--ink)"><i></i>derived</span><span id="f3-leg-fit" style="color:var(--front)"><i class="dash"></i>fitted template</span><span id="f3-leg-cor" style="color:var(--front)"><i></i>corrected</span><span style="color:var(--ink-3)"><i class="dot"></i>true</span></div>
+      </div>
+      <div class="panel readout"><table><tbody id="f3-table"></tbody></table></div>
+    </div>
+    <figcaption>Synthetic scan as in Figure 2, with c₂ = 0.20 and c₁ = −0.21 when aspect is present. The ellipse is fitted as in Appendix B to the azimuthal mean over 0–100 km, smoothed with an 11° moving mean (no trimming is needed without outliers), with the orientation axis set to the true flight axis, the best case for ρ<sub>HV</sub>. "Shared function" divides by the T that generated the aspect. Right map: corrected over true density, white where the correction recovers the field. With a real band and no aspect, the ellipse removes the band and leaves sectors of over- and under-correction. With no real aspect, the shared function imposes its own pattern; it is only right if the aspect it describes is real, which Section 4 measures.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section id="s4" aria-labelledby="h4s">
+  <h2 id="h4s"><span class="num">4</span>The overlap principle</h2>
+  <p class="aim">This section derives a measurement of T in which the density field cancels. It writes the log ratio of two radars' densities for the same cell, lists the terms that remain, and sets up the regression used in the study.</p>
+
+  <h3><span class="num">4.1</span>Two radars, one cell</h3>
+  <p class="aim">The aim is an equation in which the unknown field does not appear. Two radars that observe the same cell at the same time see the same birds from two viewing angles.</p>
+  <p>With \(\psi_A = \phi_A - \theta\) and \(\psi_B = \phi_B - \theta\), the log ratio of the two derived densities for cell \(j\) is</p>
+  <div class="eq">\[ \log\hat\rho_{A,j} - \log\hat\rho_{B,j} = \log T(\psi_{A,j}) - \log T(\psi_{B,j}) + \log\frac{k_A}{k_B} + \varepsilon_j . \]</div>
+  <p>The true density \(\rho\) cancels. What remains is the difference of the aspect function at the two angles, plus terms \(k_A, k_B\) that do not depend on the angles: calibration, per-volume scale and differences in beam smoothing. The constant \(\log N\) cancels too, so the overlap identifies the shape of \(T\), and its mean is fixed by the normalisation.</p>
+  <p>A cell gives a ratio of 1 when the two radars see it at mirror angles (\(\psi_A = -\psi_B\), because \(T\) is symmetric). Cells where one radar sees the birds side-on and the other sees them head-on or tail-on carry the most information. Figure 4 lets you move a cell through the overlap of two radars.</p>
+
+  <figure class="plate" id="fig4">
+    <div class="fig-head"><span class="fig-no">Figure 4</span><span class="fig-title">Two radars, one cell</span><span class="tag">synthetic</span></div>
+    <div class="controls">
+      <div class="ctl"><label for="f4-theta">flight direction θ <output id="f4-theta-v"></output></label><input type="range" id="f4-theta" min="0" max="359" step="1" value="190"></div>
+      <div class="ctl"><label for="f4-h">height h <output id="f4-h-v"></output></label><input type="range" id="f4-h" min="0" max="3.5" step="0.05" value="2"></div>
+    </div>
+    <div class="panels two">
+      <div class="panel"><div class="ph"><b>Plan view</b> (drag the cell, or focus it and use the arrow keys)</div><svg class="chart" id="f4-map" role="img" aria-label="Two radars and a draggable cell" style="touch-action:none;cursor:crosshair"></svg>
+        <div class="cbar" id="f4-cb"></div>
+      </div>
+      <div class="panel"><div class="ph"><b>Viewing angles on T(ψ)</b></div><svg class="chart" id="f4-t" role="img" aria-label="Aspect function with the two viewing angles"></svg>
+        <div class="readout"><table>
+          <thead><tr><th>radar</th><th>azimuth φ</th><th>ψ = φ − θ</th><th>T(ψ)</th></tr></thead>
+          <tbody id="f4-table"></tbody>
+        </table></div>
+      </div>
+    </div>
+    <figcaption>Radars A and B 140 km apart, with 125 km range rings; small arrows show the flight direction. Colours in the overlap give the expected ratio ρ̂<sub>A</sub>/ρ̂<sub>B</sub> from the shared function at height h; the density at the cell does not enter. The right panel marks ψ<sub>A</sub> and ψ<sub>B</sub> on T(ψ).</figcaption>
+  </figure>
+
+  <h3><span class="num">4.2</span>The regression</h3>
+  <p class="aim">This subsection turns the cell equation into an estimator over all cells seen by two radars. The terms that do not depend on the angles become fixed effects.</p>
+  <div class="eq">\[ y_j = \sum_{n=1}^{2} c_n\bigl[g_n(\psi_{A,j}) - g_n(\psi_{B,j})\bigr] + \gamma_{AB,t,\ell} + \lambda_\ell \log\frac{r_{A,j}}{r_{B,j}} + \varepsilon_j, \]</div>
+  <div class="eq">\[ g_1(\psi) = \cos\psi, \qquad g_2(\psi) = -\cos 2\psi . \]</div>
+  <ul>
+    <li>\(y_j\) is the log ratio of cell \(j\). Cells are 4 × 4 km × 100 m, and each radar's cells are moved to the frame time with that radar's own velocity profile, so both radars describe the same birds.</li>
+    <li>\(\gamma_{AB,t,\ell}\) is a fixed effect per radar pair, frame and 500 m layer. It absorbs calibration, per-volume scale and beam smoothing.</li>
+    <li>\(\lambda_\ell \log(r_A/r_B)\) is a log range-ratio slope per layer. It absorbs beam broadening.</li>
+    <li>Standard errors are clustered by radar pair.</li>
+  </ul>
+  <p>A version with no imposed shape replaces the two harmonics by 24 indicators of 15° bins, \(\mathbb 1(\psi_A \in k) - \mathbb 1(\psi_B \in k)\). The bins are identified up to a constant, which is set so that \(T\) has an azimuthal mean of 1. On this night the data are 2.96 million cell pairs from 197 radar pairs, at 0.8–3.5 km above the antennas.</p>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section id="s5" aria-labelledby="h5s">
+  <h2 id="h5s"><span class="num">5</span>The shared function</h2>
+  <p class="aim">This section defines the function proposed from the overlap measurement and how it is applied. It checks the shape, adds the height dependence, fixes the normalisation, and lists the inputs each volume provides.</p>
+
+  <h3><span class="num">5.1</span>Shape</h3>
+  <p class="aim">The first question is how many harmonics the function needs. The answer comes from the 24-bin curve and its harmonic fit.</p>
+  <p>The measured curve (Figure 5, dots) has its minimum tail-on, two equal side-on maxima, and head-on in between. Its harmonics on the flight axis are c₂ = 0.200 ± 0.012 and c₁ = −0.208 ± 0.019. The fourth harmonic is 0.020 ± 0.009, and the terms that symmetry sets to zero are zero (sin 2ψ: 0.014 ± 0.012; sin ψ: −0.017 ± 0.020). A cos 2ψ term and a cos ψ term describe the shape; no fourth harmonic is needed.</p>
+
+  <h3><span class="num">5.2</span>Height</h3>
+  <p class="aim">The amplitudes are next fitted by height band, and a simple profile is chosen to follow them.</p>
+  <p>c₂ grows from 0.07 at 0.75–1 km to 0.24 at 2.5–3.5 km above the antennas, while c₁ stays between −0.16 and −0.25 above 1 km (Figure 5, right). The proposed function is</p>
+  <div class="eq">\[ \log T(\psi; h) = c_2(h)\,(-\cos 2\psi) + c_1(h)\cos\psi - \log N(h), \qquad \psi = \phi - \theta(h), \]</div>
+  <div class="eq">\[ c_2(h) = 0.092\,h, \qquad c_1(h) = -0.21\,\min(1,\,h), \qquad h \text{ in km above the antenna}, \]</div>
+  <p>with c₂ = 0.092 ± 0.005 per km (fold values 0.092 and 0.092) and c₁ = −0.21 ± 0.02 (fold values −0.209 and −0.213). A constant c₂ over-corrects near the radar (single-scan c₂ of −0.16 after correction), so the amplitude has to grow with height. The ramp of c₁ below 1 km is a modelling choice: keeping c₁ at full value down to the ground turns the near-range first harmonic of single scans around (+0.09), and the ramp brings it to +0.01.</p>
+
+  <h3><span class="num">5.3</span>Normalisation</h3>
+  <p class="aim">N sets the azimuthal mean of T to 1 at every height. It is computed, not fitted.</p>
+  <div class="eq">\[ N(h) = \frac{1}{2\pi}\int_0^{2\pi} \exp\!\Bigl(c_2(h)\,(-\cos 2\psi) + c_1(h)\cos\psi\Bigr)\,d\psi \;\approx\; \exp\!\Bigl(\tfrac{c_2^2 + c_1^2}{4}\Bigr) . \]</div>
+  <p>The approximation holds for small amplitudes; the code integrates numerically per 100 m layer. Because the mean of T is 1 at every height, a uniform field keeps its mean, no per-sweep rescaling is needed, and the cross-section used for the conversion keeps its meaning as an average over viewing directions.</p>
+
+  <h3><span class="num">5.4</span>Application to a volume</h3>
+  <p class="aim">The correction is applied gate by gate. Its only per-volume inputs are the track profile and the gate heights.</p>
+  <ol>
+    <li>Take the gate's beam-centre height h above the antenna (4/3 earth radius).</li>
+    <li>Read the track θ(h) from the volume's own velocity profile in 100 m layers. A layer without a velocity takes the nearest layer that has one; a volume with no profile gets T = 1.</li>
+    <li>Compute ψ = φ − θ(h) and T(ψ; h).</li>
+    <li>Divide the density and its standard deviation by T.</li>
+  </ol>
+  <p>Nothing is fitted to the volume, so real gradients pass through unchanged.</p>
+
+  <figure class="plate" id="fig5">
+    <div class="fig-head"><span class="fig-no">Figure 5</span><span class="fig-title">The shared function against the overlap measurement</span><span class="tag data">data</span></div>
+    <div class="controls">
+      <div class="ctl"><label for="f5-h">height h <output id="f5-h-v"></output></label><input type="range" id="f5-h" min="0" max="3.5" step="0.05" value="2"></div>
+    </div>
+    <div class="panels two">
+      <div class="panel"><div class="ph"><b>T(ψ)</b> (log scale)</div><svg class="chart" id="f5-t" role="img" aria-label="Aspect function at the chosen height"></svg>
+        <div class="legend"><span style="color:var(--side)"><i></i>model at h</span><span style="color:var(--ink-3)"><i></i>model at 0.5, 1, 2, 3 km</span><span style="color:var(--ink)"><i class="pt"></i>overlap, 24 bins (±2 se)</span></div>
+      </div>
+      <div class="panel"><div class="ph"><b>Amplitudes against height</b></div><svg class="chart" id="f5-amp" role="img" aria-label="Amplitudes against height"></svg>
+        <div class="legend"><span style="color:var(--side)"><i></i>c₂(h)</span><span style="color:var(--front)"><i></i>c₁(h)</span><span style="color:var(--ink)"><i class="pt"></i>overlap fit per height band (±2 se)</span></div>
+      </div>
+    </div>
+    <div class="readout"><table>
+      <thead><tr><th>at h</th><th>c₂</th><th>c₁</th><th>log N</th><th>T tail-on</th><th>T side-on</th><th>T head-on</th><th>factor 1/T</th></tr></thead>
+      <tbody id="f5-table"></tbody>
+    </table></div>
+    <figcaption>Left: the shared function at the chosen height (blue) against the overlap measurement with no imposed shape (dots, ±2 standard errors). The dots pool all heights from 0.8 to 3.5 km, where most pairs lie at 1.5–3.5 km. Right: amplitudes against height; lines are the model, symbols the overlap fits per height band. Below 0.8 km (shaded) there is no overlap measurement and the model is an extrapolation.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section id="s6" aria-labelledby="h6s">
+  <h2 id="h6s"><span class="num">6</span>Worked example: KDMX, 06:30 UTC on 22 October 2026</h2>
+  <p class="aim">This section follows one volume through the shared function and compares the result with the ellipse. It reads the volume's inputs, builds the factor per gate, and compares maps and azimuthal profiles.</p>
+
+  <h3><span class="num">6.1</span>Inputs</h3>
+  <p class="aim">The shared function needs the track at each gate's height. At KDMX that track turns strongly with height, which shapes the factor map.</p>
+  <p>The volume's velocity profile turns with height: the track is 63° in the lowest 100 m, 133° at 500–600 m, about 186° at 1.6–1.9 km and about 160° at 3 km, while speed rises from 5 to 12.7 m s⁻¹ (Figure 6, bottom). The three lowest sweeps (0.48°, 0.88° and 1.27°) reach about 0.3–0.7 km above the antenna at 30 km and 1.2–2.5 km at 90 km. At a fixed azimuth, ψ therefore changes with range, and the factor map twists: near the radar the beams sample birds flying toward the SE, farther out birds flying toward the S.</p>
+
+  <h3><span class="num">6.2</span>Result</h3>
+  <p class="aim">The two corrections are compared on the same volume, on the maps and on the azimuthal profile.</p>
+  <p>Within 90 km on the 0.5–1.3° sweeps, the shared factor runs from 0.82 to 1.49 (1st–99th percentile of gates) and varies smoothly with azimuth and height. It is largest downstream, where birds are seen tail-on, and aloft, where the amplitude is larger. The dense band NW of the radar and the low density to the S–SE are kept. The ellipse factor runs from 0.66 to 2.9 by azimuth: it lifts the whole S–SE sector, where density is low, and lowers the NW band. This is the bow-tie of Figure 3 on real data. KDMX's deepest 10° polar sector over 04:30–07:30 UTC, relative to its ±30° neighbours, goes from 0.87 without correction to 0.83 with the shared function and to 0.72 with the ellipse.</p>
+
+  <figure class="plate" id="fig6">
+    <div class="fig-head"><span class="fig-no">Figure 6</span><span class="fig-title">KDMX 06:30 UTC: three versions of the same volume</span><span class="tag data">data</span></div>
+    <div class="hover-read" id="k-read" aria-live="polite">Hover over a map to read one cell in all versions.</div>
+    <div class="panels">
+      <div class="panel"><div class="ph"><b>No correction</b></div><canvas class="map" id="k-none" aria-label="KDMX density, no correction"></canvas></div>
+      <div class="panel"><div class="ph"><b>Ellipse (Appendix B)</b></div><canvas class="map" id="k-ell" aria-label="KDMX density, ellipse"></canvas></div>
+      <div class="panel"><div class="ph"><b>Shared function</b></div><canvas class="map" id="k-sh" aria-label="KDMX density, shared function"></canvas></div>
+    </div>
+    <div class="panels"><div class="cbar" id="k-cb1"></div><div></div><div class="cbar" id="k-cb2"></div></div>
+    <div class="panels">
+      <div class="panel"><div class="ph"><b>Factor: ellipse ÷ none</b></div><canvas class="map" id="k-fe" aria-label="Ellipse correction factor"></canvas></div>
+      <div class="panel"><div class="ph"><b>Factor: shared ÷ none</b></div><canvas class="map" id="k-fs" aria-label="Shared correction factor"></canvas></div>
+      <div class="panel"><div class="ph"><b>Mean density at 10–60 km</b> by 10° sector</div><svg class="chart" id="k-prof" role="img" aria-label="Azimuthal profiles of the three versions"></svg>
+        <div class="legend"><span style="color:var(--none)"><i></i>none</span><span style="color:var(--front)"><i></i>ellipse</span><span style="color:var(--side)"><i></i>shared</span></div>
+      </div>
+    </div>
+    <div class="panels two">
+      <div class="panel"><div class="ph"><b>Track profile</b>, the shared function's input</div><svg class="chart" id="k-track" role="img" aria-label="Track direction against height"></svg></div>
+      <div class="panel"><p class="small">Track direction (dots, clockwise from north) of each 100 m layer of the volume's velocity profile, labelled with ground speed (m s⁻¹) every 500 m. The bars on the right show the height range of each sweep's beam centre between 10 and 90 km. Most of the 0.5° sweep sits where the track still turns from SE to S.</p></div>
+    </div>
+    <figcaption>Mean density of the three lowest sweeps on 3 km cells within 90 km (birds km⁻³; common colour scale up to the 99th percentile without correction). Arrow: track at 500–600 m. Factor maps: corrected over uncorrected cell means. Profile: dashed line at the 500–600 m track, dotted line upstream.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section id="s7" aria-labelledby="h7s">
+  <h2 id="h7s"><span class="num">7</span>Results</h2>
+  <p class="aim">This section summarises three tests from the study: the measured function, the disagreement between overlapping radars out of sample, and a reconstruction with held-out radars. Each is reported briefly.</p>
+
+  <h3><span class="num">7.1</span>The measured aspect function</h3>
+  <p class="aim">The overlap curve with no imposed shape gives the size of the effect directly.</p>
+  <p>Relative to the azimuthal mean, tail-on is 0.70, side-on 1.29 and head-on 1.01: side/head 1.28, side/tail 1.84, head/tail 1.44. The amplitudes hold across subsets: equal ranges with matched beams (c₂ 0.209), and the three periods of the night (c₂ 0.184–0.198, c₁ −0.19 to −0.22). Z<sub>V</sub> is modulated as much as Z<sub>H</sub> (c₂ 0.227 and 0.225), so vertical polarisation is no aspect-free proxy. c₁ differs between them (−0.15 and −0.32), which points to the scatterers rather than radar processing. After the shared correction, the curve left on the overlap is flat (Figure 7). Section 8.1 explains why this night alone cannot rule out that part of the function is fixed radar patterns.</p>
+
+  <figure class="plate" id="fig7">
+    <div class="fig-head"><span class="fig-no">Figure 7</span><span class="fig-title">Aspect left on the overlap, before and after the shared correction</span><span class="tag data">data</span></div>
+    <svg class="chart" id="f7" role="img" aria-label="Overlap aspect curve before and after correction"></svg>
+    <div class="legend"><span style="color:var(--ink)"><i class="pt"></i>no correction</span><span style="color:var(--side)"><i class="pt"></i>after the shared function</span></div>
+    <figcaption>24-bin overlap curve with no imposed shape (±2 se) before and after dividing by the shared function, on the night it was fitted. Out of fold (fitted on even frames, scored on odd frames, and the reverse), the harmonics left are c₂ 0.016 ± 0.014 and c₁ −0.018 ± 0.033.</figcaption>
+  </figure>
+
+  <h3><span class="num">7.2</span>Disagreement between overlapping radars</h3>
+  <p class="aim">This test scores each correction on cells it was not fitted to. The score is the weighted RMS log ratio between overlapping radars after the fixed effects and beam slopes; shared parameters are fitted on even frames and scored on odd frames, and the reverse.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Correction</th><th>Disagreement</th><th>Reduction</th><th>c₂ left</th><th>c₁ left</th></tr></thead>
+    <tbody>
+      <tr><td>No correction</td><td>0.632</td><td>–</td><td>0.200 ± 0.016</td><td>−0.220 ± 0.033</td></tr>
+      <tr><td>Ellipse (Appendix B, production)</td><td>0.613</td><td>2.9%</td><td>0.073 ± 0.016</td><td>−0.116 ± 0.040</td></tr>
+      <tr><td>Per-volume symmetric fit (development variant)</td><td>0.617</td><td>2.3%</td><td>0.133 ± 0.019</td><td>−0.217 ± 0.035</td></tr>
+      <tr><td>Shared, c₂ = 0.20 only</td><td>0.599</td><td>5.2%</td><td>0.009 ± 0.016</td><td>−0.213 ± 0.034</td></tr>
+      <tr class="rec"><td>Shared, c₂(h) + c₁ ramp (proposed)</td><td>0.597</td><td>5.6%</td><td>0.016 ± 0.014</td><td>−0.018 ± 0.033</td></tr>
+    </tbody>
+  </table></div>
+  <p>Any shared function does better than the per-volume fits (5.2–5.7% against 2.3–2.9%), because it does not fit the field. The per-volume symmetric fit (one cos 2ψ term on the low-level track) removes a third of the side-on effect aloft and none of the front/back term.</p>
+
+  <h3><span class="num">7.3</span>Reconstruction with held-out radars</h3>
+  <p class="aim">This test asks whether the correction helps the 4D reconstruction predict radars it did not see. The Midwest domain was solved with production settings from the same cleaned volumes, holding out KDMX, KDVN, KOAX, KEAX and KARX, with the prior rebuilt without them.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Cleaning</th><th>First harmonic of own data</th><th>Held-out relative error</th><th>Held-out median |log ratio|</th></tr></thead>
+    <tbody>
+      <tr><td>Ellipse (Appendix B)</td><td>0.15</td><td>0.487</td><td>0.430</td></tr>
+      <tr><td>No correction</td><td>0.27</td><td>0.544</td><td>0.477</td></tr>
+      <tr><td>Per-volume symmetric fit</td><td>0.28</td><td>0.546</td><td>0.479</td></tr>
+      <tr class="rec"><td>Shared function</td><td>0.19</td><td>0.510</td><td>0.414</td></tr>
+    </tbody>
+  </table></div>
+  <p>The two held-out scores disagree. The ellipse has the lower relative error (0.487 against 0.510). The shared function has the lower median |log ratio| (0.414 against 0.430, the lowest of the four). The ellipse also flattens each radar's own data (first harmonic 0.15, against 0.19 for the shared function and 0.27 without correction). A flatter field may make a held-out radar easier to predict without the field being more right, and the median, which is less driven by dense areas, ranks the shared function first. This test alone does not settle which reconstruction is closer to the truth. The shared function removes most of the front/back pattern at 10–60 km (−0.18 to −0.05) and half of the side-on one, and the per-volume fit does not improve on no correction (0.546 against 0.544).</p>
+</section>
+
+<!-- ============================ 8 ============================ -->
+<section id="s8" aria-labelledby="h8s">
+  <h2 id="h8s"><span class="num">8</span>Limits and what a multi-night database must establish</h2>
+  <p class="aim">This section lists what one night cannot settle, and states the questions a multi-night analysis has to answer before the function can be used generally.</p>
+
+  <h3><span class="num">8.1</span>Limits of one night</h3>
+  <p class="aim">Each limit below comes from the study's own checks.</p>
+  <ul>
+    <li><b>One autumn night.</b> All parameters come from 21–22 October 2026 (us_east, 107 radars), when tracks were mostly toward the S. No spring night was tested: every other cache has the shape correction applied, and re-cleaning was limited.</li>
+    <li><b>Aspect or fixed radar patterns.</b> Partial blockage, sector calibration and lasting gradients stay fixed in each radar's geographic frame. Fitting the shared function together with a fixed azimuthal pattern per radar (first and second harmonics, summing to zero over the radars) brings c₂ from 0.092 to 0.017 per km and c₁ from −0.21 to −0.06 on this night. With one track direction, and each radar seeing its neighbours in a few directions only, the two cannot be told apart. This shows that one night cannot decide; it is no evidence that the aspect is small. Only nights with other tracks can decide.</li>
+    <li><b>Below about 1 km the model is an extrapolation.</b> The overlap starts at 0.8 km and has few pairs below 1.25 km. There the model gives c₂ ≈ 0.05 at 0.5 km and ramps c₁ to zero at the ground. Single-radar means agree with it, but they include real gradients. Most birds fly in this layer.</li>
+    <li><b>The axis is uncertain: heading or track.</b> The side-on pattern does not follow the track when the track turns during the night. On the overlap the axis lies between the track and a fixed preferred heading (fitted together: c₂ 0.11 on each), consistent with partial drift compensation. A low-level volume track (200–1500 m) halves the amplitude. The ρ<sub>HV</sub> heading did as well as the track at the cell height in 2 frames, but was not tested on all frames. NEXRAD ρ<sub>HV</sub> and Z<sub>DR</sub> azimuth patterns are distorted by the transmit differential phase, which makes them unreliable for the amplitude (Melnikov et al. 2015; Melnikov &amp; Bridge 2024).</li>
+    <li><b>The amplitude varies.</b> c₂ is 0.28, 0.13 and 0.12 in three longitude bands from west to east, and 0.06 below 6 m s⁻¹ against 0.24 at 10–14 m s⁻¹. A speed-dependent model was only marginally better on the overlap and over-corrects near the radar.</li>
+    <li><b>Above 3 km</b>, c₂ linear in height overshoots (0.30 against 0.24 measured).</li>
+    <li><b>Per-radar amplitudes are not aspect.</b> They vary around the shared model (sd 0.24, reproducible between even and odd frames, r = 0.98). With an almost uniform track, they take every fixed azimuthal pattern of a radar (partial blockage, sector calibration, lasting gradients) onto the side-on axis, so per-radar fitting is not recommended.</li>
+  </ul>
+
+  <h3><span class="num">8.2</span>One function per night, or one climatology</h3>
+  <p class="aim">The open choice is between refitting the parameters for each night and using one function learned from many nights.</p>
+  <p>The study currently recommends refitting per night or season. Within this night the amplitude already varies with region and speed, and no other night has been measured. A climatological function would be simpler to apply and would not depend on enough overlap pairs each night. Which one is needed depends on how much the parameters change between nights. The plan below decides it with a leave-one-night-out test.</p>
+
+  <h3><span class="num">8.3</span>The multi-night plan</h3>
+  <p class="aim">A plan for this analysis now exists, with code, in <span class="mono">studies/aspect/PLAN_multi_night.md</span>. This subsection summarises why more nights help, which nights it uses and the rule that answers each question.</p>
+  <p>The aspect turns with the birds' track, while a radar's own pattern stays fixed in its geographic frame, so nights with different tracks separate the two. The side-on term repeats every 180°: spring and autumn, with opposite tracks, do not help it, while tracks turned by 30–90° do. The front/back term flips between spring and autumn, so the seasons help that one. The plan picks 16 dry nights with strong migration from 2021–2025 in the Dark Ecology archive, in turn from each season and 30° track sector (6 spring nights with tracks of 354–38°, 10 autumn nights with tracks of 169–244°), and adds this night. Each night has 6 hourly frames of the 107 us_east radars.</p>
+  <ul>
+    <li><b>Shape.</b> The cos 2ψ + cos ψ form is kept when the sin 2ψ, sin ψ and cos 4ψ terms stay below 0.03 and the 24-bin curves agree, pooled and by season.</li>
+    <li><b>Aspect or radar patterns.</b> The function is fitted with and without a fixed pattern per radar. Amplitudes that stay within 2 standard errors are aspect. If they fall, the one-night function was partly radar artefacts, and an azimuthal calibration of each radar becomes a topic of its own.</li>
+    <li><b>One function or one per night.</b> Leave one night out. A fixed function is kept when it gets at least 90% of the per-night fit's reduction of the disagreement and leaves |c₂| and |c₁| below 0.03 on at least 75% of the nights. Otherwise the pipeline fits each night: clean without shape, bin the overlap, fit, then divide, at about 1 min per frame.</li>
+    <li><b>Covariates</b> (height, speed, season, longitude). A covariate is kept when its estimate exceeds 2 standard errors and it clearly lowers the between-stratum spread that no covariate explains.</li>
+    <li><b>Below 0.8 km.</b> Single-radar harmonics with a fixed effect per radar, sweep and range band, pooled over all nights. Where single radars and the overlap both have values and agree within 2 standard errors, the single-radar values replace the 1 km ramp below 0.8 km.</li>
+    <li><b>Axis.</b> An axis turned from the track gives only a first hint. A real test needs the winds (heading = track − wind), which is not part of this run.</li>
+  </ul>
+  <p>The run waits for approval: about 90 GB of downloads and about 20 h of machine time, starting with a pilot night (about 5.7 GB and 1.5 h) that must pass checks on speed, failures, cell pairs and amplitudes before the main run. Nothing goes into the toolbox without approval.</p>
+</section>
+
+<footer aria-labelledby="h-src">
+  <h2 id="h-src"><span class="num">§</span>Sources</h2>
+  <p>All numbers come from the development study and were not recomputed for this page, except the KDMX map extract and the 24-bin curves, which were read from the saved outputs.</p>
+  <ul>
+    <li><span class="mono">studies/aspect/README.md</span>: method, numbers and literature.</li>
+    <li><span class="mono">studies/aspect/figures/AS_*.csv</span>: overlap harmonics by stratum, scores, axis and polarisation tests.</li>
+    <li><span class="mono">studies/aspect/functions/as_aspect_template.m</span>, <span class="mono">as_apply_aspect.m</span>: the shared function.</li>
+    <li><span class="mono">toolbox/+bmm4d/+radar/+filter/shape.m</span> and manuscript Appendix B: the ellipse correction.</li>
+    <li><span class="mono">studies/artifacts/README.md</span>, "Follow-up: the shared aspect function": the held-out reconstruction.</li>
+    <li><span class="mono">&lt;local data&gt;/aspect/overlap_results.mat</span>: 24-bin curves before and after correction. KDMX maps rebuilt from the study's volumes with <span class="mono">as_volume_map</span> (3 km cells, sweeps 1–3, 90 km).</li>
+  </ul>
+  <p class="small">References: Blacksmith &amp; Mack 1965, Proc. IEEE 53:1125 · Dokter et al. 2011, 2019 · Edwards &amp; Houghton 1959, Nature 184:1059 · Horton et al. 2016, Sci. Rep. · Kranstauber et al. 2020, Remote Sens. 12:635 · Melnikov et al. 2015, JTECH · Melnikov &amp; Bridge 2024, IEEE GRSL · Mirkovic et al. 2016, Sci. Rep. 6:35637 · Stepanian &amp; Horton 2015, IEEE TGRS · Stepanian et al. 2016, Ecosphere 7:e01539 · Urmy &amp; Warren 2017, Methods Ecol. Evol. · Vaughn 1985, Proc. IEEE 73:205.</p>
+</footer>
+</main>
+
+<script type="application/json" id="kdmx-data">{"x_km":[-88.5,-85.5,-82.5,-79.5,-76.5,-73.5,-70.5,-67.5,-64.5,-61.5,-58.5,-55.5,-52.5,-49.5,-46.5,-43.5,-40.5,-37.5,-34.5,-31.5,-28.5,-25.5,-22.5,-19.5,-16.5,-13.5,-10.5,-7.5,-4.5,-1.5,1.5,4.5,7.5,10.5,13.5,16.5,19.5,22.5,25.5,28.5,31.5,34.5,37.5,40.5,43.5,46.5,49.5,52.5,55.5,58.5,61.5,64.5,67.5,70.5,73.5,76.5,79.5,82.5,85.5,88.5],"none":[[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,131,127.3,133.8,143.6,142.2,155.5,137.4,281.6,170.9,182.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,100,112.7,113.8,119.8,123.2,123.8,127.6,143.3,147.1,145.6,143.6,152.3,143.4,161.8,155.9,144.3,147,185.5,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,84.5,90.8,102.4,99.6,116.4,117.8,142,135.7,133.4,142.8,135.4,142.8,140.1,147,163.9,162.4,168,161.8,158.9,164.3,178.2,188.8,183.4,194.4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,72.8,80.4,91.2,111.8,196.9,97.9,113.2,150.2,311.9,147.4,140.6,143.8,135.3,152.2,157.4,152.5,180.5,166.7,164.1,162.8,147.9,167.1,168.1,186.9,177.6,172.9,165.4,160,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,67.5,70.5,74,87,94,109.1,112.7,91.8,112.9,142.9,126.1,146.3,143.9,147.3,140.2,149.2,167,163.3,168.2,160.6,162.7,160.5,163.1,178.7,189,190,176.9,168.9,170.4,164.3,168.6,156.6,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,65.3,71.8,76,76.1,72,88.6,156.7,204.1,98.1,115.1,109.5,122.8,128.8,136,139,144.6,143,164.1,159.6,164.2,165.9,168.7,168.3,168.3,176.8,186.2,167.9,165.3,173.1,171.8,150.1,167,151.2,146.3,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,61.8,67.2,64.5,70,70,79.6,95.1,96.4,89.9,100.1,113.3,116.2,119.1,127.7,138.5,137.4,148.7,159.6,149.1,166.3,176.1,154.4,175.1,165.8,181.8,190.7,185.8,181.9,183.7,183.7,179.3,174.4,158.7,142.7,146.1,143.9,140.2,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,55.3,56.6,63.1,69.8,62.2,66.6,73.2,78.2,87.5,94.4,90.4,100.3,94.9,108.3,126.7,133.8,143.2,144.6,154.8,164.1,156,156.6,178,175.7,168.2,179,184.5,186,180.8,183.7,184.2,179.1,170.3,170.2,155,151.9,144.2,143.8,141.7,135.7,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,54.7,60.8,74.9,60.7,60.6,63,69.3,63.8,77.6,83.7,88.9,89.5,94.8,104.1,96.7,117.1,122,140.1,147.5,162.8,169.1,174.9,164.2,166.8,179.1,168.9,182.8,192.8,194,188.8,182.9,198.6,172.4,178.4,157.6,168.7,153.4,149.5,143.3,145.8,138.3,142.1,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,66.9,46.2,52.5,74.8,60.8,54,54.5,68.4,69.8,80.1,80.5,93.7,99.3,110,95.3,90.8,117.1,124.6,139.6,142,140.2,152.3,151.4,163.7,169.1,169.1,174.6,184.1,186.6,179.1,176,188,184.8,176.9,171.7,167.7,166.4,154.8,142.8,142.6,142,146.7,140.5,145.5,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,42.9,117.2,42.5,44.7,73.5,84.8,65.5,62.3,68.3,77.5,78.4,82.9,88,153.3,100.8,93.5,108.1,117.7,116.1,124.8,135.2,146.1,150.6,148.8,163.3,158.9,165.7,177.2,182.1,188.8,178.1,169.2,187.1,171.3,171.1,169.9,171,153.4,157,155.6,143.8,153.7,153.9,154,144.3,147.9,null,null,null,null,null,null,null],[null,null,null,null,null,null,35.6,39.6,43.5,49.4,126.2,59.8,51.1,68.6,62.2,67.6,76.6,75.1,83.3,189.3,109.1,91.7,97,110.8,112,122.4,119.7,124.9,123.7,138.6,141.4,156.3,155.2,172.5,177.3,196.9,192.5,189.4,180.4,172.4,177.5,161.3,166.8,159.6,149.9,148.2,159.4,152.9,151.6,170.9,160.4,152.7,150.1,null,null,null,null,null,null,null],[null,null,null,null,null,null,33.3,34.6,39.5,54.8,80.1,105.7,56,57.7,60,60,68.8,75.8,126.7,116.8,96.3,85.5,91,104.6,116,116.6,128.9,126,140.9,146.9,149,149,151.3,159.2,170,155.1,163.4,171.1,164.1,157.6,167,162.6,153.4,158.1,151.5,155.5,157.5,158.8,157,162.4,153.7,149.6,143.1,140.1,null,null,null,null,null,null],[null,null,null,null,null,30.5,31.4,36.7,43.7,60.5,61.7,48.8,53.1,56.1,58,61.3,63.9,98.6,151.3,216.2,94.6,90,94.7,101.1,105.7,115.7,116.1,118.7,119,134.1,127.3,128.6,131.7,139.3,132.2,136.3,146.3,134.8,153.4,155.5,148.8,141.9,148.4,150.7,145.9,152.4,154.3,146.3,154.3,152.6,151.3,146.5,147,144.9,145.8,null,null,null,null,null],[null,null,null,null,29,29.1,28.8,33.7,43.2,202.8,63.8,50,46.9,54.2,56.6,59.8,68.4,81,87.8,90,345.7,88.8,84.8,102.1,95.5,95.8,95.8,116.5,115.1,109.2,109.4,119,113.8,108.7,113.4,112.3,121.5,136.7,125.2,132.7,138.7,133.4,122.9,151.9,146.1,151.3,146.1,140.4,139.9,138,150.6,151.2,147.3,144.2,132.6,126.8,null,null,null,null],[null,null,null,null,27.5,28.7,33.6,39.1,38.2,41.4,45.7,46.3,48.6,48.6,57.5,54.5,61.3,63.2,76.2,87.9,87.8,80.1,78.6,77.6,86.7,90.6,90.7,95.5,91.2,102.3,95.8,89,91.3,84.3,82.7,97.5,100.1,119.1,122,121,121.8,120.4,140.5,133.2,139.8,145.5,138.7,133.1,133.5,137.7,153.3,147.7,146.6,138.1,145.6,129.5,null,null,null,null],[null,null,null,27.3,28.8,29,30.4,35.7,39,40.2,40.3,46.1,46.7,53.1,49.2,54.4,58.3,65.9,70.1,71.6,72.4,76.3,73,71,77.8,76.8,77.6,77.1,81.1,72.3,72.7,74.6,70.6,76.4,71.4,87.1,79.7,101.1,99.5,118.3,108.9,111.1,129.6,145.3,168.6,136.4,136.9,142.6,140.9,131.5,141.9,157.6,156.3,139,164,125.7,120.9,null,null,null],[null,null,null,25.9,30.3,30.6,32.5,36.2,36.4,43.9,49.5,46.9,48.6,46.8,42.9,52.7,56.6,57.7,61.6,64.8,58.8,64.8,60.5,63.9,71.1,63.8,70.1,65.8,65,58.7,56.7,57.6,64.5,58.2,60.5,68.6,71.7,78.2,100.5,103,104.8,101.5,110,248.1,172.8,122.9,118,124.1,126.3,122.7,131.5,145.4,155.6,148.6,134.5,124.8,125.1,null,null,null],[null,null,22.4,25,27.5,29.3,32.4,34.1,35.8,57.3,128.6,54.5,46.3,41.3,43.5,44.9,45.8,51.8,54.6,56.6,53.7,58.4,54.7,50.9,55.4,50.6,52.6,53,55.2,52.2,41.6,51.4,54.5,59.3,58.7,62.6,64.6,79,82.3,91,95.4,88.6,134.7,804.5,115.9,98.8,107.7,110.7,110.1,118.9,126.4,139.9,139.3,134,150,130.2,118.3,119.5,null,null],[null,null,25.1,25.3,27.7,33,32.5,32.4,39.3,40,46.6,41.4,42.8,39,40.5,42.2,46.2,43.8,50.7,50.9,50.4,48.4,44.9,37.6,41.6,41.2,49.9,48.2,53,38.9,41.9,51.6,53.5,51.7,62.5,63.9,66.6,68.6,74.6,72.1,72.4,74.8,79,97.2,103.6,101.8,94.1,101.3,107.9,119,112,128.2,132.9,129.4,128.2,125,132.4,139.2,null,null],[null,null,24.3,25.5,28,29.7,31.2,33.7,36.3,35.4,39.5,41.1,36.4,40.2,38.5,40.2,43.4,42.4,45.7,42.1,41.8,41.9,41.2,36.2,37.5,43.2,44.7,39.8,43.5,41.2,43.2,51.7,59.5,52.7,47.8,58,64.4,57.8,65.3,71.5,70.9,73,69.3,84.7,88.9,91.9,90.7,93.6,101.5,113.3,112.9,136.2,129.3,135.2,131.9,144.1,146.1,142.5,null,null],[null,26.1,25,27.2,29.1,30,33.4,35.3,34.5,33.5,36.3,37.3,34.6,38.4,38.3,42.7,30.9,39.1,36.9,34.9,40.5,38.8,37.9,30.3,34.5,40.1,37.2,41.7,48.2,39.6,44.5,52,61.3,51.3,50.3,46.2,50.5,56.7,60.3,66.8,67.4,72,65.1,72.3,76.6,82.6,89.1,88,96.2,104.3,112.3,124.5,129.2,141.3,139.2,151.4,145.3,143.8,152,null],[null,25.8,28,28.3,28.6,31,33.5,34.5,32.4,33,34.3,35.1,33.8,36.7,40.7,33.1,34.4,35.1,34.2,32.1,28.9,27.9,33.5,36.1,37.1,34.6,30.1,31.6,42.2,43.2,40.6,50.7,41.9,47.8,37.4,41.1,43.3,47.7,45.1,58.8,66.8,70,64.9,71.3,73.2,73.9,85.9,87.9,95.5,105.4,115.2,135.1,139.4,143.9,148.5,135.2,146.6,156.2,153.9,null],[null,26.3,26.1,30.1,33.7,37.8,35.3,36.2,35,34.3,36,36.8,34.3,37.6,33.1,33.3,32,31.2,29.6,25.8,27.7,30.6,30.9,36.1,28.9,29.1,26.5,35.1,37.7,39.8,39.2,36.3,31.4,31.4,30.3,31.9,40.2,45.1,49.4,57.9,70,58.6,63.1,62.8,68.3,78.3,82.4,90.2,97,113.7,126.4,131.9,141.4,145.1,142.4,154.1,158.2,159.6,162.2,null],[null,25.5,27.4,32.6,33.2,35.2,35.8,35.6,34.6,34.6,39.3,37.7,37,41.8,35.7,26.8,29.4,29.1,25.4,28.6,26.2,26.6,25.2,31.9,25.6,24.8,26.6,35.7,35,32.2,33.7,28.8,27,27.9,26.6,36.9,40.4,41.7,52.9,49.7,56.8,51.3,60.6,63.6,68.1,78.8,80.8,123.8,118.3,116.7,126,140.5,144.7,153.5,166.1,168.6,163.1,190.9,157.7,null],[27.2,26.2,28.6,33.3,34.5,35,34,37.4,37.4,39.4,39.4,36.9,38.7,33.6,31.1,30.8,26.3,25.5,21.5,22.6,19.6,22.5,22.2,27.3,30.2,24.5,26.4,36.6,25.2,31.4,33.4,23.5,21.5,28.2,33,32.7,30.7,35.6,38.6,44.7,47.4,51.5,59,63.2,71.8,83.4,93.5,115.3,130.1,123.8,129.2,137.5,154.9,156,167.1,170.3,159.1,165,175.3,155.4],[30.4,29.4,30.3,38.9,39.9,38.4,37.4,35.7,37.3,38.9,39,37.2,35.4,30.8,30.9,28.4,24.4,23.2,21.5,21.1,19.1,21.8,24.9,28.3,27.7,20.6,28.5,26.6,21,22.5,26.1,20.2,21.9,26.7,28.4,23.4,29.8,25.6,36.8,41.5,44.7,58.4,59.3,62.4,72,74.4,78.8,102.4,113,116.8,122.8,138.1,151.3,167.1,166,156.5,153.5,170.8,165.2,168.5],[29.4,29.4,29.8,34.8,36.3,34.3,40.1,45.6,41.8,40.2,38.9,39.2,37.9,35.9,29.2,25.7,24.5,20.6,20.6,19.3,18.7,18.5,24.8,20.8,23.4,27.6,19.3,21.6,20.7,25.7,16.1,24.4,23.2,17.9,24.3,24.5,22.6,32.2,32.4,45.9,49.2,49.6,63.8,64.9,73.7,73.4,87.6,95.4,103.1,110.9,128.4,132.7,147.8,161.5,168.9,156.9,171.7,165,176.3,183.9],[29.3,30,29.5,30,35.6,34.3,34,36.9,42.7,40.2,38.1,37.1,38.5,32.9,30.2,26.4,24.2,21.2,21.3,20.8,19.1,20.3,20.3,16.9,19.1,18.5,22.4,19.7,15.8,12.1,11.6,25.3,22.9,17.4,25.2,21,25.8,29.7,43.3,43.8,54.8,55.9,61.1,65.2,65.5,72.7,78.8,91.3,89.6,104.6,128.6,140,143.3,160,168.8,173.8,187.1,178.2,178.3,168.8],[28.1,28.3,32.2,32.5,36.4,35.1,34.7,34.4,36.9,40.5,35.7,34.7,36.1,29.9,28.8,24.6,21.9,19.6,22.3,21.4,21.5,23.7,18.7,16.8,19.1,15.9,13.1,13.5,8.1,null,null,15.5,18.1,18.7,15.9,13.6,19.8,18.7,35.6,32.6,48.7,55,56.9,65.6,65.7,70.6,76.9,86.7,91.6,99.1,112.1,136.2,145,159.6,166.2,172,179.4,171.8,167.2,167.5],[29.1,30.6,30.5,33.3,38,39.6,32.3,35.9,36.2,36.3,35.8,34,37.4,32.7,24.3,24.7,20.2,18.7,19.6,19.8,22.8,22.2,22.8,20.2,17.3,23,20.1,20.5,11,null,null,12.4,16.1,15.2,13.3,14.4,20.4,21.8,34.6,42.9,47.6,54.1,57.9,58.9,65.6,73.7,78,86.3,84.7,93.6,107.6,120.4,132.8,150.8,162,167.7,162.4,161.6,167.7,182.7],[29.9,34.5,30,35.9,34.6,39.2,37.2,34.5,34.1,33.6,38.6,34.2,34.2,30.9,27.5,24.9,20.1,17.4,17.3,19.1,20.4,22.7,22.2,21.6,23.3,33.7,24.5,21.4,16.3,17.9,12.9,21.1,15,14.1,12.2,16.2,21.5,28.1,33.2,44.4,51.6,53.2,55.8,61.1,68.8,74.4,76.6,83.6,97.3,100.1,104.3,129,117.5,142.7,171.6,157,149.5,143.6,180.6,560.4],[29.4,33.1,32.3,35.5,37.1,36.1,36.3,37,35.8,32.6,36.2,35.4,32.6,29,25.2,21.4,22.1,18.4,18.8,17.6,19.7,20.6,23.5,18.8,17.6,22.8,25.6,28.9,19.1,19.1,17.3,20.1,21.5,19.4,18.8,26.8,31.1,32.8,37.4,47.7,48.6,46.5,57.5,60.1,56.1,65.8,77.2,78.5,87.4,92.3,89.2,104.1,116.5,127.7,140.8,149.8,146.2,150.7,185.1,437.1],[33.5,35,33.9,38.2,36.7,37,36,34.8,35.1,33.3,35.7,35.3,29.6,29.5,26.5,23,24.4,21.5,16.7,17.3,16.6,21,21.5,22.3,16.6,20.5,17.7,25.2,17,22.6,19.1,26.2,21.9,18.9,19.8,23.3,26.8,37.8,36.1,42.6,46.2,53,58.4,60,67.5,70.1,75.9,76.8,83,90.2,94,105.4,118.1,119.1,129.6,144.9,135.6,142.6,157.9,156.1],[28.9,31.7,32.8,35.3,39.3,36.4,37.2,37.1,34,32.8,35.7,37.8,31.3,30.3,28.1,25.7,24.2,21.4,19.1,17.8,16.2,17.2,20.3,22.9,20.4,20.1,20.5,24.7,17.7,18,19.1,27,31.7,31.2,26.8,28.1,34.6,34.4,36.5,41.5,44.6,48.3,54.9,59.3,65.2,72.2,75.5,78.3,80.2,83.2,88.2,94.9,97.5,111.2,115.9,126.4,132.7,129.2,144.5,146.9],[null,29.5,31,32.9,35.6,35.3,34.1,38.6,34.6,33.1,35.1,31.3,34.8,33.4,29.7,28.6,26,22,19.4,18,18.2,18.5,20.5,16.4,17.7,19.1,18.8,28.3,22.8,19.3,17.7,27.8,34.9,31.4,25.6,23,31.6,33.2,34,41.5,42.4,49,51,62.1,63.6,71.7,81.1,78.1,78.2,83.2,96.5,93.7,94.7,106.4,110,116.3,116.7,122.1,127.6,null],[null,30.9,34.2,33.9,36.8,32.2,33.8,35.9,37.4,34.7,32.9,31.9,32.5,32.6,30.2,26.2,24.7,23.6,21.5,22,16.6,15.6,16.2,18.3,17.1,16.7,16.6,20.5,22.1,21.3,27.1,25.7,31.9,27.1,23.7,21.4,25.8,42.8,36.3,39.2,46.7,50,50.5,56.1,63.8,68.7,69.5,75.4,81.2,90.4,99.6,99.1,94.8,98.4,109.4,107.9,119.1,115.4,111,null],[null,29.3,34.4,31.6,36.5,32.7,33,33.6,36.2,34.6,34.9,33.3,31.8,31,32.3,25.7,25.1,25.3,24.7,23.3,22,17.7,15.9,15.2,18.8,17.4,17.8,19.3,22,22.6,22,30.7,24,26.1,24.6,27.3,31,35,37.3,40.7,51.1,52.6,53.8,58.9,64.3,69.6,67.4,83,87.5,128,106.3,110.1,92.6,101.6,102.9,110.1,113.2,110.6,112.8,null],[null,30.9,32.8,33.4,32.5,34.5,33.3,34.2,36.4,36.1,35.4,36.3,32,31.8,32,31,28.8,26,23.8,26,23.7,19.1,15.9,18,18.1,19.2,19.8,21.7,23.6,23.2,27.7,28.2,27.3,26.4,28.2,30.1,35.8,33,38.3,43.8,43.2,55.3,63.5,55.8,60.9,66.1,69.8,80.9,162.8,118.7,95.6,98.6,95.9,98.9,116.6,105.1,109.4,112.5,112.7,null],[null,null,33.2,34.5,34.4,35.2,32.6,31.8,36.9,39.8,35.6,34.3,34,34.2,35.5,30.7,32.6,30.8,26.5,26.7,24.4,18.3,18.3,22.3,19.9,20.8,20.6,24.2,29.2,27.9,24.7,23.8,26.7,38.3,32.8,35.6,38.3,36.5,44.4,47.2,49.1,56.1,55.8,62,60.1,71.4,73.5,86.8,98.6,94,89,86.8,91,96.1,101.8,97,97.6,99.8,null,null],[null,null,29.4,35.2,33.1,36.2,34,36.7,37.2,36.4,37,35.5,37.9,36,34.1,35.7,33.7,31.3,31.6,28.5,27.6,26.5,26.5,27.1,27.1,27.8,25.8,25.8,38.8,28.2,23.9,26.6,33.1,35.5,33,45.2,43.3,44.3,48.3,47,45.8,56.9,58.8,62.3,72.7,109.1,90,93.6,90.8,80.3,75.7,82.8,84.5,94,96,105.9,104,98.4,null,null],[null,null,32.2,33.1,33.9,35.4,33.7,42.2,41.5,38.7,41.5,35.6,37.6,38.8,38,39.7,40.1,36.6,35.5,32.8,30.1,27.5,30.6,30,33.9,34.2,32.1,31.3,33.8,27,30,30,37.6,35.4,43.5,48.8,51.3,59.1,53.4,52.3,73.5,63.8,69.8,86.1,79.7,134.6,90.3,88.5,76.9,76.7,77.7,73.4,85.3,87.5,93.1,96.1,97.9,93.8,null,null],[null,null,null,35.2,29.3,35,33.6,35.2,42.6,45.5,40.7,39.2,37.3,39.9,40.5,41.8,44.9,43,37.3,37.4,32,32.2,36.1,32.2,35.4,35.6,37.9,34.9,41.2,31.8,36.2,42.9,43.5,46.4,47,50.8,53.9,51.7,62,54.9,61.3,71.6,109.3,568.4,106.1,91.3,79.2,77.2,77.5,82,79.7,74.9,81.3,80.6,81.3,89.3,95.7,null,null,null],[null,null,null,29.4,29.1,31.5,40.9,39.2,38.7,41,41.8,42.5,42.6,45.1,41,44.1,42.9,43.2,38.1,40.4,37,32.7,35.2,34.2,42.1,39.2,43.7,38.6,43.1,40.5,41.6,44.6,50.2,50.1,58.3,73.7,64.7,68.8,63.3,59.5,66.1,76,99.1,92.7,83.9,82.5,79,72.8,76.5,79.7,77.1,80.3,77.3,76.8,81.6,87.3,80.9,null,null,null],[null,null,null,null,32.4,31.6,35.5,41.4,42.8,39.2,38,45.2,42.4,43,42.8,43.4,42.8,47.7,43.4,40.9,43.4,38.3,42.2,44.1,42.6,46,51.7,48.4,51.2,49.6,48.5,50.8,57.8,58.3,66.7,67.5,64.4,71.5,64.2,66.7,65.2,72.7,76.9,73.5,73.1,76.7,79.9,78.6,73.9,72,83.2,77.3,77.1,78.5,82.5,89,null,null,null,null],[null,null,null,null,33.9,34.9,35.7,34.3,39.8,38.9,44.2,42.5,46.1,48.5,45.2,44.1,47.7,43.6,50.8,48.2,45,50,44.8,46.8,47.1,46.2,51.1,53.9,53.7,52.8,56.6,51.1,59.8,64.5,66.1,74.4,72.4,73.1,77.2,71.6,71.2,74.4,74.5,72.5,74.7,73.3,78.6,81,77.2,71,72.1,74.7,79.2,77,75.9,85,null,null,null,null],[null,null,null,null,null,31.2,32,36,36.1,43.8,42.5,39.8,41.3,45.5,47.1,45.1,47.5,47.8,52.5,54.8,53,54.5,51.3,54.8,51.6,54.1,58.7,61.3,61.8,61.7,59.8,59.4,79.6,72.8,80.4,84.4,76.9,80.8,85.4,78.3,69.2,70.6,77.7,78.7,76,79.3,76.1,76.3,75.3,69.6,71.8,77.9,82.5,80.9,76.2,null,null,null,null,null],[null,null,null,null,null,null,34.3,36.3,36.5,38,41.6,40.2,44.1,40,47.3,53.3,55.1,49.1,55.1,56.3,60.7,56.4,56,64.4,59,58.3,60.8,62.6,67.3,70.8,70.3,74.9,78.7,81.1,82.9,79.8,71.2,78,83.4,75.8,78.1,83.2,81.1,80.1,76.6,70.9,75.1,72.7,74.1,73.2,77.4,76.3,74.9,80.3,null,null,null,null,null,null],[null,null,null,null,null,null,null,35.5,38.7,40.1,46.3,44.8,43.7,43.1,46,53.1,56,53.8,61.3,61,65.9,55.8,57.3,65.2,57.5,59.6,68.5,72.1,72.9,73.3,79.1,73.2,83.3,87.5,88.1,82.8,85.3,89.9,86.2,86.3,83.1,80.3,82.2,70.9,72.8,75.8,80.3,75.9,75.3,72.9,71.8,75.2,73.4,82,null,null,null,null,null,null],[null,null,null,null,null,null,null,35.5,40.5,40.9,39.5,39.3,40.9,45.6,45.2,47.3,52.5,60.2,59.3,61.2,59.8,61.1,58.9,65.1,68.4,67.3,68.9,68.1,68.1,72.2,78.3,85,95.4,93.9,85.9,191.2,106.4,93.4,86,81.3,78.1,82.9,83.5,71.8,74.8,82.1,74,77.5,72.3,74.8,77,78.1,75.4,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,38,38.3,40.4,39.7,41.6,47.3,45.3,46.4,49.8,60.5,66.4,62.4,62.6,57.3,61.6,64.7,69.8,65,78.7,82,77,77.7,85.5,99.7,91.4,96.2,98.5,161,784.7,95,92.1,85,77.2,82.1,80.1,77.5,81.3,81.4,73.7,75.5,77.7,75.1,75.1,71.7,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,36.5,39.2,41.8,40.8,45.9,43.2,39.5,50.8,52.3,57.9,62.5,68.2,62.9,72.2,74.5,74.1,78,81.5,77.5,80.9,75,81,88.8,89.1,95.8,101.7,112.8,158.1,90,95,86.4,87.6,84.6,77.7,80,75.5,76.8,82.5,79.2,68.6,70,76.7,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,36.5,43,41.8,44.1,42.8,48.2,52.5,47.3,54.6,58.8,64.9,66.1,68.4,67.1,68,72.8,88.8,90.4,89.6,89,89.2,89.9,86.7,98.1,85.2,89.9,97.8,95.5,87.4,84.2,78.8,84.8,81,82.1,79.6,85.7,82.7,79.7,73.2,74.5,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,37.7,43.3,42.4,46.5,48.2,48.8,52.8,52.6,62.9,59.5,62.9,63.2,69.7,69.3,78.5,83.3,85.9,84.6,101.1,86.1,90,94.1,89,83.5,90.7,94.2,94.6,93.9,84.1,84.7,83.2,76.5,84.5,86.5,80.9,98.5,82.8,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,46.9,44.2,44.9,49.7,51.9,51.7,61,62.5,61.2,65.9,64.6,64.1,75.5,80.1,74.4,84.7,88.8,78.1,84.8,88.6,88.3,86.5,93.6,96.4,90.5,89.6,97.4,90.2,81.9,81.8,81.2,85.2,316.9,289,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,39.2,42.1,42.7,50.9,56.4,57.8,55.2,59.7,60.6,69.4,70.5,72.1,74.7,78.7,80.8,83.7,79.8,86.1,85.8,86.3,91.2,91.7,94.9,98,84.3,87.7,88.3,82.1,77.7,84.1,75.3,91.3,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,41.3,47.5,52.2,52.2,53.6,59,56.9,62.7,73.2,62,70,69.1,69.2,71.5,81.2,88.8,81.4,87.8,89.3,89.4,92.5,90,90.8,91.1,84.9,86.9,88.9,78.1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,49.8,153.6,50.6,51,55.8,59,60.6,65.3,66.6,66.3,71,68.9,73.4,84,83.1,96.6,96.8,92.7,90.9,90.7,86.6,86.2,85.2,82.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,55,56.8,58.7,62.6,63,67.7,69.4,74.5,67.3,78.3,80,87.1,93,93.6,89.5,92.9,85.8,88.5,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,57,59.6,63.8,78.6,68.4,56.7,78.5,89,86.5,77.4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]],"ellipse":[[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,92.1,89.5,94.1,100.9,99.8,108.9,96.3,195.6,119.4,127.4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,70.4,79.3,80.1,84.3,86.7,87.1,89.8,100.7,103.4,102.2,100.7,106.9,100.4,113.2,108.8,100.6,102.3,128.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,62,65,72.1,70.1,81.9,83,99.8,95.5,93.9,100.5,95.3,100.4,98.4,103.2,115,113.8,117.4,112.8,110.6,114.4,123.9,130.9,126.9,134.5,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,59.2,62.3,67.7,80.1,138.4,68.9,79.6,105.5,217.6,103.9,99.1,101.3,95.2,107.2,110.8,107.1,126.6,116.7,114.6,113.6,103.1,116.2,116.8,129.6,122.7,119.3,113.9,110,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,62.9,62.3,62.8,69.7,71.1,79.5,79.7,64.6,79.5,100.6,88.9,103.3,101.5,103.9,98.8,105.1,117.6,114.8,118,112.4,113.8,111.9,113.6,124.3,131.2,131.6,122.2,116.5,117.2,113,115.8,107.4,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,68.7,70.4,69.8,66.1,59.5,69.1,114.8,145.4,69.1,81.3,77.3,86.8,90.9,96.1,98,101.9,100.7,115.5,112.1,115.3,116.1,117.8,117.5,117.3,122.9,129.2,116.2,114.2,119.4,118.2,103.2,114.6,103.5,100.1,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,70.6,73.2,66.7,68.1,63,66.8,76.1,72.9,65.4,71.1,80,82.1,84,90.3,97.8,97,104.9,112.5,104.9,116.8,123.5,108,122.3,115.6,126.6,132.6,128.8,125.9,126.9,126.7,123.4,119.8,108.8,97.8,99.9,98.2,95.4,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,72.1,70.7,75.1,78.7,66.7,66.5,69.1,68.9,71.4,73.6,66.5,71.6,67,76.5,89.5,94.6,101.2,102.1,109.2,115.7,109.8,110,124.8,123,117.5,124.8,128.4,129.3,125.4,127.2,127.1,123.5,117.2,116.9,106.3,104,98.5,98,96.4,92.2,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,77.8,82.7,97.2,75.3,71,69.9,71.8,62.2,71.7,71.7,70.9,68.1,68.4,73.6,68.3,82.8,86.2,99,104.1,114.8,119.2,123.2,115.3,117,125.3,118,127.4,134.2,134.7,130.8,126.5,137,118.7,122.8,108,115.7,105,102,97.7,99.2,93.8,96.4,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,101.3,68,73.8,101.1,78.3,66.9,63.5,74.6,71.1,76,71.4,76.7,76,81.5,67.6,64.2,82.8,88.2,98.6,100.1,99,107.3,106.6,115,118.5,118.2,121.9,128.3,129.7,124.3,121.8,130,127.4,121.8,118,115,114,105.8,97.5,97.1,96.5,99.5,95.2,98.4,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,69.5,183.3,65,66,102.7,114.6,84.7,76.4,78.2,81.7,77.3,76.8,77,122.2,74.7,67.2,76.4,83.3,82.1,88.2,95.5,103.1,106.2,104.6,114.6,111.4,115.9,123.7,126.8,131.1,123.5,117.2,129.3,118.1,117.7,116.6,117.2,104.9,107.2,106.1,97.8,104.3,104.4,104.3,97.6,99.9,null,null,null,null,null,null,null],[null,null,null,null,null,null,61.9,66.7,71.4,78.6,191.9,87.5,73,91.9,78.5,80.8,86.5,79.2,80.4,162.5,90.9,70.3,70,78.7,79.1,86.6,84.6,88.3,87.2,97.7,99.5,109.8,108.7,120.6,123.7,137.1,133.8,131.4,124.7,118.9,122.3,110.8,114.4,109.3,102.4,101.1,108.6,103.9,102.9,115.8,108.6,103.2,101.3,null,null,null,null,null,null,null],[null,null,null,null,null,null,59.8,60.5,67.1,90.1,126.7,162,83.3,80.8,78.9,75.3,82.3,84,129.1,108,82.4,68.4,67.8,74.9,82.1,82.5,91.2,89,99.5,103.5,104.9,104.6,106.1,111.3,118.6,108,113.5,118.6,113.1,108.6,114.9,111.5,105.1,108.1,103.3,106,107.1,107.9,106.6,109.9,103.9,101,96.7,94.3,null,null,null,null,null,null],[null,null,null,null,null,58.2,58.1,66.5,77,103.8,102.8,78.8,82.6,83.8,81.4,80.6,80.3,113.2,162.5,214.3,85.2,73.7,73.1,72.7,74.9,81.9,82.2,83.9,84,94.5,89.6,90.2,92.2,97.3,92.1,94.8,101.4,93.1,105.6,106.9,102.1,97.2,101.6,102.9,99.5,103.7,104.9,99.3,104.4,103.2,102.3,98.9,99.1,97.6,98.2,null,null,null,null,null],[null,null,null,null,58.1,56.9,55.1,63.6,79.4,359.8,110,83.9,75.6,84.3,84.2,82.9,89.9,99.3,100,96.3,329.4,77.7,66.9,76,67.7,67.8,67.8,82.4,81.3,77,77,83.6,79.7,75.8,78.9,78,84.1,94.4,86.2,91.2,95,91.3,83.8,103.6,99.5,102.9,99.1,95.2,94.7,93.3,101.8,102.1,99.3,97.1,89.2,85.2,null,null,null,null],[null,null,null,null,56.6,58,66.5,76,73,77.4,82.3,80.2,81.3,78.4,89.4,81,85,83.3,92.6,94.7,87.9,74.9,66.4,59.6,62.4,64.1,64.2,67.5,64.4,72.1,67.4,62.5,63.9,58.7,57.5,67.6,69.2,82.2,83.9,83,83.4,82.3,96,90.8,95,98.8,94,90.1,90.3,93,103.5,99.6,98.8,93,97.8,87,null,null,null,null],[null,null,null,58.5,61,60.6,62.4,71.6,76.5,77.6,75.7,83.9,82.3,90.5,80,85.3,87.6,91.3,88.8,85.1,78.7,75.8,64.5,56.7,56.9,54.5,54.9,54.5,57.3,50.9,51.2,52.3,49.3,53.2,49.5,60.4,55,69.5,68.3,81,74.4,75.8,88.2,98.7,114,92.4,92.7,96.5,95.2,88.8,95.7,106,105.2,93.5,110.4,84.5,81.2,null,null,null],[null,null,null,57.3,66.4,65.7,69.2,75.6,74,88.5,97.2,89.6,89.9,84,74.2,87.9,89.8,85.4,84.5,82.1,69.9,69.6,57.1,55.3,53.5,45.3,49.7,46.5,45.9,41.3,39.9,40.4,45.1,40.4,41.9,47.4,49.4,53.7,68.9,70.4,71.4,69,74.7,166.6,116.6,83.1,79.8,83.9,85.3,82.8,88.6,97.9,104.6,99.8,90.4,83.8,84,null,null,null],[null,null,51.8,56.6,61.8,65.3,70.6,74.1,76,118,263.2,108.4,88.8,76.4,79.3,78.4,76.4,82.3,80.7,77.6,68.1,66.4,53.9,44.7,43.5,36.8,37.2,37.4,38.9,36.7,29.2,35.9,38,41.2,40.7,43.2,44.4,54.1,56.2,62,64.8,60.2,90.7,534.3,78.4,66.8,72.8,74.8,74.3,80.2,85.2,94.1,93.6,90.2,100.7,87.5,79.5,80.3,null,null],[null,null,59,58.8,63.6,75.2,73.5,72.1,86.6,85.8,98.4,85.8,86.3,76.4,77.1,78,80.5,73,79.1,74.7,68.8,59.8,49.1,37.7,35.1,30.2,35.3,34.1,37.4,27.3,29.4,36.1,37.3,35.8,43.2,44,45.7,46.9,50.8,49,49.1,50.7,53.5,65.7,69.9,68.7,63.5,68.3,72.6,80.3,75.3,86.2,89.3,87.1,86.2,84,88.8,93.3,null,null],[null,null,58.5,60.9,66.5,69.7,72.4,77.6,82.5,79.1,87.2,87.9,77.3,83,77.1,77.9,81.2,75.7,77.6,67.3,62.6,58.3,49,38.2,34,33.3,32,28.1,30.6,28.9,30.3,36.1,41.4,36.5,32.9,39.8,44,39.4,44.4,48.5,48,49.4,46.8,57.2,60,61.9,61.1,63,68.3,76.2,76,91.8,86.9,90.9,88.7,96.9,98.2,95.6,null,null],[null,64.5,61.6,66.8,70.5,72.5,79.5,83.7,81,77.1,83,83.2,75.3,82.6,80.4,85.8,62,74.7,66.8,59.9,66.5,56.5,48.6,35.2,35.5,34.2,26.9,29.4,34,27.9,31.2,36.2,42.5,35.5,34.6,31.6,34.6,38.5,40.9,45.2,45.5,48.6,43.9,48.7,51.6,55.6,59.9,59.2,64.8,70.2,75.5,83.8,86.9,95,93.6,101.8,97.6,96.5,102,null],[null,65.3,70.7,70.8,71.2,76.6,82.5,84.2,78,78.6,80.6,82,77.2,81.7,90.4,71.5,71.7,70.7,66.9,59.3,50.9,46,48.9,46.9,41.1,33.7,23.4,22.4,29.7,30.4,28.4,35.3,29,32.9,25.6,28,29.5,32.3,30.5,39.7,45.1,47.2,43.7,48,49.3,49.7,57.8,59.1,64.2,70.9,77.5,90.9,93.8,96.7,99.8,90.8,98.5,104.8,103.3,null],[null,68,66.8,77.1,85.9,96,88.6,90.8,86.9,84.2,87.5,89,81.6,88.6,75.7,75.8,69.9,66.6,62,51.4,52,52.5,52.4,52.5,36.6,30.3,21.9,25.2,26.6,28,27.4,25.3,21.7,21.6,20.7,21.8,27.3,30.5,33.3,39,47.1,39.4,42.4,42.2,45.9,52.6,55.3,60.6,65.2,76.4,84.9,88.7,95,97.6,95.8,103.6,106.3,107.2,108.9,null],[null,67.1,71.4,85.2,86.3,91.6,92.3,91.2,87.9,88.3,98.6,94.5,91.5,102.3,86.4,63.2,69,65.8,56.1,61.5,53.5,51.9,47,52.7,37.4,30.9,24.5,29,24.7,22.6,23.5,20,18.6,19.1,18.1,25,27.3,28.1,35.6,33.4,38.1,34.5,40.7,42.7,45.8,52.9,54.3,83.2,79.3,78.4,84.7,94.5,97.2,103.3,111.8,113.5,109.7,128.6,106,null],[73.1,70.2,76.5,88.4,92,92.4,89.7,98,98.1,102.3,101.9,95,99,85,77.9,75.9,63.5,61.7,50.5,51.7,43.5,48,45.4,51.5,50.2,35.5,30.7,31.8,18,22.1,23.2,16.2,14.7,19.2,22.3,22,20.6,23.9,25.9,30,31.8,34.5,39.6,42.4,48.3,56.1,62.8,77.5,87.2,83.1,86.8,92.5,104.4,105,112.6,114.7,107.2,111.1,118,104.6],[82.7,79.9,82.3,105.2,107.8,103.1,100.6,96.1,99.9,103.4,104,98,93.6,80.4,80,72.8,62.6,58,53.5,51.1,44.7,50.8,55.6,60.2,55.1,37,42.8,30.6,16,15.7,18.1,13.8,14.9,18,19,15.7,20,17.2,24.7,27.8,30,39.2,39.9,41.9,48.4,50,52.9,68.8,75.9,78.6,82.7,93.1,101.9,112.7,112,105.5,103.4,115.1,111.3,113.5],[81.3,81.3,82.2,95.6,99.7,94.3,109.7,124.8,113.9,109.7,106.3,106.9,102.7,96.3,78.4,68.3,64.7,54.4,53.6,49,47.5,46.2,60.4,48.9,52.5,58.9,34.9,32.1,18.5,18,11.2,16.6,15.6,12,16.2,16.4,15.1,21.6,21.7,30.8,33,33.3,42.9,43.6,49.6,49.4,58.8,64.2,69.5,74.7,86.6,89.5,99.7,109,114,105.8,115.8,111.3,118.8,123.9],[82,84.1,82.5,83.9,99.2,95.9,94.4,102.7,118.8,112.2,106.1,103.3,106.5,91.1,83.5,72.3,66.2,58.3,57.8,56.4,51.1,53.8,52.8,43.6,47.5,43.9,51.1,40.4,24.1,9.6,7.9,17.1,15.2,11.5,16.8,14,17.2,19.9,29.1,29.4,36.8,37.6,41.1,43.9,44.1,49,53.1,61.6,60.3,70.5,86.8,94.5,96.8,108.1,114,117.3,126.2,120.3,120.3,113.9],[79.6,80.3,91.4,92.2,103.2,99.6,98.3,97.6,104.7,115.3,101.5,98.5,102.6,85.1,81.7,69.7,62.1,55.4,63.1,60.2,60.6,66.6,52.3,46.6,52.3,43.6,35,35.8,17.4,null,null,10.3,12.1,12.5,10.6,9.1,13.3,12.6,23.9,21.9,32.8,37,38.3,44.2,44.4,47.6,51.9,58.6,61.9,67,75.7,92.1,98,107.9,112.4,116.3,121.2,116,112.8,113.1],[83.1,87.5,87.4,95.7,109,113.9,92.8,103.4,104.2,104.9,103.6,98.2,108.3,94.7,70.4,71.6,58.5,54.3,56.9,57.5,66.3,64.5,66.5,58.8,50.5,67.7,58.5,60.4,31.6,null,null,8.4,10.8,10.2,8.9,9.7,13.7,14.7,23.3,29,32.1,36.6,39.2,39.8,44.3,49.9,52.7,58.4,57.3,63.3,72.8,81.5,89.9,102,109.7,113.5,109.9,109.3,113.4,123.5],[86.4,99.6,86.9,103.8,100.3,113.8,108.3,100.1,99.1,98,113.1,99.8,100.4,90.5,80.7,73.3,59,51.2,51.1,56.6,60.5,67.2,66.1,64.1,69.5,100.8,72.5,61.5,44.7,35.3,10,14.6,10.3,9.6,8.3,11,14.6,19.2,22.6,30.2,35.1,36.1,37.8,41.4,46.7,50.5,52,56.7,66,67.9,70.6,87.5,79.5,96.7,116.4,106.4,101.2,97.2,121.9,374.2],[86,96.6,94.4,103.8,108.3,105.9,106.6,108.8,105.3,96.2,106.9,104.7,96.6,86.1,74.9,63.8,65.9,54.9,56.2,52.8,59,61.9,70.7,56.2,52.2,67,73,78.7,42.9,26.3,14.1,14,14.9,13.3,12.9,18.4,21.3,22.4,25.6,32.5,33.1,31.7,39.1,40.9,38.2,44.8,52.5,53.4,59.3,62.7,60.5,70.7,79,86.7,95.5,101.6,99.2,102.2,125.3,296.4],[98.5,102.8,99.8,112.5,108.3,109.3,106.5,103,104.2,99.2,106.3,105.5,88.3,88.3,79.3,68.8,73.4,64.5,50.1,51.9,49.7,62.6,64.1,65.9,48.6,58.2,47.4,62.7,34.4,34.5,17.5,18.4,15.3,13.1,13.7,16.1,18.5,26,24.7,29.2,31.6,36.3,39.9,41,46,47.8,51.8,52.3,56.5,61.4,64,71.7,80.3,80.9,88,98.4,92.1,96.8,107.1,105.9],[85.4,93.9,97,104.9,116.8,108.4,110.8,110.6,101.7,98.3,106.8,113.5,94,91.2,84.7,77.2,72.9,64.3,57.4,53.4,48.3,51,59.5,66.5,57.9,54.1,50.9,54.2,33.3,23.2,18.3,18.9,22.2,21.8,18.7,19.5,23.9,23.7,25.1,28.6,30.7,33.1,37.6,40.6,44.6,49.4,51.6,53.5,54.7,56.7,60.2,64.6,66.4,75.7,78.9,86,90.4,87.8,98.2,99.8],[null,87.7,92.3,97.9,106.4,105.5,102.3,115.7,103.9,99.6,105.4,94,105,100.5,89.5,86,77.9,66.1,58.1,53.4,53.5,53.5,58.5,45.9,47.8,48.7,43.7,59.5,40.2,26,17,20.6,24.5,22,17.9,16,22,23,23.6,28.7,29.2,33.8,35.1,42.7,43.7,49.2,55.5,53.5,53.5,56.9,65.9,64,64.6,72.5,75,79.3,79.5,83.1,86.7,null],[null,92.1,102,101.3,110.1,96.4,101.5,107.9,112.5,104.3,99,96.1,97.9,97.9,90.6,78.6,73.8,70,63.8,64.4,48.1,44.3,45.1,49.5,44.4,40.7,36.8,41.6,36.7,27.7,26.9,19.6,22.4,19.1,16.7,15,18.1,29.8,25.3,27.3,32.4,34.6,34.9,38.7,43.9,47.3,47.8,51.8,55.7,62,68.2,67.8,64.8,67.3,74.7,73.7,81.2,78.7,75.5,null],[null,87.8,102.8,94.8,109.4,98.2,99.1,101,108.8,104,104.8,100.3,95.4,92.9,96.5,76.5,74.5,74.4,72.4,67.5,62.7,49.7,43,39.8,46.7,41.2,38.4,36.5,36.6,28.7,21.9,24.3,17,18.4,17.3,19.2,21.8,24.5,26,28.4,35.5,36.5,37.3,40.8,44.4,48,46.5,57.1,60.2,87.5,72.8,75.4,63.4,69.6,70.3,75.3,77.3,75.5,77,null],[null,92.5,98.3,100.1,97.6,103.8,100,103,109.3,108.4,106.4,108.7,95.8,95,94.8,91.2,84.3,75.3,68.4,73.8,65.6,52,41.5,45.6,44,43.4,40.4,39.7,37.2,30.1,28.2,23.6,19.6,18.6,19.8,21.2,25.2,23.2,26.8,30.6,30.1,38.4,44.1,38.7,42.2,45.8,48.2,55.8,111.3,81.5,65.6,67.6,65.7,67.7,79.8,71.9,74.8,76.9,77,null],[null,null,99.5,103.4,103.2,105.5,98,95.3,110.8,119.4,106.4,102.1,101.1,101.4,104.6,89.8,94.5,88,74.7,74.1,65.9,47.9,46.4,54.6,46.2,44,40.6,41.5,43.5,35.1,25.4,21,19.8,27,23.2,25.2,27,25.7,31.2,33,34.3,39.1,38.9,43.1,41.7,49.5,50.9,60,67.9,64.7,61.3,59.7,62.5,66,69.8,66.5,66.9,68.4,null,null],[null,null,88.2,105.5,99.2,108.5,101.7,109.6,111,108.4,109.7,105.3,111.8,105.4,98.9,103.3,96.3,88.3,87.6,77.5,73,68,65.8,63.9,60.1,57.7,49.1,44.7,58.2,36.6,26,24,24.4,25.1,23.4,31.9,30.5,31.2,34,33,32.1,39.8,41.1,43.5,50.6,75.6,62.3,64.6,62.7,55.5,52.2,57,58.2,64.7,65.9,72.5,71.3,67.5,null,null],[null,null,96.2,99,101.2,105.8,100.3,125.8,123.3,114.7,122.4,104.5,109.8,112.4,109.4,113,113.3,101.6,96.4,87.7,77.7,68.8,73.3,68.2,73.5,68.7,58.8,52,50.3,33.6,32.1,27.4,29.7,25.5,30.8,34.5,36.2,41.7,37.6,36.8,51.6,44.7,48.8,59.9,55.5,92.9,62.6,61.3,53.3,53.1,53.7,50.7,58.8,60.3,64,66,67.3,64.5,null,null],[null,null,null,104.9,87.2,104,99.9,103.9,125.6,133.8,119.1,113.9,107.5,114.4,115.1,117.1,124.2,116.8,99.2,97.6,81,78.6,84.6,72,74.5,68.5,68.8,55.7,58.6,39.6,38.7,39.5,34.4,33.6,33.3,35.9,38.1,36.5,43.7,38.6,43.2,50.2,76,390.1,73.8,63.4,55.1,53.6,53.9,56.8,55.2,51.8,56.1,55.5,56,61.5,65.9,null,null,null],[null,null,null,87.3,86.1,93.1,120.9,115.1,113.5,119.5,121.6,122.3,121.3,127.5,114.7,121.9,116,115,99.3,103.2,91.2,77.1,80.5,74.8,84.9,75.3,75.7,62.5,61.6,50,45.3,42.6,40.6,36.9,41.3,52.1,45.8,48.6,44.7,41.9,46.5,53.5,69.3,64.6,58.6,57.5,55,50.7,53.2,55.4,53.5,55.7,53.5,53,56.3,60.2,55.7,null,null,null],[null,null,null,null,95.7,93,103.8,121.1,124.5,113.4,109,128.9,119.6,120.4,118.2,117.6,114.1,124.3,111,101.5,104.8,89.9,93.7,92.3,85.6,85.8,89.6,76.6,73.2,61.1,52.8,48.6,48.6,44,47.7,47.8,45.6,50.5,45.3,47.1,45.9,51.1,53.9,51.5,51.2,53.6,55.8,54.8,51.5,50.1,57.9,53.6,53.5,54.2,57,61.4,null,null,null,null],[null,null,null,null,99.7,102.2,103.7,99.2,114.8,111.2,125.4,119.7,128.9,133.5,122.5,117.8,125.6,111.7,127,117.8,106.1,113.8,96.5,97.2,91.2,84.3,86.4,83.2,74.2,64.6,62.7,50.7,52,50,47.4,52.8,51.2,51.7,54.6,50.5,50.2,52.4,52.4,50.9,52.4,51.3,54.9,56.5,53.8,49.5,50.1,51.9,54.9,53.4,52.5,58.7,null,null,null,null],[null,null,null,null,null,90.3,92.1,103.1,103.1,123.9,119.1,110.6,113.5,122.9,125.6,118.7,122.5,120.5,130.1,131.2,122.1,121,110.5,110.2,97.8,96.1,97.5,94.6,85.4,75.6,66.3,60,69.3,56.2,58.9,59.8,54.4,57.2,60.4,55.3,48.8,49.8,54.7,55.3,53.3,55.5,53.2,53.3,52.7,48.6,50,54.2,57.3,56.1,52.8,null,null,null,null,null],[null,null,null,null,null,null,97.8,103.3,103,106.5,115.4,110,119.1,106.8,124.6,138.6,139.7,121.6,133.7,131.9,136.3,123.7,116.9,127,109.7,101.5,97.8,94.1,93,86.8,78,74.7,69.3,65.5,61.1,56.9,50.4,55.2,58.9,53.6,55.2,58.7,57.1,56.4,53.8,49.8,52.6,50.8,51.8,51.1,54,53.1,52,55.8,null,null,null,null,null,null],[null,null,null,null,null,null,null,100,108.2,111.2,127,121.7,116.6,113.4,119.6,135.9,139.7,130.8,145,139.8,147.7,119.5,116.1,125.9,104,101.8,111.1,105.5,97.9,89.7,87.7,73.3,74.9,70.6,65.9,59.3,60.4,63.6,61,61,58.7,56.7,57.9,50,51.2,53.2,56.2,53.1,52.7,50.9,50.1,52.4,51.1,57,null,null,null,null,null,null],[null,null,null,null,null,null,null,99,112,112.1,106.9,105.3,108,118.5,115.5,118.5,128.8,143.5,138.3,137.8,129.6,127.1,118.1,124.6,124,113.9,108.5,99,91.5,87.8,85.9,84.8,87.4,79,66.6,136.6,75.3,66.1,60.8,57.5,55.2,58.5,58.9,50.6,52.6,57.6,51.9,54.3,50.6,52.3,53.8,54.6,52.6,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,103.8,103.5,108.2,104.6,108.5,121.2,113.6,114.4,119.7,141.1,152,138.3,133.5,118.2,121.4,121.5,122.4,109.4,124.7,119.3,101.8,94.4,93.8,101.3,85.8,81.5,76.3,116.6,545.7,67.1,65.1,60.1,54.4,58,56.5,54.6,57.2,57.2,51.7,52.9,54.4,52.6,52.5,50.1,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,97.7,103.6,108.9,104.9,116.1,106.9,95.4,121,121.1,129.7,135.5,143.2,126.3,139.4,137.1,130.5,127.1,125.7,112.6,108.4,91,91.3,91.7,83.7,81.1,80.5,83.6,112.4,63.6,67.2,61.1,61.9,59.7,54.7,56.3,53.1,54,58,55.5,48,49,53.7,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,95.8,110.8,105.8,109.6,104.2,115,122.8,107,119.6,126,133.7,130.6,129.5,121.3,117.1,118.8,134.3,128.4,118.6,108.1,100.5,94.6,81.3,85.2,68.9,67.5,70,67.5,61.8,59.4,55.7,59.9,57.1,57.8,56.1,60.3,58.1,55.9,51.3,52.3,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,95.8,108,104.3,112.6,113.8,112.1,117.9,114.6,132.2,121,123.9,117.8,125.3,117.8,125.8,126,122.1,112.5,122.3,97,93,89.1,78.6,67.5,68.9,68.3,67,66.4,59.4,59.8,58.7,54,59.6,60.9,56.9,69.2,58.1,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,113.3,104.7,104.3,112.6,114.8,110.1,126.6,125.4,116.9,122,112.9,106.4,120.9,121.2,103.4,110.2,107.8,87.9,89.2,85.3,78.8,71.4,72.5,70.7,64.4,63.3,68.8,63.7,57.8,57.8,57.3,60.1,220,200.9,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,91.9,96.5,95.4,110.3,119,118.6,108.5,113.8,110,120.6,117,112,110.6,109.7,106.1,101.7,89.7,89.7,83.7,77.1,75.4,71.4,70.4,70.5,59.6,62,62.3,58,54.9,59.3,53.1,64.3,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,91.2,101.8,109,105.2,104.5,109.9,102.4,107.6,120,97.1,103.6,96.6,89,85.7,91.3,93.7,79.6,80.1,75,70.6,69.4,64.7,64.4,64.4,60,61.4,62.8,55.1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,101.4,298.4,96.6,94.1,98.3,100.8,99.1,100.4,97,90.8,91.1,82.6,82.4,88,81.2,88.2,83.1,74.3,68.9,66.2,61.3,60.9,60.2,58.6,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,100.5,99.6,97.9,99.9,96,97.2,94.1,94.8,80.7,87.9,84.1,85.4,84.9,79.3,71.7,70.5,62.5,63.1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,85.3,85.6,86.4,100.5,82,63.7,82.3,87,79,67,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]],"shared":[[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,116.3,112.2,116.9,124.5,122.1,133.1,116.3,240.1,143.4,152.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,92.8,103.8,103.4,108,110.2,109.7,111.8,125.9,127.7,125.2,122.6,129,120.6,136,130.7,120.5,122.8,155,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,81.6,86.9,96.2,92.9,107.6,107.6,128.4,121.9,118.9,126.1,118,123.7,120.5,125.7,139.5,137.5,141.5,135.8,133.3,137.9,149.1,158,153.5,162.9,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,72.1,78.9,88.4,107,184.8,91.6,104.8,137,280.3,133.4,126,127.6,119.3,133,136.9,131.2,154,141.7,138.6,137,124.3,140.4,140.9,156.7,149.3,145.6,139.6,135.4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,69,71.1,73.9,86.1,92.2,105.1,107.1,86.6,105.3,132.1,116,133.6,129.8,131.6,123.8,130.9,145.5,141,144.4,137.1,138.5,135.8,137.8,150.2,158.9,160,149,142.2,144.1,139.1,143.1,133.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,68.6,74.2,77.1,76.9,71.7,87.3,149.7,192.3,93.3,109,102.3,113.3,117.4,122.6,124.1,127.9,125.5,143.1,138.2,141.4,142,143.7,143,142.2,149.2,157.2,141.7,139.3,146.3,145.6,127,142,129.1,125.1,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,65.6,71.1,67.8,72,71,80,94.1,94.7,87.3,95.9,106.9,108.3,109.8,116.8,125.1,123.3,132.2,140.9,130.8,144.3,152,132.7,149.2,140.9,154.1,161.5,157.2,153.7,155,155.3,151.6,148.1,135.1,121.8,125.5,124.5,121.8,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,61.5,61.7,68.4,74.8,65.7,69.6,75.9,79.7,87.4,93.1,87.6,96.2,90.1,101.8,117.2,122.4,129.9,130.1,137.8,145.1,137.1,136.6,154.6,151.9,144.6,153.5,157.8,158.1,153.1,156,156.5,151.6,144.4,144.5,132,130.1,124,124.3,123.5,118.9,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,62.4,67,81.6,65.4,65.5,67.5,73.1,66.3,79,83.9,87.9,87,91.3,99.6,90.9,108.6,111.9,127.4,133,145.3,150.2,154.2,143.7,145.1,155.2,145.5,156.9,165.3,165.9,161.6,156,169.6,146.7,151.5,134.5,143.7,131.3,128.9,124,127,121.4,125.5,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,75,52.3,58.9,81.8,66.5,59,59,72.1,72.4,81.9,80.8,91.7,96.8,106.2,91.1,85.8,109.3,114.9,127.1,128.2,125.8,135.3,133.6,143.7,147.8,146.9,151.2,159,160.5,153.9,150.9,161.3,158.6,151.7,146.5,143.4,142,133.1,123,123.7,124,128.8,124.2,129.6,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,50.1,130.9,49.1,51,81.3,92.5,72.1,67.9,72.6,80.6,80,83.7,88.3,146.7,97.5,90,102,109.7,106.5,113,121.4,130.1,133.3,131.1,143.1,138.7,144.1,153.4,157.4,163.2,153.7,145.9,161.1,147.1,147.2,146.1,147.2,132.1,135.7,134.3,124.8,134.5,135.4,136.3,128.8,132.9,null,null,null,null,null,null,null],[null,null,null,null,null,null,42.9,47,51.4,57.2,137.9,67.7,58.1,74.5,67.8,72.1,80.5,77.3,83.7,180.7,106.1,88.9,92.8,103.8,102.9,111.8,108.4,111.9,110.3,122.3,124.3,136.9,135.7,150,154,171.3,167.1,164,155.8,148.9,153.1,139.4,144.2,138.1,130,128.3,138.6,133,132.6,150.6,142.5,136.5,135.3,null,null,null,null,null,null,null],[null,null,null,null,null,null,40.4,41.5,46.9,64.1,90.1,115.6,62.8,63.6,65.3,64.4,72.8,78.2,126.2,114.6,93.6,82.1,86.4,98,107.2,105.9,115.9,112.6,124.7,129.9,131.4,130.6,132.3,138.9,147.9,135,141.9,148.9,143.3,136.6,144.9,141.2,133.5,137.1,131.8,135.6,137.3,138.8,137.5,143.2,136.8,134.1,129.2,127.6,null,null,null,null,null,null],[null,null,null,null,null,37.8,38.4,44.4,51.9,70.5,70.9,56.9,61.2,62.6,63.5,66,67.8,101.3,150,207.1,91.9,86.8,89.3,93.8,97.3,105,104.3,105.9,105.5,118.5,112.3,113.1,115.6,122,116,119.3,128.1,118.2,134.3,136.3,130.3,123.9,129.2,131.7,127.5,133.4,135.3,128.9,136.2,135,134.5,131.8,132.9,131.7,134.2,null,null,null,null,null],[null,null,null,null,36.9,36.3,35.7,41.1,52.1,223.5,74,59.2,53.3,61.3,62.5,64.9,72.9,83.5,88.5,89.8,325.6,85.1,79.8,95.1,87.5,87.2,86.2,104.1,102.3,96.8,96.5,104.9,100.4,96.1,100.2,99.1,107.2,120.3,110.4,116.7,122.2,117.6,108.2,133.4,128.5,133.3,128.9,124,124.1,122.6,134.3,135.9,133.8,131.5,122.1,118,null,null,null,null],[null,null,null,null,34.8,36,41.8,48.2,46.9,51,54.8,53.9,56,54.9,63.7,59.8,65.1,65.4,77.4,86.1,85.2,76.5,74.2,72.2,79.7,82.3,81.9,85.8,81.5,91.4,85.3,79.1,81.4,75,73.4,86.5,88.7,105.6,108.4,107.5,108,106.7,124.1,117.8,123.4,128.9,123,118.3,119,123,137.5,133,133,126.4,134.2,120.9,null,null,null,null],[null,null,null,35.6,36.8,37.1,38.1,44.4,47.3,48.6,48.2,54.4,54.4,60.6,54.9,59.4,62.1,68.4,70.8,70.9,70.4,73,69,66,71.7,70.1,70.3,69.6,72.7,64.9,65,66.6,63.3,68.2,64,78,71.4,90.3,89.2,105.8,97.4,99.2,115.6,129.7,151,121.2,121.9,127.2,126,118.2,128,142.6,142,127.8,151.3,117.3,113.7,null,null,null],[null,null,null,34.2,39.5,39.4,41.6,45.4,45.3,54,58.9,55.4,56.8,53.8,47.7,58.5,60.4,59.8,62.2,64.3,57.5,62.2,57,59.8,65.6,58.2,63.6,59.5,58.6,53,51.1,51.6,58.3,52.6,54.5,61.7,64.5,70.6,90,92.6,94.5,91.3,99,226.2,156.2,110.3,105.4,111.3,113.5,110.7,119.2,132.1,141.8,136.5,125,116.5,117.9,null,null,null],[null,null,30,33.1,36.3,38.3,41.8,43.7,44.9,68.4,152.4,64.8,54.4,47.7,48.8,49.5,49.1,54.1,55.5,56.4,52.5,56.2,51.6,47.4,51.2,46.5,48.2,48.5,50.4,47.8,38,47.1,49.8,54.4,53.6,56.9,58.6,71.6,74.8,82.7,86.6,80.2,123.4,745.6,104.8,89.3,96.9,99.8,99.4,107.7,115,127.7,127.6,123.2,139.2,122.1,111.8,113.3,null,null],[null,null,34,33.7,36.7,43.6,42.7,41.6,49.8,49.4,57.1,50.4,50.7,45.3,46.2,46.6,49,45.7,51.7,50.4,49.3,46.5,42.5,35.4,38.7,38.1,46.1,44.4,48.7,35.9,38.5,47.7,49.2,47.8,57.5,58.9,61.2,62.8,68.3,65.8,66.1,68.1,71.9,88.5,94.2,92.3,85.3,91.7,98.1,108.1,102.3,117.7,122.3,119.6,119.4,117.6,124.9,132.2,null,null],[null,null,33,34.5,37.6,39.8,41,44,46.7,44.5,49.5,50.3,43.7,46.8,43.9,44.7,46.7,44.7,46.6,42.3,41.2,40.6,39.1,34.1,35.1,40.2,41.4,37.1,40.4,38.6,40.3,48,55.4,48.9,44.5,53.8,59.7,53.5,60.1,65.5,64.9,66.6,63.2,77.4,81.1,83.7,82.7,85.3,92.2,103.5,103.5,125.4,119.5,125.7,123.1,135.9,138.4,135.5,null,null],[null,36,34.1,37.1,39.3,40.4,44.4,46.4,44.4,42.5,45.4,46.2,40.8,45.3,44,47.4,33.7,41.6,38,34.9,40,37.5,36.1,28.6,32.4,37.6,34.8,39,45.1,37.1,41.9,49,57.7,48.4,47.4,43,47.1,52.7,56,61.4,61.7,65.9,59.6,66.3,70.1,75.6,81.6,80.6,88,95.7,103.1,115,120.1,131.7,130.2,142.9,138.2,137.4,145.7,null],[null,36.1,38.6,38.7,39,41.8,44.8,45.6,42.1,42.3,43.4,43.6,40.7,43.1,47.2,37.2,37.5,37,35.5,32.6,28.6,27.2,32.1,34.3,35.2,32.7,28.4,29.7,39.8,40.9,38.6,48.2,39.8,45.3,35.3,38.8,40.5,44.6,42,54.4,61.4,64.3,59.7,65.4,67.1,67.8,78.8,80.7,87.7,96.9,106.3,125.1,129.9,134.4,139.6,127.8,140,149.5,148.2,null],[null,37,36.3,41.7,46.6,51.6,47.9,48,45.6,44.4,45.9,46,42.1,45.2,38.5,37.9,34.9,33.3,31.1,26.3,27.6,29.8,29.9,34.5,27.4,27.6,25.1,33.4,36,38.2,37.8,34.9,30.1,29.9,28.8,30.2,38,42.2,46.1,53.8,64.9,54,57.9,57.7,62.7,71.9,75.7,83,89.3,104.8,116.9,122.5,131.6,136.2,134.3,146,151.4,153.3,157.2,null],[null,35.9,38.2,45.6,46,48.3,48.8,47.5,45.9,45.5,50.7,47.3,46.1,51,42.3,30.8,32.9,31.4,26.8,29.2,26.2,26.2,24.4,30.6,24.4,23.7,25.4,34.3,33.8,31.3,32.8,27.9,26,26.9,25.4,35.1,38.3,39.4,49.5,46.4,52.7,47.1,55.6,58.4,62.5,72.3,74.3,114.2,108.7,107.8,116.7,130.7,135,144.7,157.1,159.7,156.4,183.8,152.6,null],[38.9,37.2,40.5,46.8,48.2,48.2,46.6,50.4,49.9,51.9,51.4,46.5,48.7,41,37.3,35.5,29.5,28.1,23,23.4,19.7,22.3,21.7,26.3,28.9,23.6,25.5,35.4,24.4,30.4,32.6,22.9,20.8,27.2,31.9,31.3,29.1,33.5,36.2,41.7,44,47.5,54.1,57.9,65.7,76.6,85.9,106,120,114.5,119.8,128.3,145.2,147.4,158.6,161.9,152.8,159.4,170,152],[43.7,41.5,42.8,54.8,55.7,52.5,50.9,48.3,50.2,51.7,51,47.9,44.9,38.2,37.4,33.2,28.1,25.7,23.1,22.1,19.5,21.7,24.5,27.5,26.8,20,27.6,25.8,20.6,22.1,25.6,19.8,21.3,25.9,27.5,22.6,28.2,24.2,34.7,38.6,41.4,53.7,54.2,57.1,65.8,68.2,72.2,94.2,104.3,108.2,114.1,129,142,158.3,157.8,149.5,147.5,165.5,159.9,164.5],[42.3,41.9,42.1,49.1,50.7,47.3,54.7,61.2,56.1,53.5,51.2,51,48.6,44.6,36,30.4,28.4,23.3,22.1,20.3,19.5,18.7,24.6,20.3,22.8,26.8,18.7,21.2,20.5,25.4,15.9,24,22.8,17.5,23.5,23.7,21.7,30.4,30.4,42.8,45.5,45.7,58.3,59.3,67.3,67.1,80.2,87.8,95.1,102.9,119.9,124.1,139,152.6,160.7,150,165.9,159.8,170.5,179.3],[42.2,42.8,41.8,42.5,50.1,47.4,46.4,49.6,57.8,53.6,50.3,48.3,49.6,41.7,37.6,31.5,28.5,24.3,23.5,22.2,19.9,20.9,20.3,16.6,18.7,18,21.9,19.4,15.7,12,11.5,25.1,22.6,17.2,24.6,20.3,24.8,28.1,40.7,40.7,50.6,51.5,55.8,59.4,59.6,66.3,71.9,83.8,82.6,96.9,120.4,131.2,134.6,151.6,160.7,167.1,178.9,173.5,172,165.1],[40.5,40.5,45.5,46.1,51.2,49,47.1,46.9,49.9,55,47.3,45.9,46.7,38.5,36.4,30.1,25.9,22.7,25.1,23.2,22.6,24.6,19,16.7,18.7,15.5,12.9,13.4,8.1,null,null,15.4,18.1,18.5,15.5,13.4,19.1,17.8,33.4,30.4,44.9,50.8,52,59.5,59.6,64.1,70,79.4,84.1,91.4,104.3,127.5,136.2,151,158.3,165,172.5,166.2,162,163.9],[42,43.8,43.3,47.3,53.1,55.6,44.3,49.3,49.3,49.4,48,45.4,49.3,42.3,31.2,30.7,24.1,22,22.1,22.1,24.3,23.4,23.6,20.4,17.2,22.8,19.8,20.3,10.9,null,null,12.5,16.2,15.2,13.2,14.2,19.9,20.8,32.5,40.4,43.9,49.6,52.7,53.3,59.3,66.6,70.8,78.8,77.6,86.1,100,112.6,124.7,142.3,154.4,161.1,156.2,157,163.3,178.5],[43.3,49.2,43,50.8,48.9,55.1,51.9,47.3,46.4,45.7,52.3,45.6,45.8,40.4,35.6,31.3,24.7,20.8,20.1,21.7,22.4,24.3,23.4,22.1,23.4,33.8,24.2,21.3,16.3,18,13.1,21.4,15.3,14.3,12.2,16.1,20.8,26.7,31.2,41.2,47.5,48.7,50.5,55.1,62.1,67.2,69.2,76,89.2,92,96.8,121.1,109.4,135.3,163.3,150.6,144.2,139.1,174.3,524.3],[42.9,47.6,46.3,50.7,52.3,51,50.6,51.1,48.8,44.6,49.1,47.8,43.7,38.4,32.8,26.8,27.6,22.5,22,20.3,22.2,22.6,25.6,19.7,18.3,23,25.9,29.1,19.3,19.4,17.7,20.7,22.1,19.8,19,26.6,30.2,31.3,35.1,44,44.7,42.6,52,54.1,50.5,59.2,69.6,71.2,79.8,84.7,82.6,96.9,109.1,120.8,133.7,143.7,141.3,146.1,178.9,423],[48.5,50.2,48.7,54.4,51.9,52,50.3,47.9,48,45.5,48.6,47.6,39.9,39.3,34.7,29.2,31.2,26.6,19.8,20,19.1,23,23.5,23.8,17.5,21.2,18.1,25.8,17.5,23.4,19.8,27.4,22.9,19.5,20.1,23.3,26.2,36.2,34.2,39.4,42.5,48.3,52.6,53.8,60.5,63,68.4,69.4,75.5,82.5,86.9,97.9,110.3,112.5,122.9,138.9,130.4,137.8,152.9,152.1],[42.1,45.9,47.1,50.4,55.7,51.2,52.2,51.1,46.9,44.7,48.6,51.1,42.5,40.6,37.1,33.2,30.8,26.9,23.2,21.1,18.8,19.7,22.7,25.1,22.1,21.2,21.6,26,18.7,19,20.4,28.5,33.4,32.3,27.5,28.2,34.1,33,34.5,38.4,40.8,43.9,49.3,53.1,58.3,64.8,67.7,70.5,72.7,76.3,81.5,88.1,91.2,105.2,110,120.7,127.5,124.7,139.9,142.5],[null,42.6,44.6,46.7,50.3,49.5,47.9,53.1,47.5,45.1,47.6,42.1,47.8,44.4,39.5,37.7,32.8,28.1,24,21.8,21.6,21.8,22.9,18.2,19.5,20.9,20.3,30.1,24.4,20.7,19,29.6,36.5,32.6,25.9,22.9,31,32,31.8,38.5,39,44.3,45.8,55.6,56.6,64,72.8,70.3,70.8,76.4,89.1,86.9,88.5,100.3,104,110.7,111.6,117.2,122.7,null],[null,44.5,48.9,48,52,44.9,47.1,49.1,51.2,47.1,44.4,43.2,44,43.8,40.1,34.6,31.9,30,27.2,27.4,20,18.4,19.2,20.9,19.3,18.7,18.4,22.4,24.2,23,29.1,27.3,33.6,28.3,24.2,21.3,25.2,40.5,34.1,36.5,42.6,45,45.3,50,56.9,61.1,62.2,68,73.6,82.9,91.7,91.7,88.3,92.5,103.8,102.6,113.5,110.6,106.5,null],[null,42.2,49,44.8,51.3,45.5,45.7,46.1,49.2,46.8,46.7,45,42.5,41.9,42.9,34,33,32.4,31.4,29.5,27.2,21.3,18.9,17.9,21.5,19.7,20.2,21.7,24.4,24.8,23.9,32.9,25.3,27,24.7,27.2,29.8,33.3,34.7,37.6,46.2,47.3,48.3,52.3,57,62.1,59.9,74.6,79.3,116.7,97.5,101.5,86.2,95.2,97,104.6,107.4,105.7,108.2,null],[null,44.3,46.6,47.2,45.4,47.9,45.7,47,49.1,48.6,47.3,48.3,42.9,42.5,42.6,40.9,37.6,33.7,30.6,33.3,30,23.2,19,21.3,21.3,22,22.4,24.3,26.2,25.5,29.9,30.1,28.5,27.3,28.5,29.6,34.3,31.8,36.1,40,39.2,49.7,56.3,49.7,53.8,58.7,62.5,72.4,147.1,108.3,87.3,90.6,88.9,91.8,109.6,98.8,103.5,106.5,107.3,null],[null,null,47,48.4,47.8,48.4,44.5,43.3,49.6,53.4,47.3,45.1,45.1,45.5,47.2,40.3,42.9,39.9,34.1,34.1,30.7,22.8,22.3,26.7,23.4,24.2,23.7,27.3,32.4,30.5,26.7,25.3,27.8,38.9,32.9,34.9,37,34.4,40.9,43.1,44.3,50.2,49.6,54.8,53.3,63.2,65.6,78.1,89.1,85.3,81.1,79.9,84,89.5,94.8,90.8,92,94.6,null,null],[null,null,41.3,49.1,45.8,49.6,46.1,49.4,50,48.5,48.6,46.6,49.4,47.2,44.4,46.9,43.8,40.6,40.6,36.1,34.6,33,32.7,32.8,32.1,32.5,29.7,29.4,43.4,31.1,25.9,28.3,34.4,36.2,33,44.3,41,41.3,44.7,42.8,41.6,50.7,52.1,55.1,64.2,97.3,80.3,84.2,82,72.8,68.9,75.8,77.6,87.2,89.1,98,97.2,92.7,null,null],[null,null,45,46,46.5,48.2,45.4,56.2,55.2,51,54.3,46.3,48.5,50.2,49.3,51.4,51.9,47.1,45.2,41.6,37.7,34,37.4,36.4,40.5,40.1,36.9,35.4,37.7,29.5,32.3,31.6,39.1,35.9,43,47.3,48.8,54.9,49.2,47.3,65.8,56.6,61.7,76.6,70.6,121,80.5,79.6,69.2,69.2,70.6,67.1,78.6,80.6,85.9,89.2,91.2,88.2,null,null],[null,null,null,48.7,39.9,47.2,45,46.5,56.1,59.7,52.8,50.4,47.5,50.6,51.5,53.2,57.1,54.4,47,46.9,39.6,39.6,43.9,38.6,41.9,41.5,43.6,39.2,45.5,34.5,38.6,44.7,44.5,46.5,46.1,48.7,50.6,48,56.6,49.5,54.7,64,98.6,525.1,94.4,81.6,70.8,69,69.5,74,72.7,67.9,74.4,73.9,74.6,82.6,89,null,null,null],[null,null,null,40.2,39.5,42.1,54.3,51.4,50.1,53.2,53.9,53.9,53.8,56.4,51.1,55.1,53.4,53.8,47.2,49.8,45.2,39.4,42.3,40.7,49.2,45.2,49.3,43.3,47.2,43.7,44.1,46.1,50.7,49.8,56.6,70.5,60.7,63.1,57.6,53.4,58.9,67.1,88.2,82.7,74.3,73.2,70.3,64.8,68.5,71.6,69.6,73.1,70.4,70.1,74.7,80.2,74.5,null,null,null],[null,null,null,null,43.7,42.2,46.7,53.8,55.1,50.1,48.3,56.7,52.9,53.6,52.6,52.7,52.1,57.4,52.6,49.5,51.8,46,49.6,51.1,49.3,52.3,58.1,53.7,55.8,52.7,50.8,52,58.2,57.4,64.4,63.5,59.8,65.4,58.2,59.6,57.9,64.2,68.1,64.8,64.6,68,70.9,69.9,66.3,64.3,75.4,70,70.1,71.1,75,81.2,null,null,null,null],[null,null,null,null,44.9,45.9,46.5,44.6,50.8,49.2,55.4,52.9,57.2,59.4,54.8,52.6,56.7,52.1,60.6,56.5,52.8,58.4,51.3,53.8,53.2,51.4,56.3,58.3,56.7,55.2,57.9,51.3,58.9,62.2,62.7,69.5,66.5,67,69.5,63.6,62.9,65.6,65.6,64.1,66.1,64.9,69.7,72.1,68.7,63.4,64.7,67.4,71.3,69.6,68.6,77.2,null,null,null,null],[null,null,null,null,null,40.8,41.5,46.1,45.9,54.7,52.5,48.8,50.6,54.8,56.3,53.9,55.7,55.9,61.2,63.7,61.1,62,58.7,61.4,57.4,59.3,63.3,65.9,64.6,63.3,60.4,59.1,77.6,69.5,76,78.4,70.2,72.9,76.4,69.7,61.3,62.1,68.6,69.2,66.9,69.9,67.4,67.5,66.9,62.3,64.2,69.6,73.9,72.7,68.7,null,null,null,null,null],[null,null,null,null,null,null,44.6,46.2,45.9,47.5,50.9,48.5,53.2,47.6,55.9,62.7,64.4,56.4,62.5,63.5,67.5,63.7,62.2,70,64.2,62.8,64.5,65.1,68.8,71.4,69.7,72.5,76,76.9,77.1,72.1,64.2,70.1,74.9,67.1,68.8,73.3,71.3,70.3,67.3,62.3,66.1,64.2,65.7,65,68.9,67.8,66.7,71.8,null,null,null,null,null,null],[null,null,null,null,null,null,null,44.9,48.2,49.6,56.1,53.9,51.6,51.1,53.7,61.7,64.3,60.8,68.9,67.2,71.9,61.2,62.1,70.6,61.8,62.4,71.2,72.9,72.3,72.4,77.1,70.6,79.2,82.3,82,77.1,76.8,80,76.5,76.3,73.2,70.5,71.9,62.1,64,66.3,70.6,67.1,66.4,64.3,63.4,66.5,65,72.9,null,null,null,null,null,null],[null,null,null,null,null,null,null,44.5,50,50,47.7,47.3,48.2,52.5,52.3,54.4,59.8,67.6,66.1,66.9,65.2,65.5,62.7,68.3,70.6,68.9,69.9,68.1,67.5,71,76.2,81.2,90.3,87.4,78.6,181.4,96.6,83.2,76,71.7,68.2,72.5,73,62.8,65.2,71.8,64.8,67.9,63.4,65.5,67.8,68.7,66.4,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,46.8,46.2,48.1,47.2,48.4,54.2,52.1,51.8,56,67.6,73.7,67.7,67,61.1,65,67,70.4,65.6,78.6,80.6,74.2,74.7,81.3,94.2,85.5,88.8,89.6,149.7,770.3,84.7,81.4,74.6,68.1,71.5,69.5,67.4,70.9,70.9,64.2,65.7,67.7,65.6,65.6,62.7,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,43.6,46.5,48.8,47,52.6,48.5,44.2,56.3,57.9,62.7,66.7,72,66,74.2,75.8,75.1,77.9,80.8,75.5,76.8,71.3,76.3,83.2,82.3,87.2,91.6,101.7,145.6,79.6,83.5,75.1,75.8,73.3,67.5,69.6,65.3,66.5,71.2,68.4,59.3,60.4,66.2,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,42.8,49.7,48.2,50.4,48,53.1,57.5,50.7,57.3,61.6,67.3,68.1,69.8,68.1,67.8,71.8,86.5,87.4,86.4,84,83.2,83.2,78.9,88.7,76.7,80.8,88.1,84.1,75.9,73.5,68.2,73.3,70.1,70.7,68.5,73.7,71,68.4,62.7,63.9,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,43.4,49.4,47.9,50.9,52.3,53,55.7,55.1,65,60.5,64.1,63.6,69,68.1,75.6,80.4,82.1,80.1,95,79.8,82.5,85.5,79.8,73.3,79.5,82.8,83,81.3,72.7,73,71.6,65.6,72,73.7,68.9,83.9,70,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,51.9,49.5,48.4,52.8,55,54.3,62.6,63.5,61.6,65.1,63,61.8,72.3,76.6,70.5,79.1,82.2,71.5,77.1,80.2,78.9,76.3,82.1,84.5,78.6,77,83.6,77.4,69.9,69.7,68.7,72.2,272,247.2,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,42.5,45.2,45.4,53.1,57.9,59.3,55.4,59.2,59.5,67.1,67.3,68.7,70.4,74,74.4,76.1,72.3,77,76.1,76.4,79.7,79.6,81.8,84.3,72.3,74.7,75.1,69.5,65.6,70.7,62.9,76.4,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,43.8,49.2,53.8,53.1,54.5,58.5,56.4,61.7,70.1,58.8,65.1,64.2,63.8,65,72.9,79.3,71.9,77.6,77.6,77.4,79.7,76.9,77.2,76.9,71.5,72.5,74.4,65.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,50.7,164.6,50.8,50.9,54.6,56.8,57.7,61.5,62.4,61.1,65.6,62.8,65.6,74,73.3,84.1,83.7,79.5,77.3,77.2,73.4,72.4,70.8,68.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,55.1,54.8,56.3,59.3,59.2,63,63.4,67.7,60.5,69.7,71.1,75.3,80.7,80.7,76.3,78.3,72.1,74.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,53,54.8,58.1,70.7,61.2,49.9,68.3,77.4,74.5,66.4,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]],"profile_az":[5,15,25,35,45,55,65,75,85,95,105,115,125,135,145,155,165,175,185,195,205,215,225,235,245,255,265,275,285,295,305,315,325,335,345,355],"profile":[[59.9,40.6,54.8],[58.5,39.9,53.1],[53.6,36.9,48.6],[55.5,38.5,50.2],[66.2,46.1,60.6],[50.9,35.8,46.7],[55.6,39.3,52.3],[55.6,41.0,53.8],[49.8,48.2,50.0],[45.7,61.6,48.0],[42.6,74.3,46.8],[37.1,78.3,42.5],[31.0,75.5,36.8],[29.6,80.1,36.5],[27,77.8,33.7],[24.7,73.7,31.1],[25.8,77.3,32.1],[25.8,75.7,32.1],[26.7,74.0,32.1],[27.5,70.0,32.1],[29.8,66.8,32.9],[34.4,65.1,36.4],[44.5,66.4,44.9],[69.2,74.7,66.8],[63.5,50.7,59.8],[78.7,55.7,72.0],[88.5,62.4,79.5],[93.5,65.7,83.3],[93.8,65.4,83.5],[91.0,62.9,81.1],[82.5,56.5,74.3],[87.3,59.1,79.6],[86.1,57.9,79.2],[60.0,40.3,55.3],[69.6,46.8,64.2],[65.3,44.0,60.1]],"uv":[[4.57,2.29],[6.43,2.37],[7.51,-0.13],[7.48,-2.35],[7.24,-4.45],[6.46,-5.97],[5.87,-6.94],[5.46,-7.91],[5.24,-8.67],[4.88,-9.49],[4.22,-10.23],[3.48,-10.63],[2.76,-10.73],[1.86,-11.02],[0.71,-10.89],[-0.35,-10.6],[-1.03,-10.56],[-1.18,-10.61],[-1.31,-10.51],[-0.97,-10.58],[-0.68,-10.58],[0.14,-10.95],[0.72,-11.31],[1.15,-11.55],[1.75,-11.71],[2.33,-11.94],[3.05,-11.94],[3.56,-11.97],[4.06,-11.99],[4.45,-11.91]],"elev":[0.483,0.879,1.274]}</script>
+<script>
+"use strict";
+(function () {
+const D2R = Math.PI / 180;
+const $ = (s) => document.querySelector(s);
+const cssv = getComputedStyle(document.documentElement);
+const tok = (n) => cssv.getPropertyValue(n).trim();
+const COL = { ink: tok("--ink"), ink2: tok("--ink-2"), ink3: tok("--ink-3"), rule: tok("--rule"), side: tok("--side"), front: tok("--front"), none: tok("--none"), paper: tok("--paper"), plate: tok("--plate") };
+const PLATE_RGB = [239, 243, 245];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const mod360 = (a) => ((a % 360) + 360) % 360;
+const fmt = (v, d = 2) => (v < -0.5 * Math.pow(10, -d) ? "−" : "") + Math.abs(v).toFixed(d);
+const deg = (v) => Math.round(mod360(v)) + "°";
+
+/* ---------- colour maps ---------- */
+const PARULA = [[62,38,168],[71,67,231],[67,103,253],[45,140,243],[28,170,223],[18,190,185],[72,203,134],[159,201,66],[234,186,48],[250,212,46],[249,251,21]];
+function parula(t) {
+  t = clamp(isFinite(t) ? t : 0, 0, 1) * 10;
+  const i = Math.min(9, Math.floor(t)), f = t - i, a = PARULA[i], b = PARULA[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+// Diverging map of the study's factor figures: log2 factor in [-1, 1], blue < 1 < red
+function ratioRGB(l) {
+  l = clamp(isFinite(l) ? l : 0, -1, 1);
+  if (l < 0) { const f = 1 + l; return [255 * (0.13 + 0.87 * f), 255 * (0.40 + 0.60 * f), 255 * (0.70 + 0.30 * f)]; }
+  return [255 * (1 - 0.30 * l), 255 * (1 - 0.75 * l), 255 * (1 - 0.85 * l)];
+}
+const rgbCss = (c) => `rgb(${c.map(Math.round).join(",")})`;
+const PARULA_CSS = PARULA.map(rgbCss);
+const RATIO_CSS = [-1, -0.5, 0, 0.5, 1].map((l) => rgbCss(ratioRGB(l)));
+function colorbar(el, stops, ticks, label) {
+  el.innerHTML = `<div class="cb-ramp" style="background:linear-gradient(to right,${stops.join(",")})"></div>` +
+    `<div class="cb-ticks">${ticks.map((t) => `<span style="left:${(t[0] * 100).toFixed(2)}%;transform:translateX(${t[0] < 0.01 ? 0 : t[0] > 0.99 ? -100 : -50}%)">${t[1]}</span>`).join("")}</div>` +
+    `<div class="cb-label">${label}</div>`;
+}
+const ratioTicks = [[0, "0.5"], [(Math.log2(0.7) + 1) / 2, "0.7"], [0.5, "1"], [(Math.log2(1.4) + 1) / 2, "1.4"], [1, "2"]];
+
+/* ---------- aspect model ---------- */
+const MODEL = { c2PerKm: 0.092, c1: -0.21, rampKm: 1 };
+const ampAt = (h) => ({ c2: Math.max(0, MODEL.c2PerKm * h), c1: MODEL.c1 * clamp(h / MODEL.rampKm, 0, 1) });
+const logTraw = (psi, c2, c1) => -c2 * Math.cos(2 * psi) + c1 * Math.cos(psi);
+function logNorm(c2, c1) { let s = 0; for (let k = 0; k < 720; k++) s += Math.exp(logTraw((k + 0.5) * 0.5 * D2R, c2, c1)); return Math.log(s / 720); }
+function makeT(c2, c1) { const ln = logNorm(c2, c1); const f = (psi) => Math.exp(logTraw(psi, c2, c1) - ln); f.logN = ln; return f; }
+const T_SYN = makeT(0.20, -0.21);   // synthetic aspect of Figures 2 and 3
+
+/* ---------- SVG helpers ---------- */
+const NS = "http://www.w3.org/2000/svg";
+let clipId = 0;
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, attrs) { const t = el("text", Object.assign({ x, y }, attrs || {}), parent); t.textContent = s; return t; }
+function lin(d0, d1, r0, r1) { return (v) => r0 + (v - d0) * (r1 - r0) / (d1 - d0); }
+function makeChart(svg, o) {
+  const W = Math.max(260, Math.round(svg.parentElement.clientWidth));
+  const H = o.height || Math.round(W * (o.aspect || 0.62));
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
+  svg.innerHTML = "";
+  const m = Object.assign({ l: 50, r: 12, t: 12, b: 40 }, o.margin || {});
+  const xs = lin(o.x[0], o.x[1], m.l, W - m.r);
+  let ys;
+  if (o.ylog) { const f = lin(Math.log(o.y[0]), Math.log(o.y[1]), H - m.b, m.t); ys = (v) => f(Math.log(v)); }
+  else ys = lin(o.y[0], o.y[1], H - m.b, m.t);
+  const g = el("g", null, svg);
+  const id = "clip" + (++clipId);
+  const cp = el("clipPath", { id }, el("defs", null, svg));
+  el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b }, cp);
+  for (const t of o.xticks || []) { const x = xs(t); el("line", { x1: x, x2: x, y1: m.t, y2: H - m.b, class: "grid" }, g); txt(g, x, H - m.b + 15, (o.xfmt || String)(t), { "text-anchor": "middle" }); }
+  for (const t of o.yticks || []) { const y = ys(t); el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, class: "grid" }, g); txt(g, m.l - 6, y + 3.5, (o.yfmt || String)(t), { "text-anchor": "end" }); }
+  el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, class: "frame" }, g);
+  if (o.xlabel) txt(g, (m.l + W - m.r) / 2, H - 6, o.xlabel, { "text-anchor": "middle", class: "lab" });
+  if (o.ylabel) { const yc = (m.t + H - m.b) / 2; txt(g, 12, yc, o.ylabel, { "text-anchor": "middle", class: "lab", transform: `rotate(-90 12 ${yc})` }); }
+  const plot = el("g", { "clip-path": `url(#${id})` }, svg);
+  const over = el("g", null, svg);
+  return { svg, g, plot, over, xs, ys, W, H, m };
+}
+function pathD(ch, pts) { let d = ""; let pen = false; for (const p of pts) { if (p == null || !isFinite(p[1])) { pen = false; continue; } d += (pen ? "L" : "M") + ch.xs(p[0]).toFixed(1) + "," + ch.ys(p[1]).toFixed(1); pen = true; } return d; }
+function line(ch, pts, color, w, dash, parent) { return el("path", { d: pathD(ch, pts), fill: "none", stroke: color, "stroke-width": w || 2, "stroke-dasharray": dash || "none", "stroke-linejoin": "round" }, parent || ch.plot); }
+function svgArrow(g, x1, y1, x2, y2, color, w, head) {
+  w = w || 2; head = head || 8;
+  el("line", { x1, y1, x2, y2, stroke: color, "stroke-width": w, "stroke-linecap": "round" }, g);
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  const p = [[x2, y2], [x2 - head * Math.cos(a - 0.42), y2 - head * Math.sin(a - 0.42)], [x2 - head * Math.cos(a + 0.42), y2 - head * Math.sin(a + 0.42)]];
+  el("path", { d: `M${p[0]}L${p[1]}L${p[2]}Z`, fill: color }, g);
+}
+const watched = [];
+function watch(fn, host) { watched.push(fn); if ("ResizeObserver" in window) { let w = 0; new ResizeObserver(() => { const nw = host.clientWidth; if (nw !== w) { w = nw; fn(); } }).observe(host); } }
+
+/* ---------- canvas maps ---------- */
+const MAP_PX = 480;
+function paintDisc(canvas, R, rgbAt, res) {
+  res = res || 150;
+  canvas.width = MAP_PX; canvas.height = MAP_PX;
+  const off = document.createElement("canvas"); off.width = res; off.height = res;
+  const octx = off.getContext("2d"), img = octx.createImageData(res, res), d = img.data;
+  for (let j = 0; j < res; j++) {
+    const y = R - (j + 0.5) * 2 * R / res;
+    for (let i = 0; i < res; i++) {
+      const x = -R + (i + 0.5) * 2 * R / res, p = (j * res + i) * 4;
+      const c = (x * x + y * y > R * R) ? PLATE_RGB : rgbAt(x, y);
+      d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(off, 0, 0, MAP_PX, MAP_PX);
+  // Mask the smoothed disc edge with the plate colour
+  ctx.save(); ctx.fillStyle = COL.plate; ctx.beginPath(); ctx.rect(0, 0, MAP_PX, MAP_PX); ctx.arc(MAP_PX / 2, MAP_PX / 2, MAP_PX / 2 - 1, 0, 2 * Math.PI, true); ctx.fill("evenodd"); ctx.restore();
+  return ctx;
+}
+function canvasArrow(ctx, x1, y1, x2, y2, color, w, head) {
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  ctx.beginPath(); ctx.moveTo(x2 + Math.cos(a) * 2, y2 + Math.sin(a) * 2);
+  ctx.lineTo(x2 - head * Math.cos(a - 0.45), y2 - head * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - head * Math.cos(a + 0.45), y2 - head * Math.sin(a + 0.45)); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function discOverlay(ctx, R, thetaDeg, arrowKm) {
+  const s = MAP_PX / (2 * R), c = MAP_PX / 2;
+  ctx.save();
+  ctx.strokeStyle = "rgba(23,33,43,0.35)"; ctx.lineWidth = 1.2; ctx.setLineDash([5, 5]);
+  ctx.beginPath(); ctx.arc(c, c, 50 * s, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = COL.ink; ctx.font = "600 17px " + tok("--mono"); ctx.textAlign = "center"; ctx.fillText("N", c, 18);
+  ctx.restore();
+  if (thetaDeg != null) {
+    const L = (arrowKm || 45) * s, a = thetaDeg * D2R;
+    canvasArrow(ctx, c, c, c + L * Math.sin(a), c - L * Math.cos(a), COL.ink, 4, 16);
+  }
+  ctx.save(); ctx.fillStyle = "#fff"; ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.fillRect(c - 5, c - 5, 10, 10); ctx.strokeRect(c - 5, c - 5, 10, 10); ctx.restore();
+}
+
+/* ---------- synthetic scans (Figures 2 and 3) ---------- */
+function fieldFn(type, alphaDeg, s) {
+  const a = alphaDeg * D2R, ux = Math.sin(a), uy = Math.cos(a), w = 25;
+  if (type === "gradient") return (x, y) => 50 * Math.exp(s * (x * ux + y * uy) / 100);
+  if (type === "band") return (x, y) => { const d = x * uy - y * ux; return 50 * (1 + s * Math.exp(-d * d / (2 * w * w))); };
+  return () => 50;
+}
+// Mean over range (r0..r1, 1 km steps) in K azimuth bins
+function azProfile(f, r0, r1, K) {
+  const P = new Float64Array(K), step = 360 / K;
+  for (let k = 0; k < K; k++) {
+    const az = (k + 0.5) * step * D2R, sa = Math.sin(az), ca = Math.cos(az);
+    let s = 0, n = 0;
+    for (let r = r0 + 0.5; r < r1; r += 1) { s += f(r * sa, r * ca); n++; }
+    P[k] = s / n;
+  }
+  return P;
+}
+// Fourier coefficients of a log profile in the flight frame (psi = phi - theta)
+function harm(L, thetaDeg) {
+  const K = L.length, step = 360 / K; let m = 0;
+  for (let k = 0; k < K; k++) m += L[k];
+  m /= K;
+  let a1 = 0, b1 = 0, a2 = 0, b2 = 0;
+  for (let k = 0; k < K; k++) {
+    const p = ((k + 0.5) * step - thetaDeg) * D2R, v = L[k] - m;
+    a1 += v * Math.cos(p); b1 += v * Math.sin(p); a2 += v * Math.cos(2 * p); b2 += v * Math.sin(2 * p);
+  }
+  const f = 2 / K;
+  return { m, a1: a1 * f, b1: b1 * f, a2: a2 * f, b2: b2 * f, c1: a1 * f, c2: -a2 * f };
+}
+function fieldHarm(type, alpha, s, theta) { const P = azProfile(fieldFn(type, alpha, s), 10, 60, 180); return harm(Array.from(P, Math.log), theta); }
+function matchStrength(type, alpha, key, target, hi) {
+  let lo = 0;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; const v = fieldHarm(type, alpha, mid, 0)[key]; if (Math.abs(v) < Math.abs(target)) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+const S_BAND = matchStrength("band", 90, "c2", 0.20, 4);      // band across a flight toward 0 deg
+const S_GRAD = matchStrength("gradient", 180, "c1", -0.21, 3); // density increasing upstream
+const VMAX_SYN = 100;
+const azOf = (x, y) => Math.atan2(x, y);
+
+/* ======================= Figure 1 ======================= */
+(function () {
+  const svg = $("#f1-polar"), sC2 = $("#f1-c2"), sC1 = $("#f1-c1"), sSig = $("#f1-sig");
+  let st = null;
+  function compute() {
+    const c2 = +sC2.value, c1 = +sC1.value, sig = +sSig.value;
+    const T1 = makeT(c2, c1);
+    const ind = new Float64Array(360), pop = new Float64Array(360);
+    for (let k = 0; k < 360; k++) ind[k] = T1(k * D2R);
+    if (sig < 0.5) pop.set(ind);
+    else {
+      const w = new Float64Array(360); let ws = 0;
+      for (let d = -180; d < 180; d++) { const v = Math.exp(-0.5 * (d / sig) * (d / sig)); w[d + 180] = v; ws += v; }
+      for (let k = 0; k < 360; k++) { let s = 0; for (let d = -180; d < 180; d++) s += w[d + 180] * ind[mod360(k - d)]; pop[k] = s / ws; }
+    }
+    const hi = harmDeg(ind), hp = harmDeg(pop);
+    st = { c2, c1, sig, ind, pop, hi, hp };
+  }
+  function harmDeg(T) { let a1 = 0, a2 = 0, m = 0; for (let k = 0; k < 360; k++) m += Math.log(T[k]); m /= 360; for (let k = 0; k < 360; k++) { const v = Math.log(T[k]) - m; a1 += v * Math.cos(k * D2R); a2 += v * Math.cos(2 * k * D2R); } return { c1: a1 / 180, c2: -a2 / 180 }; }
+  function render() {
+    if (!st) compute();
+    const W = Math.max(260, Math.min(svg.parentElement.clientWidth, 470)), H = W;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.innerHTML = "";
+    const cx = W / 2, cy = H / 2, Rp = W / 2 - 54, Tmax = 2;
+    const pt = (k, T) => [cx + Rp * T / Tmax * Math.sin(k * D2R), cy - Rp * T / Tmax * Math.cos(k * D2R)];
+    const g = el("g", null, svg);
+    for (let a = 0; a < 360; a += 30) { const p = pt(a, Tmax); el("line", { x1: cx, y1: cy, x2: p[0], y2: p[1], class: "grid" }, g); }
+    for (const T of [0.5, 1, 1.5, 2]) el("circle", { cx, cy, r: Rp * T / Tmax, fill: "none", stroke: T === 1 ? COL.ink3 : COL.rule, "stroke-width": T === 1 ? 1.2 : 1 }, g);
+    txt(g, cx, cy - Rp - 10, "0° tail-on", { "text-anchor": "middle", class: "lab" });
+    txt(g, cx, cy + Rp + 19, "180° head-on", { "text-anchor": "middle", class: "lab" });
+    txt(g, cx + Rp + 6, cy - 3, "90°", { "text-anchor": "start", class: "lab" }); txt(g, cx + Rp + 6, cy + 11, "side-on", { "text-anchor": "start", class: "lab" });
+    txt(g, cx - Rp - 6, cy - 3, "270°", { "text-anchor": "end", class: "lab" }); txt(g, cx - Rp - 6, cy + 11, "side-on", { "text-anchor": "end", class: "lab" });
+    const poly = (arr) => { let d = ""; for (let k = 0; k <= 360; k++) { const p = pt(k % 360, Math.min(arr[k % 360], Tmax)); d += (k ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1); } return d + "Z"; };
+    el("path", { d: poly(st.pop), fill: COL.side, "fill-opacity": 0.12, stroke: COL.side, "stroke-width": 2.4 }, g);
+    el("path", { d: poly(st.ind), fill: "none", stroke: COL.ink3, "stroke-width": 1.6, "stroke-dasharray": "5 4" }, g);
+    el("rect", { x: cx - 4, y: cy - 4, width: 8, height: 8, fill: "#fff", stroke: COL.ink, "stroke-width": 1.6 }, g);
+    for (const T of [0.5, 1, 1.5, 2]) { const r = Rp * T / Tmax; txt(g, cx + r * Math.sin(160 * D2R) + 3, cy - r * Math.cos(160 * D2R) + 4, T.toFixed(1), { class: "halo" }); }
+    // Flight direction: birds fly toward the top
+    svgArrow(g, 16, 64, 16, 22, COL.ink, 2, 8);
+    txt(g, 26, 34, "flight", { class: "lab" });
+    txt(g, 26, 48, "direction θ");
+  }
+  function table() {
+    const T = (arr, k) => arr[k];
+    const rows = [
+      ["c₂ (side-on)", fmt(st.hi.c2), fmt(st.hp.c2)],
+      ["c₁ (front/back)", fmt(st.hi.c1), fmt(st.hp.c1)],
+      ["T tail-on (0°)", fmt(T(st.ind, 0)), fmt(T(st.pop, 0))],
+      ["T side-on (90°)", fmt(T(st.ind, 90)), fmt(T(st.pop, 90))],
+      ["T head-on (180°)", fmt(T(st.ind, 180)), fmt(T(st.pop, 180))],
+      ["side / head", fmt(st.ind[90] / st.ind[180]), fmt(st.pop[90] / st.pop[180])],
+      ["side / tail", fmt(st.ind[90] / st.ind[0]), fmt(st.pop[90] / st.pop[0])],
+      ["head / tail", fmt(st.ind[180] / st.ind[0]), fmt(st.pop[180] / st.pop[0])],
+    ];
+    $("#f1-table").innerHTML = rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+    const s = st.sig * D2R;
+    $("#f1-d2").textContent = fmt(Math.exp(-2 * s * s)); $("#f1-d1").textContent = fmt(Math.exp(-0.5 * s * s));
+    $("#f1-c2-v").textContent = fmt(st.c2); $("#f1-c1-v").textContent = fmt(st.c1); $("#f1-sig-v").textContent = st.sig + "°";
+  }
+  function update() { compute(); render(); table(); }
+  [sC2, sC1, sSig].forEach((s) => s.addEventListener("input", update));
+  update();
+  watch(render, svg.parentElement);
+})();
+
+/* ======================= Figure 2 ======================= */
+(function () {
+  const st = { field: "uniform", alpha: 100, s: 0.6, aspect: true, theta: 190, preset: "aspect" };
+  const cTrue = $("#f2-true"), cObs = $("#f2-obs"), svg = $("#f2-prof");
+  const sA = $("#f2-alpha"), sS = $("#f2-s"), sT = $("#f2-theta");
+  const segField = segInit($("#f2-field"), (v) => { st.field = v; st.preset = null; if (v === "band") st.s = Math.min(st.s, 2); syncControls(); update(); });
+  const segAsp = segInit($("#f2-asp"), (v) => { st.aspect = v === "on"; st.preset = null; update(); });
+  const presetBtns = [...document.querySelectorAll("#f2-presets .btn")];
+  presetBtns.forEach((b) => b.addEventListener("click", () => applyPreset(b.dataset.p)));
+  function applyPreset(p) {
+    st.preset = p;
+    if (p === "aspect") { st.field = "uniform"; st.aspect = true; }
+    if (p === "band") { st.field = "band"; st.alpha = mod360(st.theta + 90); st.s = S_BAND; st.aspect = false; }
+    if (p === "grad") { st.field = "gradient"; st.alpha = mod360(st.theta + 180); st.s = S_GRAD; st.aspect = false; }
+    if (p === "both") { st.field = "band"; st.alpha = mod360(st.theta + 90); st.s = S_BAND; st.aspect = true; }
+    syncControls(); update();
+  }
+  function syncControls() {
+    segField.set(st.field); segAsp.set(st.aspect ? "on" : "off");
+    sA.value = Math.round(st.alpha); sS.value = st.s.toFixed(2); sT.value = st.theta;
+    sA.disabled = sS.disabled = st.field === "uniform";
+    presetBtns.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.p === st.preset)));
+  }
+  sA.addEventListener("input", () => { st.alpha = +sA.value; st.preset = null; syncControls(); update(); });
+  sS.addEventListener("input", () => { st.s = +sS.value; st.preset = null; syncControls(); update(); });
+  sT.addEventListener("input", () => {
+    const d = +sT.value - st.theta; st.theta = +sT.value;
+    if (st.preset && st.preset !== "aspect") st.alpha = mod360(st.alpha + d);   // presets keep their geometry relative to the flight
+    syncControls(); update();
+  });
+  let prof = null;
+  function update() {
+    const f = fieldFn(st.field, st.alpha, st.s), th = st.theta * D2R;
+    const obs = (x, y) => f(x, y) * (st.aspect ? T_SYN(azOf(x, y) - th) : 1);
+    const c1 = paintDisc(cTrue, 100, (x, y) => parula(f(x, y) / VMAX_SYN)); discOverlay(c1, 100, st.theta);
+    const c2 = paintDisc(cObs, 100, (x, y) => parula(obs(x, y) / VMAX_SYN)); discOverlay(c2, 100, st.theta);
+    const K = 180, Pf = azProfile(f, 10, 60, K);
+    const Lf = Array.from(Pf, Math.log);
+    const LT = Array.from({ length: K }, (_, k) => st.aspect ? Math.log(T_SYN(((k + 0.5) * 2) * D2R - th)) : 0);
+    const Lo = Lf.map((v, k) => v + LT[k]);
+    prof = { Lo, hf: harm(Lf, st.theta), ht: harm(LT, st.theta), ho: harm(Lo, st.theta) };
+    renderChart();
+    const row = (name, h) => `<tr><td>${name}</td><td>${fmt(h.c2)}</td><td>${fmt(h.c1)}</td><td>${fmt(h.b2)}</td><td>${fmt(h.b1)}</td></tr>`;
+    $("#f2-table").innerHTML = row("field only", prof.hf) + row("aspect only", prof.ht) + row("<b>derived scan</b>", prof.ho);
+    $("#f2-alpha-v").textContent = st.field === "uniform" ? "–" : deg(st.alpha);
+    $("#f2-s-v").textContent = st.field === "uniform" ? "–" : st.s.toFixed(2);
+    $("#f2-theta-v").textContent = deg(st.theta);
+  }
+  function renderChart() {
+    if (!prof) return;
+    const h = prof.ho, K = prof.Lo.length;
+    let mx = 0.2; for (const v of prof.Lo) mx = Math.max(mx, Math.abs(v - h.m));
+    mx = Math.ceil(mx * 1.15 * 10) / 10;
+    const yt = []; const stp = mx > 0.6 ? 0.4 : 0.2; for (let v = -Math.floor(mx / stp) * stp; v <= mx + 1e-9; v += stp) yt.push(+v.toFixed(2));
+    const ch = makeChart(svg, { x: [0, 360], y: [-mx, mx], xticks: [0, 90, 180, 270, 360], yticks: yt, yfmt: (v) => fmt(v, 1), xlabel: "azimuth φ (°)", ylabel: "log density", aspect: 0.78, margin: { t: 22 } });
+    // Viewing-angle marks along the top
+    for (const [o, lab] of [[0, "t"], [90, "s"], [180, "h"], [270, "s"]]) {
+      const x = ch.xs(mod360(st.theta + o));
+      el("line", { x1: x, x2: x, y1: ch.m.t, y2: ch.H - ch.m.b, stroke: COL.ink3, "stroke-dasharray": "2 3" }, ch.plot);
+      txt(ch.over, x, ch.m.t - 6, lab, { "text-anchor": "middle", class: "lab" });
+    }
+    el("line", { x1: ch.m.l, x2: ch.W - ch.m.r, y1: ch.ys(0), y2: ch.ys(0), class: "zero" }, ch.plot);
+    const pts = [], h1 = [], h2 = [];
+    for (let k = 0; k < K; k++) {
+      const az = (k + 0.5) * 360 / K, p = (az - st.theta) * D2R;
+      pts.push([az, prof.Lo[k] - h.m]);
+      h1.push([az, h.a1 * Math.cos(p) + h.b1 * Math.sin(p)]);
+      h2.push([az, h.a2 * Math.cos(2 * p) + h.b2 * Math.sin(2 * p)]);
+    }
+    line(ch, h1, COL.front, 2, "6 4"); line(ch, h2, COL.side, 2, "6 4"); line(ch, pts, COL.ink, 2.4);
+  }
+  colorbar($("#f2-cb"), PARULA_CSS, [[0, "0"], [0.25, "25"], [0.5, "50"], [0.75, "75"], [1, "100"]], "bird density (birds km⁻³)");
+  applyPreset("aspect");
+  watch(renderChart, svg.parentElement);
+})();
+
+/* ======================= Figure 3 ======================= */
+function ellR(a, b1, b2, thetaB, phiDeg) {
+  const psi = mod360(phiDeg - thetaB), b = psi < 180 ? b1 : b2;
+  const s = Math.sin(psi * D2R), c = Math.cos(psi * D2R);
+  return a * b / Math.sqrt(a * a * s * s + b * b * c * c);
+}
+// Weighted least squares as in shape.m: weights = smoothed profile, x_m in closed form
+function fitEllipse(m, thetaB) {
+  const K = m.length, az = Array.from({ length: K }, (_, k) => (k + 0.5) * 360 / K);
+  function evalAB(aa, be) {
+    const a = aa, b1 = be / aa, b2 = (1 - be) / aa, f = new Float64Array(K);
+    let swmf = 0, swff = 0;
+    for (let k = 0; k < K; k++) { if (m[k] <= 0) continue; f[k] = ellR(a, b1, b2, thetaB, az[k]); swmf += m[k] * m[k] * f[k]; swff += m[k] * f[k] * f[k]; }
+    const xm = clamp(swmf / swff, 0, 1e4);
+    let s = 0; for (let k = 0; k < K; k++) { if (m[k] <= 0) continue; const d = m[k] - xm * f[k]; s += m[k] * d * d; }
+    return { s, xm, a, b1, b2, aa, be };
+  }
+  let best = { s: Infinity };
+  const la0 = Math.log(0.1), la1 = Math.log(5);
+  for (let i = 0; i <= 60; i++) for (let j = 0; j <= 40; j++) { const r = evalAB(Math.exp(la0 + (la1 - la0) * i / 60), 0.1 + 0.8 * j / 40); if (r.s < best.s) best = r; }
+  let da = (la1 - la0) / 60, db = 0.02;
+  for (let pass = 0; pass < 3; pass++) {
+    const c = best;
+    for (let i = -10; i <= 10; i++) for (let j = -10; j <= 10; j++) {
+      const aa = Math.exp(clamp(Math.log(c.aa) + da * i / 10, la0, la1)), be = clamp(c.be + db * j / 10, 0.1, 0.9);
+      const r = evalAB(aa, be); if (r.s < best.s) best = r;
+    }
+    da /= 5; db /= 5;
+  }
+  return best;
+}
+(function () {
+  const st = { preset: "band", theta: 190, method: "ellipse" };
+  const cObs = $("#f3-obs"), cCor = $("#f3-cor"), cRat = $("#f3-rat"), svg = $("#f3-prof"), sT = $("#f3-theta");
+  const presetBtns = [...document.querySelectorAll("#f3-presets .btn")];
+  presetBtns.forEach((b) => b.addEventListener("click", () => { st.preset = b.dataset.p; update(); }));
+  const segM = segInit($("#f3-method"), (v) => { st.method = v; update(); });
+  sT.addEventListener("input", () => { st.theta = +sT.value; update(); });
+  let pr = null;
+  function update() {
+    presetBtns.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.p === st.preset)));
+    segM.set(st.method);
+    const th = st.theta * D2R, band = st.preset !== "aspect", aspect = st.preset !== "band";
+    const f = band ? fieldFn("band", mod360(st.theta + 90), S_BAND) : fieldFn("uniform");
+    const obs = (x, y) => f(x, y) * (aspect ? T_SYN(azOf(x, y) - th) : 1);
+    const K = 360, mRaw = azProfile(obs, 0, 100, K), mTrue = azProfile(f, 0, 100, K);
+    // Circular moving mean (11 deg) as the smoothing of the azimuthal summary
+    const mS = new Float64Array(K);
+    for (let k = 0; k < K; k++) { let s = 0; for (let d = -5; d <= 5; d++) s += mRaw[(k + d + K) % K]; mS[k] = s / 11; }
+    let factorAt, fitted, info;
+    if (st.method === "ellipse") {
+      const thetaB = st.theta - 90, p = fitEllipse(mS, thetaB);
+      let s1 = 0, s2 = 0; for (let k = 0; k < K; k++) { const R = ellR(p.a, p.b1, p.b2, thetaB, k + 0.5); s1 += mRaw[k]; s2 += mRaw[k] / R; }
+      const scale = s1 / s2;   // per-sweep rescaling to the uncorrected mean
+      factorAt = (phiDeg) => scale / ellR(p.a, p.b1, p.b2, thetaB, phiDeg);
+      fitted = (phiDeg) => p.xm * ellR(p.a, p.b1, p.b2, thetaB, phiDeg);
+      info = [["a", fmt(p.a)], ["b₁", fmt(p.b1)], ["b₂", fmt(p.b2)], ["x_m", fmt(p.xm, 1)], ["rescale", fmt(scale, 3)]];
+    } else {
+      let mean = 0; for (let k = 0; k < K; k++) mean += mRaw[k]; mean /= K;
+      factorAt = (phiDeg) => 1 / T_SYN((phiDeg - st.theta) * D2R);
+      fitted = (phiDeg) => mean * T_SYN((phiDeg - st.theta) * D2R);
+      info = [["c₂", "0.20"], ["c₁", fmt(-0.21)], ["fitted to scan", "no"]];
+    }
+    const cor = (x, y) => obs(x, y) * factorAt(mod360(azOf(x, y) / D2R));
+    let ctx = paintDisc(cObs, 100, (x, y) => parula(obs(x, y) / VMAX_SYN)); discOverlay(ctx, 100, st.theta);
+    ctx = paintDisc(cCor, 100, (x, y) => parula(cor(x, y) / VMAX_SYN)); discOverlay(ctx, 100, st.theta);
+    ctx = paintDisc(cRat, 100, (x, y) => ratioRGB(Math.log2(cor(x, y) / f(x, y)))); discOverlay(ctx, 100, st.theta);
+    let fmin = Infinity, fmax = -Infinity, rmin = Infinity, rmax = -Infinity;
+    const mCor = new Float64Array(K);
+    for (let k = 0; k < K; k++) { const fa = factorAt(k + 0.5); fmin = Math.min(fmin, fa); fmax = Math.max(fmax, fa); mCor[k] = mRaw[k] * fa; const r = mCor[k] / mTrue[k]; rmin = Math.min(rmin, r); rmax = Math.max(rmax, r); }
+    info.push(["factor range", fmt(fmin) + "–" + fmt(fmax)], ["corrected ÷ true", fmt(rmin) + "–" + fmt(rmax)]);
+    $("#f3-table").innerHTML = info.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("");
+    const mc = st.method === "ellipse" ? COL.front : COL.side;
+    $("#f3-leg-fit").style.color = mc; $("#f3-leg-cor").style.color = mc;
+    $("#f3-leg-fit").lastChild.textContent = st.method === "ellipse" ? "fitted template x_m R(φ)" : "mean × T(ψ)";
+    $("#f3-theta-v").textContent = deg(st.theta);
+    pr = { mRaw, mTrue, mCor, fitted, mc };
+    renderChart();
+  }
+  function renderChart() {
+    if (!pr) return;
+    let mx = 0; for (let k = 0; k < 360; k++) mx = Math.max(mx, pr.mRaw[k], pr.mCor[k], pr.mTrue[k]);
+    mx = Math.ceil(mx * 1.12 / 10) * 10;
+    const yt = []; for (let v = 0; v <= mx; v += mx > 80 ? 20 : 10) yt.push(v);
+    const ch = makeChart(svg, { x: [0, 360], y: [0, mx], xticks: [0, 90, 180, 270, 360], yticks: yt, xlabel: "azimuth φ (°)", ylabel: "density", aspect: 0.55 });
+    const az = Array.from({ length: 360 }, (_, k) => k + 0.5);
+    line(ch, az.map((a, k) => [a, pr.mTrue[k]]), COL.ink3, 2, "2 3");
+    line(ch, az.map((a, k) => [a, pr.mRaw[k]]), COL.ink, 2.2);
+    line(ch, az.map((a) => [a, pr.fitted(a)]), pr.mc, 2, "6 4");
+    line(ch, az.map((a, k) => [a, pr.mCor[k]]), pr.mc, 2.4);
+  }
+  colorbar($("#f3-cb1"), PARULA_CSS, [[0, "0"], [0.5, "50"], [1, "100"]], "bird density (birds km⁻³), left and middle");
+  colorbar($("#f3-cb2"), RATIO_CSS, ratioTicks, "corrected ÷ true, right");
+  update();
+  watch(renderChart, svg.parentElement);
+})();
+
+function segInit(container, onChange) {
+  const btns = [...container.querySelectorAll("button")];
+  const set = (v) => btns.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
+  btns.forEach((b) => b.addEventListener("click", () => { set(b.dataset.v); onChange(b.dataset.v); }));
+  return { set };
+}
+
+/* ======================= Figure 4 ======================= */
+(function () {
+  const A = [-70, 0], B = [70, 0], RANGE = 125, X0 = -205, X1 = 205, Y0 = -135, Y1 = 135;
+  const st = { cell: [-30, 50], theta: 190, h: 2 };
+  const svg = $("#f4-map"), svgT = $("#f4-t"), sT = $("#f4-theta"), sH = $("#f4-h");
+  let geo = null, heatKey = "", heatUrl = "";
+  const inBoth = (x, y) => Math.hypot(x - A[0], y - A[1]) <= RANGE && Math.hypot(x - B[0], y - B[1]) <= RANGE;
+  const azFrom = (p, x, y) => mod360(Math.atan2(x - p[0], y - p[1]) / D2R);
+  function heat() {
+    const key = st.theta + "|" + st.h;
+    if (key === heatKey) return heatUrl;
+    const { c2, c1 } = ampAt(st.h), nx = 205, ny = 135, cv = document.createElement("canvas");
+    cv.width = nx; cv.height = ny;
+    const ctx = cv.getContext("2d"), img = ctx.createImageData(nx, ny), d = img.data;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const x = X0 + (i + 0.5) * (X1 - X0) / nx, y = Y1 - (j + 0.5) * (Y1 - Y0) / ny, p = (j * nx + i) * 4;
+      if (!inBoth(x, y)) { d[p + 3] = 0; continue; }
+      const lr = logTraw((azFrom(A, x, y) - st.theta) * D2R, c2, c1) - logTraw((azFrom(B, x, y) - st.theta) * D2R, c2, c1);
+      const c = ratioRGB(lr / Math.LN2); d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    heatKey = key; heatUrl = cv.toDataURL();
+    return heatUrl;
+  }
+  function render() {
+    const W = Math.max(260, Math.round(svg.parentElement.clientWidth)), H = Math.round(W * (Y1 - Y0) / (X1 - X0));
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H); svg.innerHTML = "";
+    const sx = lin(X0, X1, 0, W), sy = lin(Y0, Y1, H, 0), k = W / (X1 - X0);
+    geo = { sx, sy, W, H, k };
+    el("rect", { x: 0, y: 0, width: W, height: H, fill: COL.paper, stroke: COL.rule }, svg);
+    el("image", { href: heat(), x: 0, y: 0, width: W, height: H, preserveAspectRatio: "none" }, svg);
+    for (const p of [A, B]) el("circle", { cx: sx(p[0]), cy: sy(p[1]), r: RANGE * k, fill: "none", stroke: COL.ink3, "stroke-dasharray": "4 4" }, svg);
+    // Flight direction field
+    const gF = el("g", { opacity: 0.45 }, svg), a = st.theta * D2R, L = 9;
+    for (let x = -180; x <= 180; x += 45) for (let y = -110; y <= 110; y += 45) {
+      const x0 = sx(x), y0 = sy(y);
+      svgArrow(gF, x0 - L * k * Math.sin(a), y0 + L * k * Math.cos(a), x0 + L * k * Math.sin(a), y0 - L * k * Math.cos(a), COL.ink2, 1.3, 5);
+    }
+    for (const [p, n] of [[A, "A"], [B, "B"]]) {
+      el("rect", { x: sx(p[0]) - 6, y: sy(p[1]) - 6, width: 12, height: 12, fill: "#fff", stroke: COL.ink, "stroke-width": 2 }, svg);
+      txt(svg, sx(p[0]), sy(p[1]) + 22, n, { "text-anchor": "middle", class: "lab", "font-weight": "600" });
+    }
+    geo.dyn = el("g", null, svg);
+    drawDynamic();
+  }
+  function drawDynamic() {
+    const g = geo.dyn; g.innerHTML = "";
+    const [x, y] = st.cell, { sx, sy } = geo;
+    for (const p of [A, B]) el("line", { x1: sx(p[0]), y1: sy(p[1]), x2: sx(x), y2: sy(y), stroke: COL.ink, "stroke-width": 1.8 }, g);
+    const cell = el("circle", { cx: sx(x), cy: sy(y), r: 8, fill: "#fff", stroke: COL.ink, "stroke-width": 2.4, tabindex: 0, role: "button", "aria-label": "Cell; use the arrow keys to move it", style: "cursor:grab" }, g);
+    cell.addEventListener("keydown", onKey);
+    const { c2, c1 } = ampAt(st.h), T = makeT(c2, c1);
+    const phA = azFrom(A, x, y), phB = azFrom(B, x, y), pA = mod360(phA - st.theta), pB = mod360(phB - st.theta);
+    const TA = T(pA * D2R), TB = T(pB * D2R), ok = inBoth(x, y);
+    $("#f4-table").innerHTML =
+      `<tr><td>A</td><td>${deg(phA)}</td><td>${deg(pA)}</td><td>${fmt(TA)}</td></tr>` +
+      `<tr><td>B</td><td>${deg(phB)}</td><td>${deg(pB)}</td><td>${fmt(TB)}</td></tr>` +
+      `<tr><td colspan="3"><b>expected ρ̂<sub>A</sub> / ρ̂<sub>B</sub></b>${ok ? "" : " (cell outside the overlap)"}</td><td><b>${fmt(TA / TB)}</b></td></tr>`;
+    renderT(pA, pB, T);
+  }
+  function renderT(pA, pB, T) {
+    const ch = makeChart(svgT, { x: [0, 360], y: [0.6, 1.5], ylog: true, xticks: [0, 90, 180, 270, 360], yticks: [0.6, 0.8, 1, 1.2, 1.5], yfmt: (v) => v.toFixed(1), xlabel: "ψ (°)", ylabel: "T(ψ)", aspect: 0.5 });
+    const pts = []; for (let k = 0; k <= 360; k += 2) pts.push([k, T(k * D2R)]);
+    el("line", { x1: ch.m.l, x2: ch.W - ch.m.r, y1: ch.ys(1), y2: ch.ys(1), class: "zero" }, ch.plot);
+    line(ch, pts, COL.side, 2.4);
+    for (const [p, n] of [[pA, "A"], [pB, "B"]]) {
+      const x = ch.xs(p), y = ch.ys(T(p * D2R));
+      el("line", { x1: x, x2: x, y1: ch.m.t, y2: ch.H - ch.m.b, stroke: COL.ink, "stroke-dasharray": "3 3" }, ch.plot);
+      el("circle", { cx: x, cy: y, r: 5, fill: "#fff", stroke: COL.ink, "stroke-width": 2 }, ch.plot);
+      txt(ch.over, x + 6, ch.m.t + 13, n, { class: "lab", "font-weight": "600" });
+    }
+  }
+  function setCellFromEvent(e) {
+    const r = svg.getBoundingClientRect();
+    const x = X0 + (e.clientX - r.left) / r.width * (X1 - X0), y = Y1 - (e.clientY - r.top) / r.height * (Y1 - Y0);
+    st.cell = [clamp(x, X0 + 5, X1 - 5), clamp(y, Y0 + 5, Y1 - 5)];
+    drawDynamic();
+  }
+  let dragging = false;
+  svg.addEventListener("pointerdown", (e) => { dragging = true; svg.setPointerCapture(e.pointerId); setCellFromEvent(e); e.preventDefault(); });
+  svg.addEventListener("pointermove", (e) => { if (dragging) setCellFromEvent(e); });
+  const stop = () => { dragging = false; };
+  svg.addEventListener("pointerup", stop); svg.addEventListener("pointercancel", stop);
+  function onKey(e) {
+    const step = e.shiftKey ? 20 : 5, mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[e.key];
+    if (!mv) return;
+    e.preventDefault();
+    st.cell = [clamp(st.cell[0] + mv[0], X0 + 5, X1 - 5), clamp(st.cell[1] + mv[1], Y0 + 5, Y1 - 5)];
+    drawDynamic();
+    const c = geo.dyn.querySelector("circle"); if (c) c.focus();
+  }
+  sT.addEventListener("input", () => { st.theta = +sT.value; $("#f4-theta-v").textContent = deg(st.theta); render(); });
+  sH.addEventListener("input", () => { st.h = +sH.value; $("#f4-h-v").textContent = st.h.toFixed(2) + " km"; render(); });
+  $("#f4-theta-v").textContent = deg(st.theta); $("#f4-h-v").textContent = st.h.toFixed(2) + " km";
+  colorbar($("#f4-cb"), RATIO_CSS, ratioTicks, "expected ρ̂_A / ρ̂_B");
+  render();
+  watch(render, svg.parentElement);
+})();
+
+/* ======================= Figure 5 ======================= */
+const CURVE = {
+  psi: [7.5,22.5,37.5,52.5,67.5,82.5,97.5,112.5,127.5,142.5,157.5,172.5,187.5,202.5,217.5,232.5,247.5,262.5,277.5,292.5,307.5,322.5,337.5,352.5],
+  before: [-0.3652,-0.3133,-0.2115,-0.0831,0.0419,0.1582,0.2268,0.2029,0.1268,0.0586,0.0176,0.0054,0.0066,0.0468,0.1297,0.1865,0.2352,0.2540,0.2010,0.0649,-0.0972,-0.2275,-0.3143,-0.3508],
+  seBefore: [0,0.0114,0.0207,0.0289,0.0352,0.0399,0.0424,0.0401,0.0391,0.0358,0.0332,0.0343,0.0368,0.0387,0.0388,0.0370,0.0341,0.0349,0.0349,0.0351,0.0335,0.0325,0.0272,0.0145],
+  after: [-0.0049,-0.0101,-0.0131,-0.0164,-0.0200,0.0046,0.0292,0.0022,-0.0363,-0.0404,-0.0199,0.0039,0.0049,0.0074,0.0308,0.0255,0.0327,0.0536,0.0519,0.0055,-0.0366,-0.0395,-0.0198,0.0045],
+  seAfter: [0,0.0108,0.0200,0.0284,0.0343,0.0383,0.0410,0.0391,0.0391,0.0370,0.0350,0.0366,0.0387,0.0398,0.0396,0.0374,0.0342,0.0341,0.0339,0.0341,0.0319,0.0308,0.0261,0.0139],
+};
+// Overlap fits per height band (AS_overlap_harmonics.csv): [h_lo, h_hi, c2, c2_se, c1, c1_se]
+const BY_HEIGHT = [
+  [0.75, 1.0, 0.0694, 0.0314, -0.3917, 0.0609], [1.0, 1.25, 0.1268, 0.0229, -0.1669, 0.0263], [1.25, 1.5, 0.1359, 0.0190, -0.2474, 0.0366],
+  [1.5, 2.0, 0.1624, 0.0163, -0.2243, 0.0343], [2.0, 2.5, 0.1918, 0.0167, -0.2391, 0.0295], [2.5, 3.0, 0.2397, 0.0136, -0.2137, 0.0306], [3.0, 3.5, 0.2421, 0.0138, -0.1596, 0.0443],
+];
+function errDots(ch, xs, ys, se, color, dx) {
+  for (let i = 0; i < xs.length; i++) {
+    const x = ch.xs(xs[i] + (dx || 0));
+    if (se[i] > 0) el("line", { x1: x, x2: x, y1: ch.ys(Math.exp(ys[i] - 2 * se[i])), y2: ch.ys(Math.exp(ys[i] + 2 * se[i])), stroke: color, "stroke-width": 1.4 }, ch.plot);
+    el("circle", { cx: x, cy: ch.ys(Math.exp(ys[i])), r: 3.6, fill: color }, ch.plot);
+  }
+}
+const T_TICKS = [0.6, 0.7, 0.8, 0.9, 1, 1.2, 1.4, 1.6];
+(function () {
+  const svgT = $("#f5-t"), svgA = $("#f5-amp"), sH = $("#f5-h");
+  let h = 2;
+  function render() {
+    const { c2, c1 } = ampAt(h), T = makeT(c2, c1);
+    // Left: T(psi)
+    const ch = makeChart(svgT, { x: [0, 360], y: [0.56, 1.62], ylog: true, xticks: [0, 90, 180, 270, 360], yticks: T_TICKS, yfmt: (v) => v.toFixed(1), xlabel: "ψ = φ − θ (°)", ylabel: "T(ψ)", aspect: 0.66, margin: { t: 22 } });
+    for (const [x, lab] of [[0, "tail"], [90, "side"], [180, "head"], [270, "side"], [360, "tail"]]) txt(ch.over, ch.xs(x), ch.m.t - 7, lab, { "text-anchor": x === 0 ? "start" : x === 360 ? "end" : "middle", class: "lab" });
+    el("line", { x1: ch.m.l, x2: ch.W - ch.m.r, y1: ch.ys(1), y2: ch.ys(1), class: "zero" }, ch.plot);
+    for (const hg of [0.5, 1, 2, 3]) { const a = ampAt(hg), Tg = makeT(a.c2, a.c1), p = []; for (let k = 0; k <= 360; k += 2) p.push([k, Tg(k * D2R)]); line(ch, p, COL.ink3, 1.2); }
+    errDots(ch, CURVE.psi, CURVE.before, CURVE.seBefore, COL.ink);
+    const p = []; for (let k = 0; k <= 360; k += 2) p.push([k, T(k * D2R)]);
+    line(ch, p, COL.side, 2.8);
+    // Right: amplitudes against height
+    const ca = makeChart(svgA, { x: [-0.5, 0.35], y: [0, 3.5], xticks: [-0.4, -0.2, 0, 0.2], yticks: [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5], xfmt: (v) => fmt(v, 1), yfmt: (v) => v.toFixed(1), xlabel: "amplitude (log units)", ylabel: "height above antenna (km)", aspect: 0.66, margin: { t: 22 } });
+    el("rect", { x: ca.m.l, y: ca.ys(0.8), width: ca.W - ca.m.l - ca.m.r, height: ca.ys(0) - ca.ys(0.8), fill: COL.rule, "fill-opacity": 0.45 }, ca.plot);
+    txt(ca.plot, ca.W - ca.m.r - 6, ca.ys(0.4) + 4, "no overlap data", { "text-anchor": "end" });
+    el("line", { x1: ca.xs(0), x2: ca.xs(0), y1: ca.m.t, y2: ca.H - ca.m.b, class: "zero" }, ca.plot);
+    const hs = []; for (let v = 0; v <= 3.5; v += 0.05) hs.push(v);
+    line(ca, hs.map((v) => [ampAt(v).c2, v]), COL.side, 2.6);
+    line(ca, hs.map((v) => [ampAt(v).c1, v]), COL.front, 2.6);
+    for (const r of BY_HEIGHT) {
+      const y = ca.ys((r[0] + r[1]) / 2);
+      for (const [v, se, c, sq] of [[r[2], r[3], COL.side, false], [r[4], r[5], COL.front, true]]) {
+        el("line", { x1: ca.xs(v - 2 * se), x2: ca.xs(v + 2 * se), y1: y, y2: y, stroke: c, "stroke-width": 1.4 }, ca.plot);
+        if (sq) el("rect", { x: ca.xs(v) - 4, y: y - 4, width: 8, height: 8, fill: c }, ca.plot);
+        else el("circle", { cx: ca.xs(v), cy: y, r: 4.3, fill: c }, ca.plot);
+      }
+    }
+    el("line", { x1: ca.m.l, x2: ca.W - ca.m.r, y1: ca.ys(h), y2: ca.ys(h), stroke: COL.ink, "stroke-dasharray": "5 4", "stroke-width": 1.4 }, ca.plot);
+    txt(ca.over, ca.xs(0.2) + 4, ca.m.t - 7, "c₂", { class: "lab", fill: COL.side });
+    txt(ca.over, ca.xs(-0.2), ca.m.t - 7, "c₁", { class: "lab", "text-anchor": "middle" });
+    // Readout
+    let tmin = Infinity, tmax = -Infinity; for (let k = 0; k < 360; k++) { const t = T(k * D2R); tmin = Math.min(tmin, t); tmax = Math.max(tmax, t); }
+    $("#f5-table").innerHTML = `<tr><td>${h.toFixed(2)} km</td><td>${fmt(c2, 3)}</td><td>${fmt(c1, 3)}</td><td>${fmt(T.logN, 4)}</td><td>${fmt(T(0))}</td><td>${fmt(T(90 * D2R))}</td><td>${fmt(T(Math.PI))}</td><td>${fmt(1 / tmax)}–${fmt(1 / tmin)}</td></tr>`;
+    $("#f5-h-v").textContent = h.toFixed(2) + " km";
+  }
+  sH.addEventListener("input", () => { h = +sH.value; render(); });
+  render();
+  watch(render, svgT.parentElement);
+})();
+
+/* ======================= Figure 6 (KDMX) ======================= */
+(function () {
+  const K = JSON.parse($("#kdmx-data").textContent);
+  const n = K.x_km.length, half = 90;
+  const vals = []; for (const r of K.none) for (const v of r) if (v != null) vals.push(v);
+  vals.sort((a, b) => a - b);
+  const vmax = vals[Math.floor(0.99 * (vals.length - 1))];
+  const uv5 = K.uv[5], track56 = mod360(Math.atan2(uv5[0], uv5[1]) / D2R);   // 500-600 m above the antenna
+  const versions = { none: K.none, ell: K.ellipse, sh: K.shared };
+  const factor = (A, i, j) => (A[i][j] != null && K.none[i][j] != null && K.none[i][j] > 0) ? A[i][j] / K.none[i][j] : null;
+  const maps = [
+    { id: "#k-none", kind: "dens", grid: K.none, arrow: true },
+    { id: "#k-ell", kind: "dens", grid: K.ellipse, arrow: true },
+    { id: "#k-sh", kind: "dens", grid: K.shared, arrow: true },
+    { id: "#k-fe", kind: "fac", src: K.ellipse },
+    { id: "#k-fs", kind: "fac", src: K.shared },
+  ];
+  const cw = MAP_PX / n;
+  for (const mp of maps) {
+    const cv = $(mp.id); cv.width = MAP_PX; cv.height = MAP_PX;
+    const base = document.createElement("canvas"); base.width = MAP_PX; base.height = MAP_PX;
+    const ctx = base.getContext("2d");
+    ctx.fillStyle = COL.plate; ctx.fillRect(0, 0, MAP_PX, MAP_PX);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      let c = null;
+      if (mp.kind === "dens") { const v = mp.grid[i][j]; if (v != null) c = parula(v / vmax); }
+      else { const f = factor(mp.src, i, j); if (f != null) c = ratioRGB(Math.log2(f)); }
+      if (!c) continue;
+      ctx.fillStyle = rgbCss(c);
+      ctx.fillRect(Math.floor(i * cw), Math.floor((n - 1 - j) * cw), Math.ceil(cw) + 1, Math.ceil(cw) + 1);   // grid is [x][y]; canvas rows run north to south
+    }
+    if (mp.arrow) {
+      const c = MAP_PX / 2, L = 45 * MAP_PX / (2 * half), a = track56 * D2R;
+      canvasArrow(ctx, c, c, c + L * Math.sin(a), c - L * Math.cos(a), COL.ink, 4, 16);
+    }
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.fillRect(MAP_PX / 2 - 5, MAP_PX / 2 - 5, 10, 10); ctx.strokeRect(MAP_PX / 2 - 5, MAP_PX / 2 - 5, 10, 10);
+    ctx.fillStyle = COL.ink; ctx.font = "600 17px " + tok("--mono"); ctx.textAlign = "center"; ctx.fillText("N", MAP_PX / 2, 18);
+    mp.base = base; mp.ctx = cv.getContext("2d");
+  }
+  function draw(hover) {
+    for (const mp of maps) {
+      mp.ctx.drawImage(mp.base, 0, 0);
+      if (hover) { mp.ctx.save(); mp.ctx.strokeStyle = COL.ink; mp.ctx.lineWidth = 2.5; mp.ctx.strokeRect(hover[0] * cw - 2, (n - 1 - hover[1]) * cw - 2, cw + 4, cw + 4); mp.ctx.restore(); }
+    }
+  }
+  const read = $("#k-read");
+  function onMove(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const i = Math.floor((e.clientX - r.left) / r.width * n), j = n - 1 - Math.floor((e.clientY - r.top) / r.height * n);
+    if (i < 0 || j < 0 || i >= n || j >= n || K.none[i][j] == null) { draw(null); return; }
+    draw([i, j]);
+    const v = (A) => A[i][j] == null ? "–" : A[i][j].toFixed(0);
+    const fe = factor(K.ellipse, i, j), fs = factor(K.shared, i, j);
+    const x = K.x_km[i], y = K.x_km[j], az = mod360(Math.atan2(x, y) / D2R), rg = Math.hypot(x, y);
+    read.innerHTML = `x ${x.toFixed(0)} km, y ${y.toFixed(0)} km (azimuth ${az.toFixed(0)}°, ${rg.toFixed(0)} km) · none <b>${v(K.none)}</b> · ellipse <b>${v(K.ellipse)}</b> (×${fe == null ? "–" : fe.toFixed(2)}) · shared <b>${v(K.shared)}</b> (×${fs == null ? "–" : fs.toFixed(2)})`;
+  }
+  for (const mp of maps) {
+    const cv = $(mp.id);
+    cv.addEventListener("pointermove", onMove);
+    cv.addEventListener("pointerdown", onMove);
+    cv.addEventListener("pointerleave", () => draw(null));
+  }
+  draw(null);
+  const tk = []; for (let v = 0; v <= vmax; v += 50) tk.push([v / vmax, String(v)]);
+  colorbar($("#k-cb1"), PARULA_CSS, tk, "bird density (birds km⁻³), top row");
+  colorbar($("#k-cb2"), RATIO_CSS, ratioTicks, "correction factor, middle row");
+
+  const svgP = $("#k-prof"), svgK = $("#k-track");
+  function renderProfile() {
+    let mx = 0; for (const r of K.profile) for (const v of r) mx = Math.max(mx, v);
+    mx = Math.ceil(mx * 1.12 / 20) * 20;
+    const yt = []; for (let v = 0; v <= mx; v += 25) yt.push(v);
+    const ch = makeChart(svgP, { x: [0, 360], y: [0, mx], xticks: [0, 90, 180, 270, 360], yticks: yt, xlabel: "azimuth φ (°)", ylabel: "birds km⁻³", aspect: 0.85 });
+    for (const [a, dash] of [[track56, "6 4"], [mod360(track56 + 180), "2 3"]]) el("line", { x1: ch.xs(a), x2: ch.xs(a), y1: ch.m.t, y2: ch.H - ch.m.b, stroke: COL.ink, "stroke-dasharray": dash }, ch.plot);
+    const cols = [COL.none, COL.front, COL.side];
+    for (let v = 0; v < 3; v++) {
+      const pts = K.profile_az.map((a, k) => [a, K.profile[k][v]]);
+      pts.unshift([0, (K.profile[0][v] + K.profile[35][v]) / 2]); pts.push([360, (K.profile[0][v] + K.profile[35][v]) / 2]);
+      line(ch, pts, cols[v], 2.4);
+    }
+  }
+  function renderTrack() {
+    const layers = K.uv.map((u, i) => ({ h: (i + 0.5) * 0.1, dir: mod360(Math.atan2(u[0], u[1]) / D2R), sp: Math.hypot(u[0], u[1]) }));
+    const ch = makeChart(svgK, { x: [40, 250], y: [0, 3.12], xticks: [45, 90, 135, 180], yticks: [0, 0.5, 1, 1.5, 2, 2.5, 3], yfmt: (v) => v.toFixed(1), xlabel: "track direction (° from north)", ylabel: "height above antenna (km)", aspect: 0.62 });
+    line(ch, layers.map((l) => [l.dir, l.h]), COL.ink3, 1.4);
+    for (const l of layers) el("circle", { cx: ch.xs(l.dir), cy: ch.ys(l.h), r: 3.2, fill: COL.ink }, ch.plot);
+    for (const i of [0, 5, 10, 15, 20, 25, 29]) { const l = layers[i]; txt(ch.plot, ch.xs(l.dir) - 8, ch.ys(l.h) + 4, l.sp.toFixed(1), { "text-anchor": "end", class: "halo" }); }
+    // Beam-centre height between 10 and 90 km for each sweep (4/3 earth radius)
+    const kR = 4 / 3 * 6371, hb = (r, e) => Math.sqrt(r * r + kR * kR + 2 * r * kR * Math.sin(e * D2R)) - kR;
+    K.elev.forEach((e, i) => {
+      const x = ch.xs(200 + i * 18), y0 = ch.ys(hb(10, e)), y1 = ch.ys(hb(90, e));
+      el("rect", { x: x - 5, y: y1, width: 10, height: y0 - y1, fill: COL.side, "fill-opacity": 0.35, stroke: COL.side }, ch.plot);
+      txt(ch.plot, x, y1 - 6, e.toFixed(1) + "°", { "text-anchor": "middle" });
+    });
+  }
+  renderProfile(); renderTrack();
+  watch(renderProfile, svgP.parentElement); watch(renderTrack, svgK.parentElement);
+})();
+
+/* ======================= Figure 7 ======================= */
+(function () {
+  const svg = $("#f7");
+  function render() {
+    const ch = makeChart(svg, { x: [0, 360], y: [0.6, 1.45], ylog: true, xticks: [0, 45, 90, 135, 180, 225, 270, 315, 360], yticks: [0.6, 0.7, 0.8, 0.9, 1, 1.2, 1.4], yfmt: (v) => v.toFixed(1), xlabel: "ψ = φ − θ (°)", ylabel: "T(ψ)", aspect: 0.36, height: Math.max(240, Math.round(svg.parentElement.clientWidth * 0.36)), margin: { t: 22 } });
+    for (const [x, lab] of [[0, "tail-on"], [90, "side-on"], [180, "head-on"], [270, "side-on"], [360, "tail-on"]]) txt(ch.over, ch.xs(x), ch.m.t - 7, lab, { "text-anchor": x === 0 ? "start" : x === 360 ? "end" : "middle", class: "lab" });
+    el("line", { x1: ch.m.l, x2: ch.W - ch.m.r, y1: ch.ys(1), y2: ch.ys(1), class: "zero" }, ch.plot);
+    errDots(ch, CURVE.psi, CURVE.before, CURVE.seBefore, COL.ink, -1.6);
+    errDots(ch, CURVE.psi, CURVE.after, CURVE.seAfter, COL.side, 1.6);
+  }
+  render();
+  watch(render, svg.parentElement);
+})();
+})();
+</script>

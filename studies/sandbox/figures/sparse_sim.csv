@@ -1,0 +1,8 @@
+scenario,truth,raw,estimator,density_aloft,birds_per_gate_upper_near
+"uniform 2",0,-0.03,-0.06,2,0.19
+"uniform 10",0,-0.03,-0.01,10,0.94
+"uniform 50",0,-0.01,-0.01,50,4.7
+"uniform 200",0,-0.01,-0,200,18.8
+"quiet, low layer",-0,0,-0.02,2.9,0.38
+"medium, low layer",-0,-0,-0.02,21.8,2.35
+"busy, low layer",-0,-0,-0,117.2,11.53

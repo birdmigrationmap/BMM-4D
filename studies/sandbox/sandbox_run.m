@@ -8,6 +8,18 @@ function result = sandbox_run(S, option)
 %   lambda_profile, prior_interpolation,
 %   prior_length_scale_m, and row_weight, a function handle
 %   w = f(range_m, elev_deg, is_zero) giving each observation row a weight.
+%   Column maps count the lowest cell by its share above the ground
+%   (bmm4d.grid.air_fraction).
+%   SIGMA_MODEL, a function handle sigma = f(lambda), gives each observation
+%   an error sd in log density from its expected birds per gate lambda =
+%   (F * radar prior) x counting volume (bmm4d.radar.gate.beam, 250 m
+%   gates); the observation weight is 1 / sigma^2 (SIGMA_RELATIVE false,
+%   default: only the dependence on lambda, sigma relative to the busy
+%   limit f(Inf)) or 1 / (prediction x sigma)^2 (SIGMA_RELATIVE true:
+%   relative errors, prediction floored at 1 birds km^-3), normalized to
+%   mean 1 over the observations and multiplied by ROW_WEIGHT if given.
+%   X_INITIAL [n_active n_time] starts PCG from that field (warm start)
+%   instead of the prior.
 %   NONNEGATIVE (default false) adds the projected FISTA step after PCG;
 %   without it the solve is plain PCG (fast, negative cells allowed).
 %   RESULT has the field and metrics: radar-distance bias (all bins and
@@ -28,14 +40,15 @@ for name = names
     end
 end
 defaults = struct("shape", 0, "prior_correlation_m", 0, "prior_correlation_vertical_m", 0, ...
-    "row_weight", [], "prior_mean", "radar", "nonnegative", false, "video", true);
+    "row_weight", [], "sigma_model", [], "sigma_relative", false, "prior_mean", "radar", "nonnegative", false, "video", true, ...
+    "x_initial", []);
 for name = string(fieldnames(defaults))'
     if ~isfield(option, name)
         option.(name) = defaults.(name);
     end
 end
 % Density prior (cached by its settings)
-key = sprintf("%g|%s|%g", option.lambda_profile, option.prior_interpolation, option.prior_length_scale_m);
+key = prior_key(option);
 if isKey(S.prior_cache, key)
     prior_active = S.prior_cache(key);
 else
@@ -65,6 +78,24 @@ row_weights = [];
 if ~isempty(option.row_weight)
     row_weights = option.row_weight(double(S.observations.row_range_m), double(S.observations.row_elev_deg), S.row_is_zero);
 end
+if ~isempty(option.sigma_model)
+    % Observation errors from the expected birds per gate (one per row and time)
+    predicted = max(S.observations.F(:, S.active_id) * double(radar_prior), 0);
+    beam = bmm4d.radar.gate.beam();
+    lambda = predicted .* beam.volume_sample_km3(double(S.observations.row_range_m));
+    sigma = option.sigma_model(lambda);
+    if option.sigma_relative
+        weight = 1 ./ (max(predicted, 1) .* sigma) .^ 2;
+    else
+        weight = (option.sigma_model(Inf) ./ sigma) .^ 2;
+    end
+    observed = S.observations.values ~= 0;
+    weight = weight ./ mean(weight(observed));
+    if ~isempty(row_weights)
+        weight = weight .* row_weights;
+    end
+    row_weights = weight;
+end
 
 solve_tic = tic;
 [field, info] = bmm4d.solve.solve_advection_lean(S.observations, S.g, S.active_mask_3d, S.steps, prior_active, ...
@@ -72,7 +103,7 @@ solve_tic = tic;
     tol=inv.tol, maxit=inv.maxit, store_class="single", advection_relax_exponent=inv.advection_relax_exponent, ...
     nonnegative=option.nonnegative, projected_maxit=inv.projected_maxit, row_weights=row_weights, ...
     shape=option.shape, prior_correlation_m=option.prior_correlation_m, ...
-    prior_correlation_vertical_m=option.prior_correlation_vertical_m, advection_reference=radar_prior);
+    prior_correlation_vertical_m=option.prior_correlation_vertical_m, advection_reference=radar_prior, x_initial=option.x_initial);
 seconds_used = toc(solve_tic);
 
 % Metrics: radar-distance bias and misfit on all original rows
@@ -175,6 +206,7 @@ function [column, relative, is_active] = column_maps(S, field)
 g = S.g;
 [ix, iy, ~] = ind2sub(g.sz, S.active_id);
 column_id = sub2ind(g.sz(1:2), ix, iy);
+cell_air = bmm4d.grid.air_fraction(g, S.active_id);
 is_active = false(g.sz(1:2));
 is_active(column_id) = true;
 sigma_cells = 150000 / mean([g.dx g.dy]);
@@ -183,7 +215,7 @@ n_time = size(field, 2);
 column = zeros([g.sz(1:2) n_time]);
 relative = nan([g.sz(1:2) n_time]);
 for i_t = 1:n_time
-    map = reshape(accumarray(column_id, double(field(:, i_t)), [prod(g.sz(1:2)) 1]) * g.dz / 1000, g.sz(1:2));
+    map = reshape(accumarray(column_id, double(field(:, i_t)) .* cell_air, [prod(g.sz(1:2)) 1]) * g.dz / 1000, g.sz(1:2));
     map = max(map, 0) .* is_active;
     regional = imgaussfilt(map, sigma_cells) ./ weight;
     ok = is_active & regional > 5 & map > 0;
@@ -192,4 +224,9 @@ for i_t = 1:n_time
     column(:, :, i_t) = map;
     relative(:, :, i_t) = ratio_map;
 end
+end
+
+function key = prior_key(option)
+% Cache key of the density prior: the settings it depends on
+key = sprintf("%g|%s|%g", option.lambda_profile, option.prior_interpolation, option.prior_length_scale_m);
 end
