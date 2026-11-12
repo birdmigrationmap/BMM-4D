@@ -40,7 +40,7 @@ MathWorks toolboxes used: Optimization, Mapping, Image Processing, Statistics an
 
 ## Package and build
 
-`toolbox/` is a MATLAB package (R2024b or later; `toolbox/resources/mpackage.json`, version 1.0.1). The manifest stays on schema 1.0.0 so that R2024b and R2025 can read it; recent MATLAB releases may rewrite it to a newer schema, which older releases reject. Without `setup_paths`, install it with `mpminstall("toolbox")`, or as an add-on from the toolbox file of `buildtool package`. The external code above still has to be on the path.
+`toolbox/` is a MATLAB package (R2024b or later; `toolbox/resources/mpackage.json`, version 2.0.0). The manifest stays on schema 1.0.0 so that R2024b and R2025 can read it; recent MATLAB releases may rewrite it to a newer schema, which older releases reject. Without `setup_paths`, install it with `mpminstall("toolbox")`, or as an add-on from the toolbox file of `buildtool package`. The external code above still has to be on the path.
 
 ```matlab
 buildtool              % check (Code Analyzer, fails on errors) and test (unit tests)

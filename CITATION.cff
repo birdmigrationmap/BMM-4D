@@ -6,7 +6,7 @@ abstract: >-
   MATLAB package to reconstruct animated 3D bird-density fields from a
   network of weather radars (NEXRAD): radar cleaning, forward model,
   density prior, advection-regularized inversion and maps.
-version: 1.0.1
+version: 2.0.0
 license: GPL-3.0-only
 repository-code: "https://github.com/birdmigrationmap/BMM-4D"
 keywords:
