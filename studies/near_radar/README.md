@@ -101,7 +101,7 @@ How to read the table:
 - **R\* is not fixed yet:** 20 km is not enough by the decision rule. 30 km is the likely value.
 
 Open before production:
-- a gap-fill run at R\* = 25 and 30 km, Midwest and East. One rule per night-region instead of four, so roughly 3 h Midwest and 1–2 h East on the cluster.
+- a gap-fill run at R\* = 25 and 30 km, Midwest and East (jobs 4–5 in `PLAN.md`; code ready, not submitted). Two solves per night-region instead of four, but the case build dominates, so roughly 8–12 h Midwest and 3–4 h East on the cluster.
 - whether the misfit increase (+1.7% at 20 km) shrinks at 30 km;
 - run 1: the synthetic gap-fill test and the clutter flag;
 - staggered cuts on more nights with staggered VCPs;

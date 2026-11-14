@@ -45,6 +45,7 @@ nights = nights(startsWith(nights.name, "night_us_"), :);
 nights.night = datetime(nights.date);
 cut_set = "batch";          % from the 1 h run: "batch" or ["batch" "staggered"]
 fixed_range_km = 20;        % from the 1 h run
+extra_ranges_km = [25 30];  % fixed rule at more ranges (R*: decision rule step 3), collected if run
 region_names = ["midwest" "east"];
 n_workers = 6;
 fprintf("%d nights\n", height(nights))
@@ -114,8 +115,20 @@ for region_name = region_names
         loaded = load(gap_file, "summary", "distance");
         summary = [summary; loaded.summary]; %#ok<AGROW>
         distance = [distance; loaded.distance]; %#ok<AGROW>
+        % Fixed rule at more ranges (nr_gap_fill with a range vector), if run
+        range_file = replace(gap_file, ".mat", "_R" + strjoin(string(extra_ranges_km), "_") + ".mat");
+        if isfile(range_file)
+            % Only its fixed rules: any other rule is already in the four-rule file
+            loaded = load(range_file, "summary", "distance");
+            summary = [summary; loaded.summary(startsWith(loaded.summary.rule, "fixed "), :)]; %#ok<AGROW>
+            distance = [distance; loaded.distance(startsWith(loaded.distance.rule, "fixed "), :)]; %#ok<AGROW>
+        end
     end
 end
+% Name the four-rule fixed range like the extra ones
+fixed_name = sprintf("fixed %g km", fixed_range_km);
+summary.rule(summary.rule == "fixed") = fixed_name;
+distance.rule(distance.rule == "fixed") = fixed_name;
 writetable(summary, fullfile(figure_dir, "NR_E_summary.csv"))
 writetable(distance, fullfile(figure_dir, "NR_E_distance.csv"))
 

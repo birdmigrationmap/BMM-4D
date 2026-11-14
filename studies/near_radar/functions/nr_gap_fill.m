@@ -1,4 +1,4 @@
-function out_files = nr_gap_fill(night_names, region_name, cut_set, fixed_range_km, keep_cases, max_frames)
+function out_files = nr_gap_fill(night_names, region_name, cut_set, fixed_range_km, keep_cases, max_frames, rule_names)
 %NR_GAP_FILL Drop rules solved on regional cases of shared nights (dev).
 %   OUT_FILES = NR_GAP_FILL(NIGHT_NAMES, REGION_NAME, CUT_SET,
 %   FIXED_RANGE_KM, KEEP_CASES) builds, for each night of the shared night
@@ -18,20 +18,29 @@ function out_files = nr_gap_fill(night_names, region_name, cut_set, fixed_range_
 %   deletes each case.mat (~1-3 GB) once scored. MAX_FRAMES (default Inf)
 %   keeps the first frames only (a pilot: case nr_..._pilot, results
 %   gap_<region>_<night>_pilot.mat, adaptive R_min from the pilot rows if
-%   there are no full ones). Meant for a cluster job; ~10 min per night
-%   and region.
+%   there are no full ones). RULE_NAMES (default all four) keeps only some
+%   rules; with a vector FIXED_RANGE_KM, "fixed" becomes one rule per range
+%   ("fixed 25 km", ...) and the results go to
+%   gap_<region>_<night>_R<ranges>.mat (e.g. _R25_30), so they never
+%   replace or skip the four-rule files (the case itself is shared). Meant for a cluster job; ~10-40
+%   min per night and region (mostly building the case).
 
 arguments
     night_names (1, :) string
     region_name (1, 1) string
     cut_set (1, :) string = "batch"
-    fixed_range_km (1, 1) double = 20
+    fixed_range_km (1, :) double = 20
     keep_cases (1, 1) logical = false
     max_frames (1, 1) double = inf
+    rule_names (1, :) string = ["all rows" "fixed" "adaptive" "whole cut set"]
 end
-suffix = "";
+case_suffix = "";   % the case is the same for every rule set
 if isfinite(max_frames)
-    suffix = "_pilot";
+    case_suffix = "_pilot";
+end
+suffix = case_suffix;
+if ~isscalar(fixed_range_km)
+    suffix = suffix + "_R" + strjoin(string(fixed_range_km), "_");
 end
 project_root = setup_paths();
 addpath(fullfile(project_root, "examples"), fullfile(project_root, "studies", "artifacts", "functions"), ...
@@ -44,7 +53,19 @@ if isequal(sort(cut_set), ["batch" "staggered"])
     rule_cuts = "batch_staggered";
 end
 rules = struct("name", {"all rows", "fixed", "adaptive", "whole cut set"}, ...
-    "cuts", {"none", rule_cuts, rule_cuts, rule_cuts}, "max_range_km", {0, fixed_range_km, NaN, Inf});
+    "cuts", {"none", rule_cuts, rule_cuts, rule_cuts}, "max_range_km", {0, fixed_range_km(1), NaN, Inf});
+if ~isscalar(fixed_range_km)
+    % One fixed rule per range
+    fixed = rules(2);
+    rules(2) = [];
+    for range_km = fixed_range_km
+        fixed.name = sprintf("fixed %g km", range_km);
+        fixed.max_range_km = range_km;
+        rules(end + 1) = fixed; %#ok<AGROW>
+    end
+    rule_names = [rule_names(rule_names ~= "fixed") "fixed " + string(fixed_range_km) + " km"];
+end
+rules = rules(ismember(string({rules.name}), rule_names));
 
 out_files = strings(size(night_names));
 for i_n = 1:numel(night_names)
@@ -66,7 +87,7 @@ for i_n = 1:numel(night_names)
     radar_night = radar_night(isfinite(radar_night.r_min_km), :);
 
     % Regional case
-    c = nr_night_case("nr_" + region_name + "_" + extractAfter(night, "night_us_") + suffix, ...
+    c = nr_night_case("nr_" + region_name + "_" + extractAfter(night, "night_us_") + case_suffix, ...
         fullfile(products_dir, "prod", night), regions.(region_name), max_frames);
     if ~isfile(fullfile(c.data_dir, "case.mat"))
         bmm4d.build_observations(c);

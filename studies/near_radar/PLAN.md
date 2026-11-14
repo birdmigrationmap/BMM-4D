@@ -164,6 +164,14 @@ and the same with `near-radar-east` and `"east"`.
 
 Each regional `case.mat` (1–3 GB) is deleted after scoring unless `keep_cases = true`. Jobs 2 and 3 open 6 workers each: run at most these two at once, and check `seff` (or the job log) after the first night.
 
+**Jobs 4–5, the fixed rule at 25 and 30 km** (R\*, decision rule step 3; run 2 solved only 20 km and the whole cut). Same as jobs 2–3 with a range vector and only the fixed rule: results in `gap_<region>_<night>_R25_30.mat` beside the four-rule files, which they never replace. The case is rebuilt per night (most of the time), then 2 solves:
+
+```bash
+hpc/submit.sh -c 8 -m 64G -t 1-00:00:00 near-radar-R-midwest 'addpath(fullfile(project_root, "studies", "near_radar", "functions")); n = readtable(fullfile(project_root, "studies", "nights", "figures", "NS_A_nights.csv"), TextType="string"); nr_gap_fill(transpose(n.name(startsWith(n.name, "night_us_"))), "midwest", "batch", [25 30], false, inf, "fixed")'
+```
+
+and the same with `near-radar-R-east` and `"east"`. `NR_E_multi_night.m` (`extra_ranges_km = [25 30]`) then adds rules "fixed 25 km" and "fixed 30 km" to the summary, decision table and figure, with run 2's fixed rule named "fixed 20 km".
+
 ## Decision rule: from the results to a production setting
 
 1. **Which cuts.**
