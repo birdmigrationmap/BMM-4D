@@ -113,15 +113,12 @@ else
 end
 data_scales = 1 ./ sqrt(max(sum(obs_mask, 1), 1));
 F_squared = F .^ 2;
-row_norm_squared = full(sum(F_squared, 2));
-data_block_norms = max(data_scales .* sqrt(row_norm_squared' * data_weight), 1);
 data_diagonal = full(F_squared' * data_weight) .* data_scales .^ 2;
 data_rhs = full(F' * (data_weight .* values)) .* data_scales .^ 2;
 clear F_squared
 
 %% Smoothness and advection operators ---------------------------------------
-L = bmm4d.grid.active_laplacian(active_mask_3d, bmm4d.grid.get_water_mask(g), opt.coeff_horver);
-laplacian_norm = norm(L, "fro");
+L = bmm4d.grid.active_laplacian(active_mask_3d, bmm4d.grid.get_water_mask(g), opt.coeff_horver, g);
 laplacian_diagonal = full(sum(L .^ 2, 1))';
 
 % Separable shape term: column membership and the prior's vertical shape
@@ -146,14 +143,17 @@ prior_precision = [];
 if opt.prior_correlation_m > 0 || opt.prior_correlation_vertical_m > 0
     prior_precision = speye(n_active);
     if opt.prior_correlation_m > 0
-        L_horizontal = bmm4d.grid.active_laplacian(active_mask_3d, bmm4d.grid.get_water_mask(g), 0.5) / 0.25;
-        prior_precision = prior_precision + (opt.prior_correlation_m / mean([g.dx g.dy])) ^ 2 * L_horizontal;
+        % Physical-unit horizontal Laplacian with l_h = the correlation length
+        L_horizontal = bmm4d.grid.active_laplacian(active_mask_3d, bmm4d.grid.get_water_mask(g), 0.5, g, ...
+            length_scale_m=[opt.prior_correlation_m g.dz]) / 0.25;
+        prior_precision = prior_precision + L_horizontal;
         clear L_horizontal
     end
     if opt.prior_correlation_vertical_m > 0
         % coeff_horver = -1: horizontal weight 0, vertical weight 1/2
-        L_vertical = bmm4d.grid.active_laplacian(active_mask_3d, bmm4d.grid.get_water_mask(g), -1) / 0.5;
-        prior_precision = prior_precision + (opt.prior_correlation_vertical_m / g.dz) ^ 2 * L_vertical;
+        L_vertical = bmm4d.grid.active_laplacian(active_mask_3d, bmm4d.grid.get_water_mask(g), -1, g, ...
+            length_scale_m=[g.dx opt.prior_correlation_vertical_m]) / 0.5;
+        prior_precision = prior_precision + L_vertical;
         clear L_vertical
     end
     % Same marginal variance as the white prior: on an unbounded lattice,
@@ -196,17 +196,20 @@ for i_t = 1:n_time - 1
     steps{i_t} = struct("source", source, "dest", dest, "coeff", cast(coeff, cls));
 end
 
-%% Term weights, as in the paper solver ----------------------------------------
-prior_scales = opt.prior .* data_block_norms ./ sqrt(n_active);
-smoothness_scales = opt.smoothness .* data_block_norms ./ max(laplacian_norm, eps);
+%% Term weights (root-mean-square blocks) ---------------------------------------
+% Root-mean-square blocks: prior, smoothness and shape residuals averaged
+% over the active cells, advection over the links of each step.
+cell_scales = ones(1, n_time) ./ sqrt(n_active);
+prior_scales = opt.prior .* cell_scales;
+smoothness_scales = opt.smoothness .* cell_scales;
 advection_scales = zeros(max(n_time - 1, 0), 1);
 if opt.advection > 0
     for i_t = 1:n_time - 1
-        advection_scales(i_t) = opt.advection .* max(mean(data_block_norms(i_t:i_t + 1)), 1) ./ max(advection_base_norms(i_t), eps);
+        advection_scales(i_t) = opt.advection ./ max(advection_base_norms(i_t), eps);
     end
 end
 
-shape_scales = opt.shape .* data_block_norms ./ sqrt(n_active);
+shape_scales = opt.shape .* cell_scales;
 if isempty(prior_precision)
     rhs = data_rhs + double(prior_active) .* prior_scales .^ 2;
     diagonal = data_diagonal + prior_scales .^ 2 + laplacian_diagonal .* smoothness_scales .^ 2;

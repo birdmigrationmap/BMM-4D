@@ -241,6 +241,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             g.z = [500 1500];
             g.dx = 1000;
             g.dy = 1000;
+            g.dz = 1000;
             g.mask_water = false(g.sz(1:2));
         end
 
@@ -256,9 +257,9 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
             steps = bmm4d.advect.build_profile_advection_steps(g, {[1 0; 0 0]}, 1000, boundary_mode="open");
             laplacian = bmm4d.grid.LaplacianMatrix(g, water=false, coeff_horver=0);
             data_scale = 1 / sqrt(n_obs);
-            data_norm = max(norm(data_scale .* F, "fro"), 1);
-            prior_scale = 0.4 .* data_norm ./ sqrt(nxyz);
-            smoothness_scale = 0.3 .* data_norm ./ norm(laplacian, "fro");
+            % Root-mean-square blocks: regularization residuals averaged over cells
+            prior_scale = 0.4 ./ sqrt(nxyz);
+            smoothness_scale = 0.3 ./ sqrt(nxyz);
             local_A = [data_scale .* F; prior_scale .* speye(nxyz); smoothness_scale .* laplacian];
             local_b_1 = [data_scale .* full(obs_matrix(:, 1)); prior_scale .* reshape(prior_field(:, :, :, 1), [], 1); zeros(nxyz, 1)];
             local_b_2 = [data_scale .* full(obs_matrix(:, 2)); prior_scale .* reshape(prior_field(:, :, :, 2), [], 1); zeros(nxyz, 1)];
@@ -269,7 +270,7 @@ classdef jointMosaicVpInversionTest < matlab.unittest.TestCase
                 [(1:n_step)'; (1:n_step)'], ...
                 [double(step.source_id_valid); nxyz + double(step.dest_id_valid)], ...
                 [-coeff; coeff], n_step, 2 * nxyz);
-            advection_scale = 0.9 .* data_norm ./ norm(advection_operator, "fro");
+            advection_scale = 0.9 ./ norm(advection_operator, "fro");
             A_explicit = [ ...
                 local_A sparse(size(local_A, 1), nxyz); ...
                 sparse(size(local_A, 1), nxyz) local_A; ...

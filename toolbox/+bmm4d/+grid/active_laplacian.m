@@ -1,4 +1,4 @@
-function L = active_laplacian(active_mask_3d, water_mask, coeff_horver, store_class)
+function L = active_laplacian(active_mask_3d, water_mask, coeff_horver, g, options)
 %ACTIVE_LAPLACIAN 3D smoothness operator restricted to active cells.
 %   Same operator as toolbox/grid/LaplacianMatrix.m with water=true, but
 %   built directly on the active cells (the full-grid operator does not fit
@@ -8,10 +8,21 @@ function L = active_laplacian(active_mask_3d, water_mask, coeff_horver, store_cl
 %   of the remaining link weights (inactive neighbours act as the grid
 %   boundary). With every cell active, L equals LaplacianMatrix(g,
 %   water=true, coeff_horver=coeff_horver).
+%
+%   As LaplacianMatrix, links are in physical units: each axis is weighted
+%   by (l / spacing)^2 with l = OPTIONS.length_scale_m ([l_h l_z], default
+%   [2000 100] m) and the spacing of grid G.
+%   OPTIONS.store_class is "double" (default) or "single".
 
-if nargin < 4
-    store_class = "double";
+arguments
+    active_mask_3d
+    water_mask
+    coeff_horver (1,1) double
+    g struct
+    options.length_scale_m (1,2) double {mustBePositive} = [2000 100]
+    options.store_class (1,1) string = "double"
 end
+axis_weights = [(options.length_scale_m(1) / g.dx)^2, (options.length_scale_m(1) / g.dy)^2, (options.length_scale_m(2) / g.dz)^2];
 sz = size(active_mask_3d, 1:3);
 active_id = find(active_mask_3d(:));
 n_active = numel(active_id);
@@ -23,7 +34,7 @@ xy_id = sub2ind(sz(1:2), ix, iy);
 
 strides = [1, sz(1), sz(1) * sz(2)];
 limits = {ix < sz(1), iy < sz(2), iz < sz(3)};
-weights = [(1 + coeff_horver) / 6, (1 + coeff_horver) / 6, (1 - 2 * coeff_horver) / 6];
+weights = axis_weights .* [(1 + coeff_horver) / 6, (1 + coeff_horver) / 6, (1 - 2 * coeff_horver) / 6];
 rows = cell(3, 1);
 cols = cell(3, 1);
 vals = cell(3, 1);
@@ -45,7 +56,7 @@ for d = 1:3
     diagonal = diagonal + weights(d) .* (accumarray(from, 1, [n_active 1]) + accumarray(to, 1, [n_active 1]));
 end
 L = sparse([vertcat(rows{:}); (1:n_active)'], [vertcat(cols{:}); (1:n_active)'], [vertcat(vals{:}); diagonal], n_active, n_active);
-if store_class == "single"
+if options.store_class == "single"
     L = single(L);
 end
 end

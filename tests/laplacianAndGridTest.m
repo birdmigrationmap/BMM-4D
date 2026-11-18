@@ -34,7 +34,8 @@ classdef laplacianAndGridTest < matlab.unittest.TestCase
 
         function testLaplacianUsesXFastestOrdering(testCase)
             g = laplacianAndGridTest.grid([5 3 4]);
-            L = bmm4d.grid.LaplacianMatrix(g, water=false);
+            % Length scales equal to the spacing keep index-unit differences.
+            L = bmm4d.grid.LaplacianMatrix(g, water=false, length_scale_m=[g.dx g.dz]);
             [x_id, y_id, z_id] = ndgrid(1:g.sz(1), 1:g.sz(2), 1:g.sz(3));
 
             % A field quadratic in x only has a constant second difference
@@ -50,6 +51,32 @@ classdef laplacianAndGridTest < matlab.unittest.TestCase
             response_z = reshape(L * z_id(:) .^ 2, g.sz);
             testCase.verifyEqual(response_z(:, :, 2:end-1), -ones(g.sz - [0 0 2]) / 3, AbsTol=1e-12)
             testCase.verifyEqual(response_z - response_z(1, 1, :), zeros(g.sz), AbsTol=1e-12)
+        end
+
+        function testLaplacianUsesPhysicalUnits(testCase)
+            % The same physical field on a grid twice as fine (horizontally
+            % and vertically) gives the same interior response: the operator
+            % approximates l_h^2 grad_h^2 + l_z^2 d2/dz2.
+            length_scale_m = [3000 150];
+            g_coarse = laplacianAndGridTest.grid([6 5 6]);
+            g_fine = laplacianAndGridTest.grid([11 9 11]);
+            g_fine.dx = g_coarse.dx / 2; g_fine.dy = g_coarse.dy / 2; g_fine.dz = g_coarse.dz / 2;
+            g_fine.x = (0:g_fine.sz(1) - 1) .* g_fine.dx;
+            g_fine.y = (0:g_fine.sz(2) - 1)' .* g_fine.dy;
+            g_fine.z = (0:g_fine.sz(3) - 1)' .* g_fine.dz + g_fine.dz / 2;
+            field = @(g) laplacianAndGridTest.quadratic_field(g);
+
+            response_coarse = reshape(bmm4d.grid.LaplacianMatrix(g_coarse, water=false, length_scale_m=length_scale_m) * field(g_coarse), g_coarse.sz);
+            response_fine = reshape(bmm4d.grid.LaplacianMatrix(g_fine, water=false, length_scale_m=length_scale_m) * field(g_fine), g_fine.sz);
+            % Second derivatives of x^2 + 3 y^2 + 50 z^2 are 2, 6 and 100.
+            expected = -(length_scale_m(1)^2 * (2 + 6) + length_scale_m(2)^2 * 100) / 6;
+            testCase.verifyEqual(response_coarse(2:end-1, 2:end-1, 2:end-1), expected .* ones(g_coarse.sz - 2), RelTol=1e-10)
+            testCase.verifyEqual(response_fine(2:end-1, 2:end-1, 2:end-1), expected .* ones(g_fine.sz - 2), RelTol=1e-10)
+
+            % active_laplacian with the same axis weights is the same operator.
+            L_active = bmm4d.grid.active_laplacian(true(g_coarse.sz), false(g_coarse.sz(1:2)), 0, g_coarse, ...
+                length_scale_m=length_scale_m);
+            testCase.verifyEqual(full(L_active), full(bmm4d.grid.LaplacianMatrix(g_coarse, water=false, length_scale_m=length_scale_m)), RelTol=1e-12, AbsTol=1e-9)
         end
 
         function testCoeffHorverLimits(testCase)
@@ -148,6 +175,11 @@ classdef laplacianAndGridTest < matlab.unittest.TestCase
     end
 
     methods (Static, Access=private)
+        function values = quadratic_field(g)
+            [x_m, y_m, z_m] = ndgrid(g.x(:), g.y(:), g.z(:));
+            values = x_m(:) .^ 2 + 3 * y_m(:) .^ 2 + 50 * z_m(:) .^ 2;
+        end
+
         function g = grid(sz)
             g.sz = sz;
             g.dx = 1000;
