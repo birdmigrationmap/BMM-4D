@@ -4,7 +4,7 @@ function job = bmm4d_submit(name, command, options)
 %   now on this laptop (with uncommitted changes) is copied to the cluster,
 %   frozen, and COMMAND runs there after setup_paths (project_root is set).
 %   JOB holds the Slurm id and the job folder on the cluster and on this
-%   laptop (/Volumes/UNIT_Vogelzug), with provenance.txt, the snapshot and
+%   laptop (/Volumes/rn, the cluster home), with provenance.txt, the snapshot and
 %   the Slurm log.
 %
 %   Options: CPUs (8), Memory ("32G"), Time ("1-00:00:00"), Partition ("normal").

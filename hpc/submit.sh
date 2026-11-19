@@ -20,7 +20,7 @@
 set -euo pipefail
 
 HOST=merula
-JOBS=/mnt/ceph/DOM_Forschung/UNIT_Vogelzug/BMM-4D/jobs   # laptop: /Volumes/UNIT_Vogelzug/BMM-4D/jobs
+JOBS=/home/vogelwarte.ch/rn/BMM/bmm4d/v3/jobs   # laptop: /Volumes/rn/BMM/bmm4d/v3/jobs
 CPUS=8; MEM=32G; TIME=1-00:00:00; PARTITION=normal
 
 usage() { sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
@@ -64,7 +64,7 @@ printf '%s\n' "$COMMAND" > "$STAGE/command.m"
 ssh -o BatchMode=yes $HOST "mkdir -p '$REMOTE/code'"
 rsync -a --files-from="$STAGE/files.txt" "$ROOT/" "$HOST:$REMOTE/code/"
 rsync -a "$STAGE/provenance.txt" "$STAGE/uncommitted.diff" "$STAGE/command.m" "$HOST:$REMOTE/"
-ssh -o BatchMode=yes $HOST "cp ~/bmm4d/local_settings.json '$REMOTE/code/' && chmod -R a-w '$REMOTE/code'"
+ssh -o BatchMode=yes $HOST "cp ~/BMM/bmm4d/v3/local_settings.json '$REMOTE/code/' && chmod -R a-w '$REMOTE/code'"
 
 # Submit from the snapshot
 SLURM_ID=$(ssh -o BatchMode=yes $HOST "cd '$REMOTE' && sbatch --parsable --job-name='$NAME' \
@@ -74,5 +74,5 @@ echo "slurm:      $SLURM_ID" | ssh -o BatchMode=yes $HOST "cat >> '$REMOTE/prove
 
 echo "Submitted $JOB_ID as Slurm job $SLURM_ID"
 echo "  cluster: $REMOTE"
-echo "  laptop:  /Volumes/UNIT_Vogelzug/BMM-4D/jobs/$JOB_ID"
+echo "  laptop:  /Volumes/rn/BMM/bmm4d/v3/jobs/$JOB_ID"
 echo "  status:  ssh $HOST squeue -j $SLURM_ID    log: slurm-$SLURM_ID.out"
