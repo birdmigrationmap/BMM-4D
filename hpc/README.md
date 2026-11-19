@@ -28,23 +28,26 @@ The command runs after `project_root = setup_paths();`, from the snapshot's root
 2. **Every job is traceable**: its folder holds `provenance.txt` (commit, branch, uncommitted files,
    options, node, versions of the external code, start, end, exit code), `uncommitted.diff`,
    `command.m`, `code/` and the Slurm log `slurm-<id>.out`.
-3. **Settings are per machine**: jobs use the cluster's `~/bmm4d/local_settings.json`, never the
+3. **Settings are per machine**: jobs use the cluster's `~/BMM/bmm4d/v2/local_settings.json`, never the
    laptop's.
 4. **Data stays in place** on the shared Vogelzug storage, which the laptop also mounts.
 5. **External code is fixed**: wsrlib, regtools and FastGaussianSimulation are installed once in
-   `~/bmm4d/deps` (wsrlib compiled for Linux by `~/bmm4d/deps/compile_wsrlib.sh`). Change them on
+   `~/BMM/deps` (wsrlib compiled for Linux by `~/BMM/deps/compile_wsrlib.sh`). Change them on
    purpose, then recompile.
 
 ## Where things are
 
-| What | Cluster (`/mnt/ceph/DOM_Forschung/UNIT_Vogelzug/…`) | Laptop (`/Volumes/UNIT_Vogelzug/…`) |
-| --- | --- | --- |
-| Job folders | `BMM-4D/jobs/<date>_<name>/` | same |
-| Raw NEXRAD volumes | `weather_radar_us/nexrad_level2` (`nexrad_raw_dir`) | same (`nexrad_shared_dir`, read only) |
-| Data folder (`data_dir`) | `BMM-4D/data` (copy of the laptop's `data/`) | same |
-| Products, figures | `BMM-4D/products`, `BMM-4D/figures` | same |
+All BMM work on the cluster lives in the private folder `~/BMM` (README there): cluster
+`/home/vogelwarte.ch/rn/BMM`, laptop `/Volumes/rn/BMM` (`vw mount rn`). This checkout is version `v2`.
 
-On the cluster only: settings `~/bmm4d/local_settings.json`, external code `~/bmm4d/deps/`, MATLAB
+| What | Cluster (`~/BMM/…`) | Laptop (`/Volumes/rn/BMM/…`) |
+| --- | --- | --- |
+| Job folders | `bmm4d/v2/jobs/<date>_<name>/` | same |
+| Raw NEXRAD volumes | `data/nexrad_level2` (`nexrad_raw_dir`) | same (`nexrad_shared_dir`, read only) |
+| Data folder (`data_dir`) | `data` (shared by all versions, read-only for jobs) | same |
+| Products, figures | `bmm4d/v2/products`, `bmm4d/v2/figures` | same |
+
+On the cluster only: settings `~/BMM/bmm4d/v2/local_settings.json`, external code `~/BMM/deps/`, MATLAB
 `~/matlab/` (see `~/matlab/README`).
 
 ## Pitfalls
@@ -54,7 +57,7 @@ On the cluster only: settings `~/bmm4d/local_settings.json`, external code `~/bm
 - **Parallel workers**: `clean_volumes`, `build_observations` and `static_clutter` start 6 workers
   (fixed in the code), hence 8 CPUs by default; more CPUs only help multithreaded MATLAB steps.
 - **Reference data are a copy**: after regenerating `data/reference` or `data/derived` on the
-  laptop, copy them again (`rsync -a data/reference data/derived merula:/mnt/ceph/DOM_Forschung/UNIT_Vogelzug/BMM-4D/data/`).
+  laptop, copy them again as a new version under `/Volumes/rn/BMM/data/` (never overwrite: the folder is shared by all versions).
 - **New system calls**: the MATLAB image only has the programs listed in
   `~/apptainer/matlab-build-r2026b.def`. Code that calls another program (`system(...)`) fails on
   the cluster until it is added there.

@@ -12,7 +12,7 @@ cd "$SNAP/code"
 {
   echo "node:       $(hostname), slurm job ${SLURM_JOB_ID:-}, ${SLURM_CPUS_PER_TASK:-?} CPUs"
   for d in wsrlib regtools FastGaussianSimulation; do
-    echo "$d: $(git -C "$HOME/bmm4d/deps/$d" rev-parse --short HEAD 2>/dev/null || echo 'not a git checkout')"
+    echo "$d: $(git -C "$HOME/BMM/deps/$d" rev-parse --short HEAD 2>/dev/null || echo 'not a git checkout')"
   done
   echo "started:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } >> "$SNAP/provenance.txt"
